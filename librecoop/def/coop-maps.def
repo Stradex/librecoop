@@ -1,0 +1,27 @@
+mapDef coop/coopbox {
+	"name"		"Coop Testbox"
+	"Deathmatch"		"0"
+	"Team DM"		"0"
+	"Last Man"		"0"
+	"Tourney"		"0"
+	"Coop"			"1"
+}
+
+mapDef coop/game/mars_city1 {
+	"name"		"Mars city 1 test"
+	"Deathmatch"		"0"
+	"Team DM"		"0"
+	"Last Man"		"0"
+	"Tourney"		"0"
+	"Coop"			"1"
+}
+
+mapDef coop/game/cpuboss {
+	"name"		"CPUBOSS test"
+	"Deathmatch"		"0"
+	"Team DM"		"0"
+	"Last Man"		"0"
+	"Tourney"		"0"
+	"Coop"			"1"
+}
+

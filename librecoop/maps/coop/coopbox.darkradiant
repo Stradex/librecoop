@@ -1,0 +1,37 @@
+DarkRadiant Map Information File Version 2
+{
+	Layers
+	{
+		Layer 0 { Default }
+	}
+	NodeToLayerMapping
+	{
+		Node { 0 } // entity (world)
+		Node { 0 } // brush (Brush)
+		Node { 0 } // brush (Brush)
+		Node { 0 } // brush (Brush)
+		Node { 0 } // brush (Brush)
+		Node { 0 } // brush (Brush)
+		Node { 0 } // brush (Brush)
+		Node { 0 } // entity (info_player_deathmatch_1)
+		Node { 0 } // entity (info_player_deathmatch_2)
+		Node { 0 } // entity (info_player_deathmatch_3)
+		Node { 0 } // entity (info_player_deathmatch_4)
+		Node { 0 } // entity (info_player_start_1)
+		Node { 0 } // entity (monster_zombie_fat_1)
+		Node { 0 } // entity (light_1)
+	}
+	MapEditTimings
+	{
+		TotalSecondsEdited { 384 }
+	}
+	SelectionSets
+	{
+	}
+	SelectionGroups
+	{
+	}
+	SelectionGroupNodeMapping
+	{
+	}
+}
