@@ -249,6 +249,8 @@ extern idCVar	si_spectators;
 
 extern idCVar	net_clientSelfSmoothing;
 extern idCVar	net_clientLagOMeter;
+extern idCVar	net_clientCoopDebug; //added for debug stuff only
+
 
 extern const char *si_gameTypeArgs[];
 

@@ -4971,15 +4971,6 @@ void idAI::ClientPredictionThink( void ) {
 	//this->Think();
 
 	if ( thinkFlags & TH_PHYSICS ) { //edited
-		// clear out the enemy when he dies or is hidden
-		/*
-		idActor *enemyEnt = enemy.GetEntity();
-		if ( enemyEnt ) {
-			if ( enemyEnt->health <= 0 ) {
-				EnemyDead();
-			}
-		}
-		*/
 
 		current_yaw += deltaViewAngles.yaw;
 		ideal_yaw = idMath::AngleNormalize180( ideal_yaw + deltaViewAngles.yaw );
@@ -5048,6 +5039,7 @@ void idAI::ClientPredictionThink( void ) {
 		AI_SPECIAL_DAMAGE = 0;
 		AI_PUSHED = false;
 	}
+
 	//else if ( thinkFlags & TH_PHYSICS ) {
 	//	RunPhysics();
 	//}
@@ -5375,7 +5367,9 @@ void idAI::CSAnimMove( void ) {
 
 	
 	idVec3 org = physicsObj.GetOrigin();
-	/* 
+
+	/*  
+	//No touch triggers in coop
 	if ( oldorigin != org ) {
 		TouchTriggers();
 	}
