@@ -59,6 +59,7 @@ If you have questions concerning this license or the applicable additional terms
 #define MAX_GAME_MESSAGE_SIZE	8192
 #define MAX_ENTITY_STATE_SIZE	512
 #define ENTITY_PVS_SIZE			((MAX_GENTITIES+31)>>5)
+#define CS_ENTITIES_START		(MAX_GENTITIES-1000) //added by stradex for client-side entities
 
 // content masks
 #define	MASK_ALL				(-1)

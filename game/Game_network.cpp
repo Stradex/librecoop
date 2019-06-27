@@ -1835,7 +1835,8 @@ idEntity* idGameLocal::getEntityByEntityNumber(int entityNum)
 int idGameLocal::getFreeEntityNumber( void ) {
 	int i;
 	idEntity* ent;
-	for( i = MAX_CLIENTS; i < ENTITYNUM_MAX_NORMAL; i++ ) {
+	//for( i = MAX_CLIENTS; i < ENTITYNUM_MAX_NORMAL; i++ ) {
+	for (i = CS_ENTITIES_START; i < MAX_GENTITIES; i++) { //Client-side entities from 3096 to 4095
 		ent = entities[i];
 		if (!ent) {
 			return i;
