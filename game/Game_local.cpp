@@ -3077,13 +3077,18 @@ Finds the spawn function for the entity and calls it,
 returning false if not found
 ===================
 */
-bool idGameLocal::SpawnEntityDef( const idDict &args, idEntity **ent, bool setDefaults ) {
+bool idGameLocal::SpawnEntityDef( const idDict &args, idEntity **ent, bool setDefaults, bool bIsClientReadSnapshot  ) {
 	const char	*classname;
 	const char	*spawn;
 	idTypeInfo	*cls;
 	idClass		*obj;
 	idStr		error;
 	const char  *name;
+
+	/*
+	if (!bIsClientReadSnapshot && gameLocal.isClient) {
+		common->Warning("[COOP] entity %s spawned outside of clientReadSnapshot!!\n", args.GetString("name", "unkwown")); //added for coop debug
+	}*/
 
 	if ( ent ) {
 		*ent = NULL;

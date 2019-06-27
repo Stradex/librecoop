@@ -364,7 +364,7 @@ bool idItem::Pickup( idPlayer *player ) {
 		return false;
 	}
 
-	if ( gameLocal.isServer ) {
+	if ( gameLocal.isServer && !gameLocal.mpGame.IsGametypeCoopBased() ) { //not sending events in coop
 		ServerSendEvent( EVENT_PICKUP, NULL, false, -1 );
 	}
 
@@ -542,7 +542,7 @@ idItem::Event_Respawn
 ================
 */
 void idItem::Event_Respawn( void ) {
-	if ( gameLocal.isServer ) {
+	if ( gameLocal.isServer && !gameLocal.mpGame.IsGametypeCoopBased() ) {  //not sending events in coop
 		ServerSendEvent( EVENT_RESPAWN, NULL, false, -1 );
 	}
 	BecomeActive( TH_THINK );
@@ -561,7 +561,7 @@ idItem::Event_RespawnFx
 ================
 */
 void idItem::Event_RespawnFx( void ) {
-	if ( gameLocal.isServer ) {
+	if ( gameLocal.isServer && !gameLocal.mpGame.IsGametypeCoopBased() ) { //not sending events in coop
 		ServerSendEvent( EVENT_RESPAWNFX, NULL, false, -1 );
 	}
 	const char *sfx = spawnArgs.GetString( "fxRespawn" );

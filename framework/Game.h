@@ -42,6 +42,7 @@ class idRenderModelManager;
 class idUserInterface;
 class idUserInterfaceManager;
 class idNetworkSystem;
+class idPlayer; //added for Coop (if crash or something, then we're moving to game_local)
 
 /*
 ===============================================================================
@@ -196,6 +197,10 @@ public:
 	virtual bool				DownloadRequest( const char *IP, const char *guid, const char *paks, char urls[ MAX_STRING_CHARS ] ) = 0;
 
 	virtual void				GetMapLoadingGUI( char gui[ MAX_STRING_CHARS ] ) = 0;
+
+	//added by Stradex for Coop
+	// Runs a game frame, may return a session command for level changing, etc
+	virtual gameReturn_t		RunClientSideFrame(idPlayer	*clientPlayer, const usercmd_t *clientCmds ) = 0;
 };
 
 extern idGame *					game;

@@ -635,6 +635,10 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 			continue;
 		}
 
+		if (mpGame.IsGametypeCoopBased() && ent->IsType(idItem::Type)) {
+			continue; //lot of items in SP maps, let these be client-side
+		}
+
 		/*
 		if (mpGame.IsGametypeCoopBased() &&
 			(ent->IsType(idStaticEntity::Type) || ent->IsType(idFuncSmoke::Type) || ent->IsType(idTextEntity::Type) ||
@@ -1091,18 +1095,17 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 				common->Warning( "ClientReadSnapshot: recycling client entity %d\n", i );
 			}
 			
-			if (mpGame.IsGametypeCoopBased()) {
-				
-				idEntity* replacedEnt;
-				//replacedEnt = getEntityBySpawnId(spawnId);
-				replacedEnt = getEntityByEntityNumber(i);
-				if (replacedEnt) {
-					common->Printf("[COOP DEBUG] spawnId mismatch in entity: %s...\n", replacedEnt->GetName()); //for debug
-				} else {
-					common->Printf("[COOP DEBUG] Creating new entity...\n"); //for debug
+			//Pretty dirty hack stuff for COOP, FIXME: search for a best workaround
+			if (ent && (ent->IsType(idProjectile::Type) || ent->IsType(idTrigger::Type) || ent->spawnedByServer || ent->spawnArgs.GetBool("dropped") || ((ent->entityDefNumber == entityDefNumber) && (ent->GetType()->typeNum == typeNum)))) {
+				//delete ent;
+				//common->Printf("Por seguridad te eliminamos\n");
+				if (ent->spawnedByServer) {
+					common->Printf("Deleting %s anyways cause was spawned by server...\n", ent->GetName());
 				}
+				delete ent;
+			} else {
+				duplicateEntity(ent);
 			}
-			delete ent;
 
 			spawnCount = spawnId;
 
@@ -1118,7 +1121,7 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 				}
 				classname = declManager->DeclByIndex( DECL_ENTITYDEF, entityDefNumber, false )->GetName();
 				args.Set( "classname", classname );
-				if ( !SpawnEntityDef( args, &ent ) || !entities[i] || entities[i]->GetType()->typeNum != typeNum ) {
+				if ( !SpawnEntityDef( args, &ent, true, true ) || !entities[i] || entities[i]->GetType()->typeNum != typeNum ) {
 					Error( "Failed to spawn entity with classname '%s' of type '%s'", classname, typeInfo->classname );
 				}
 			} else {
@@ -1130,6 +1133,8 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 			if ( i < MAX_CLIENTS && i >= numClients ) {
 				numClients = i + 1;
 			}
+
+			ent->spawnedByServer = true; //Added  by Stradex for Coop
 		}
 
 		// add the entity to the snapshot list
@@ -1731,7 +1736,7 @@ gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const userc
 			common->Printf("Ignoring player clientside\n");
 			continue;
 		}
-		if (ent->fl.networkSync && !ent->IsType(idMover::Type) && !ent->IsType(idElevator::Type) && !ent->IsType(idDoor::Type) && !ent->IsType(idRotater::Type)) {
+		if (ent->fl.networkSync && !ent->IsType(idItem::Type) && !ent->IsType(idMover::Type) && !ent->IsType(idElevator::Type) && !ent->IsType(idDoor::Type) && !ent->IsType(idRotater::Type)) {
 			continue; //FIXME LATER, no need of this, I need to solve the duplicated entities problem at clientreadsnapshot and serverwritesnapshot
 		}
 		ent->thinkFlags |= TH_PHYSICS;
@@ -1824,6 +1829,83 @@ idEntity* idGameLocal::getEntityByEntityNumber(int entityNum)
 	}
 
 	return NULL;
+}
+
+
+int idGameLocal::getFreeEntityNumber( void ) {
+	int i;
+	idEntity* ent;
+	for( i = MAX_CLIENTS; i < ENTITYNUM_MAX_NORMAL; i++ ) {
+		ent = entities[i];
+		if (!ent) {
+			return i;
+		}
+	}
+	return -1; //no free slot o.O
+}
+
+bool idGameLocal::duplicateEntity(idEntity* ent) {
+	idDict			args;
+	idTypeInfo		*typeInfo;
+
+	if (!ent) {
+		delete ent;
+		return false;
+	}
+
+	int freeEntitySlot = getFreeEntityNumber();  //FUCK NO, TRY ANOTHER THING (slow af cause bad entityNumber choice). FIXME LATER
+	if (freeEntitySlot >= MAX_CLIENTS)
+	{
+		int bakEnt_spawnId = this->GetSpawnId(ent);
+		char *bakEnt_name = (char*)malloc(strlen(ent->GetName()) + 1);
+		strcpy(bakEnt_name, ent->GetName());
+		typeInfo = idClass::GetType( ent->Type.typeNum );
+
+		int backEnt_defNumber = ent->entityDefNumber;
+
+		idVec3 bakEnt_origin = ent->GetLocalCoordinates( ent->GetPhysics()->GetOrigin() ); //get origin pos
+
+		args.Clear();
+		args.Copy(ent->spawnArgs);
+		delete ent;
+
+		args.SetInt( "spawn_entnum", freeEntitySlot );
+		args.Set( "name", bakEnt_name );
+		args.Set("origin", bakEnt_origin.ToString());
+		
+		if (this->FindEntity(bakEnt_name)) {
+			Error( "Backuped entity with name '%s' already exists!", bakEnt_name  );
+		}
+
+		//this->GetSpawnId
+
+		if ( backEnt_defNumber >= 0 ) {
+			if ( backEnt_defNumber >= declManager->GetNumDecls( DECL_ENTITYDEF ) ) {
+				//assert(0); //crash to find bug
+				Error( "(this makes non-sense) Client has %d entityDefs instead of %d", backEnt_defNumber, declManager->GetNumDecls( DECL_ENTITYDEF ) );
+			}
+			//args.Set("classname", bakEnt_classname);
+			char *bakEnt_classname = (char*)malloc(strlen(declManager->DeclByIndex( DECL_ENTITYDEF, backEnt_defNumber, false )->GetName()) + 1);
+			strcpy(bakEnt_classname, declManager->DeclByIndex( DECL_ENTITYDEF, backEnt_defNumber, false )->GetName());
+			args.Set( "classname", bakEnt_classname );
+			if ( !SpawnEntityDef( args, &ent, true, true )) {
+				//assert(0); //crash to find bug
+				Error( "Failed to spawn backup entity with classname '%s' of type '%s'", bakEnt_classname, typeInfo->classname );
+			}
+		} else {
+			ent = SpawnEntityType( *typeInfo, &args, true );
+			if ( !ent ) {
+				Error( "Failed to spawn backup entity of type '%s'", typeInfo->classname );
+			}
+		}
+		common->Printf("[COOP DEBUG] Entity backuped: %s -> %s...\n", ent->GetName(), ent->GetClassname()); //for debug
+		return true;
+	} else {
+		common->Printf("[COOP DEBUG] Unable to backup entity: %s...\n", ent->GetName()); //for debug
+	}
+
+	delete ent;
+	return false;
 }
 
 /*

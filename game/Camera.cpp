@@ -302,6 +302,12 @@ idCameraAnim::Spawn
 =====================
 */
 void idCameraAnim::Spawn( void ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		//No cameras in coop
+		return;
+	}
+
 	if ( spawnArgs.GetVector( "old_origin", "0 0 0", offset ) ) {
 		offset = GetPhysics()->GetOrigin() - offset;
 	} else {
@@ -320,6 +326,12 @@ idCameraAnim::Load
 ================
 */
 void idCameraAnim::LoadAnim( void ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		//No cameras in coop
+		return;
+	}
+
 	int			version;
 	idLexer		parser( LEXFL_ALLOWPATHNAMES | LEXFL_NOSTRINGESCAPECHARS | LEXFL_NOSTRINGCONCAT );
 	idToken		token;

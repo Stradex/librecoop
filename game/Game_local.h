@@ -373,7 +373,7 @@ public:
 	void					SetSkill( int value );
 	gameState_t				GameState( void ) const;
 	idEntity *				SpawnEntityType( const idTypeInfo &classdef, const idDict *args = NULL, bool bIsClientReadSnapshot = false );
-	bool					SpawnEntityDef( const idDict &args, idEntity **ent = NULL, bool setDefaults = true );
+	bool					SpawnEntityDef( const idDict &args, idEntity **ent = NULL, bool setDefaults = true , bool bIsClientReadSnapshot = false ); //bIsClientReadSnapshot added by Stradex for DEBUG
 	int						GetSpawnId( const idEntity *ent ) const;
 
 	const idDeclEntityDef *	FindEntityDef( const char *name, bool makeDefault = true ) const;
@@ -557,6 +557,8 @@ private:
 	bool					isSnapshotEntity(idEntity* ent); //added for COOP by Stradex
 	idEntity*				getEntityBySpawnId(int spawnId);  //added for COOP by Stradex
 	idEntity*				getEntityByEntityNumber(int entityNum);  //added for COOP by Stradex
+	int						getFreeEntityNumber( void ); //added for COOP by Stradex
+	bool					duplicateEntity(idEntity* ent); //added for Coop by stradex
 
 	virtual void			GetMapLoadingGUI( char gui[ MAX_STRING_CHARS ] );
 };

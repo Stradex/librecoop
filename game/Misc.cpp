@@ -2859,6 +2859,11 @@ idFuncRadioChatter::Event_Activate
 ================
 */
 void idFuncRadioChatter::Event_Activate( idEntity *activator ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		return; //No radio chatter in coop
+	}
+
 	idPlayer *player;
 	const char	*sound;
 	const idSoundShader *shader;

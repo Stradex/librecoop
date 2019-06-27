@@ -435,6 +435,7 @@ idEntity::idEntity() {
 	memset( &refSound, 0, sizeof( refSound ) );
 
 	mpGUIState = -1;
+	spawnedByServer = false; //added by Stradex for Coop
 }
 
 /*
