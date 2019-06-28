@@ -2448,6 +2448,7 @@ void idMover_Binary::SetMoverState( moverState_t newstate, int time ) {
 			} else {
 				physicsObj.SetLinearInterpolation( 0, 0, 0, 0, pos1, pos2 );
 			}
+			
 			break;
 		}
 		case MOVER_2TO1: {
@@ -2606,6 +2607,7 @@ idMover_Binary::Event_Reached_BinaryMover
 */
 void idMover_Binary::Event_Reached_BinaryMover( void ) {
 
+	//server-side - Singleplayer stuff
 	if ( moverState == MOVER_1TO2 ) {
 		// reached pos2
 		idThread::ObjectMoveDone( move_thread, this );
@@ -2623,11 +2625,18 @@ void idMover_Binary::Event_Reached_BinaryMover( void ) {
 
 		if ( enabled && wait >= 0 && !spawnArgs.GetBool( "toggle" ) ) {
 			// return to pos1 after a delay
-			PostEventSec( &EV_Mover_ReturnToPos1, wait );
+			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) { 
+				CS_PostEventSec( &EV_Mover_ReturnToPos1, wait ); //added this for coop
+			} else {
+				PostEventSec( &EV_Mover_ReturnToPos1, wait );
+			}
+			
 		}
 
 		// fire targets
-		ActivateTargets( moveMaster->GetActivator() );
+		if (!gameLocal.mpGame.IsGametypeCoopBased() || gameLocal.isServer) { //Don't activate targets in coop for clients
+			ActivateTargets( moveMaster->GetActivator() );
+		}
 
 		SetBlocked(false);
 	} else if ( moverState == MOVER_2TO1 ) {
@@ -2647,7 +2656,11 @@ void idMover_Binary::Event_Reached_BinaryMover( void ) {
 		}
 
 		if ( enabled && wait >= 0 && spawnArgs.GetBool( "continuous" ) ) {
-			PostEventSec( &EV_Activate, wait, this );
+			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) { 
+				CS_PostEventSec( &EV_Activate, wait, this ); //Added for client-side coop
+			} else {
+				PostEventSec( &EV_Activate, wait, this );
+			}
 		}
 
 		SetBlocked(false);
@@ -2692,7 +2705,11 @@ void idMover_Binary::GotoPosition1( void ) {
 	if ( moverState == MOVER_1TO2 ) {
 		// use the physics times because this might be executed during the physics simulation
 		partial = physicsObj.GetLinearEndTime() - physicsObj.GetTime();
-		assert( partial >= 0 );
+		if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) { //avoid crash in coop
+			partial = 0;
+		} else {
+			assert( partial >= 0 );
+		}
 		if ( partial < 0 ) {
 			partial = 0;
 		}
@@ -2711,7 +2728,6 @@ idMover_Binary::GotoPosition2
 */
 void idMover_Binary::GotoPosition2( void ) {
 	int	partial;
-
 	// only the master should control this
 	if ( moveMaster != this ) {
 		moveMaster->GotoPosition2();
@@ -2724,7 +2740,6 @@ void idMover_Binary::GotoPosition2( void ) {
 		// already there, or on the way
 		return;
 	}
-
 	if ( moverState == MOVER_POS1 ) {
 		MatchActivateTeam( MOVER_1TO2, gameLocal.time );
 
@@ -2733,12 +2748,17 @@ void idMover_Binary::GotoPosition2( void ) {
 		return;
 	}
 
-
 	// only partway up before reversing
 	if ( moverState == MOVER_2TO1 ) {
 		// use the physics times because this might be executed during the physics simulation
 		partial = physicsObj.GetLinearEndTime() - physicsObj.GetTime();
-		assert( partial >= 0 );
+
+		if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) { //avoid crash in coop
+			partial = 0;
+		} else {
+			assert( partial >= 0 );
+		}
+		
 		if ( partial < 0 ) {
 			partial = 0;
 		}
@@ -2796,15 +2816,14 @@ idMover_Binary::Use_BinaryMover
 */
 void idMover_Binary::Use_BinaryMover( idEntity *activator ) {
 	// only the master should be used
+
 	if ( moveMaster != this ) {
 		moveMaster->Use_BinaryMover( activator );
 		return;
 	}
-
 	if ( !enabled ) {
 		return;
 	}
-
 	activatedBy = activator;
 
 	if ( moverState == MOVER_POS1 ) {
@@ -2817,7 +2836,6 @@ void idMover_Binary::Use_BinaryMover( idEntity *activator ) {
 		ProcessEvent( &EV_Mover_OpenPortal );
 		return;
 	}
-
 	// if all the way up, just delay before coming down
 	if ( moverState == MOVER_POS2 ) {
 		idMover_Binary *slave;
@@ -2834,13 +2852,11 @@ void idMover_Binary::Use_BinaryMover( idEntity *activator ) {
 		}
 		return;
 	}
-
 	// only partway down before reversing
 	if ( moverState == MOVER_2TO1 ) {
 		GotoPosition2();
 		return;
 	}
-
 	// only partway up before reversing
 	if ( moverState == MOVER_1TO2 ) {
 		GotoPosition1();
@@ -3358,6 +3374,28 @@ void idDoor::Think( void ) {
 
 /*
 ================
+idDoor::ClientPredictionThink 
+================
+*/
+void idDoor::ClientPredictionThink( void ) {
+	Think(); //test
+
+	if (this->clientSideEntity) { //FIXME: This is like ductape to fix clientside only doors not closing. 
+		if (this->moverState == MOVER_1TO2) {
+		//common->Printf("stateStartTime: %d - Duration :%d\n", stateStartTime, duration);
+			if (gameLocal.time > stateStartTime + duration) { //time to close this bugged door
+				Event_Reached_BinaryMover(); //FIXME: It's called twice
+			}
+		} else if (this->moverState == MOVER_2TO1) {
+			if (gameLocal.time > stateStartTime + duration) { //Confirm the door was closed
+				SetMoverState( MOVER_POS1, gameLocal.time ); //FIXME: It's called twice
+			}
+		}
+	}
+}
+
+/*
+================
 idDoor::PreBind
 ================
 */
@@ -3496,7 +3534,9 @@ void idDoor::Use( idEntity *other, idEntity *activator ) {
 				}
 			}
 		}
-		ActivateTargets( activator );
+		if (!gameLocal.mpGame.IsGametypeCoopBased() || gameLocal.isServer) { //not activate targets in coop for clients
+			ActivateTargets( activator );
+		}
 		Use_BinaryMover( activator );
 	}
 }
@@ -3810,7 +3850,14 @@ void idDoor::Event_Touch( idEntity *other, trace_t *trace ) {
 
 	if ( trigger && trace->c.id == trigger->GetId() ) {
 		if ( !IsNoTouch() && !IsLocked() && GetMoverState() != MOVER_1TO2 ) {
+			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+				if (GetMoverState() != MOVER_POS1) { //FIXME: more ductape
+					return;
+				}
+			} 
+
 			Use( this, other );
+
 		}
 	} else if ( sndTrigger && trace->c.id == sndTrigger->GetId() ) {
 		if ( other && other->IsType( idPlayer::Type ) && IsLocked() && gameLocal.time > nextSndTriggerTime ) {
@@ -3837,6 +3884,7 @@ void idDoor::Event_SpectatorTouch( idEntity *other, trace_t *trace ) {
 	if ( p->lastSpectateTeleport > gameLocal.time - 1000 ) {
 		return;
 	}
+
 	if ( trigger && !IsOpen() ) {
 		// teleport to the other side, center to the middle of the trigger brush
 		bounds = trigger->GetAbsBounds();

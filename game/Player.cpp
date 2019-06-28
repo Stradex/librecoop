@@ -7849,6 +7849,10 @@ void idPlayer::ClientPredictionThink( void ) {
 	if ( !isLagged ) {
 		// don't allow client to move when lagged
 		Move();
+
+		if ( !noclip && !spectating && ( health > 0 ) && !IsHidden() && gameLocal.isNewFrame ) { //Touch triggers 
+			ClientTouchTriggers(); //specific client-side triggers
+		}
 	}
 
 	// update GUIs, Items, and character interactions
@@ -8527,4 +8531,155 @@ idPlayer::NeedsIcon
 bool idPlayer::NeedsIcon( void ) {
 	// local clients don't render their own icons... they're only info for other clients
 	return entityNumber != gameLocal.localClientNum && ( isLagged || isChatting );
+}
+
+/***************
+COOP specific stuff
+****************/
+
+/*
+======
+idInventory::CS_Give
+==========
+*/
+
+bool idInventory::CS_Give( idPlayer *owner, const idDict &spawnArgs, const char *statname, const char *value, int *idealWeapon, bool updateHud ) {
+	int						i;
+	const char				*pos;
+	const char				*end;
+	int						len;
+	idStr					weaponString;
+	int						max;
+	const idDeclEntityDef	*weaponDecl;
+	bool					tookWeapon;
+	int						amount;
+	idItemInfo				info;
+	const char				*name;
+
+	if ( !idStr::Icmpn( statname, "ammo_", 5 ) ) {
+		i = AmmoIndexForAmmoClass( statname );
+		max = MaxAmmoForAmmoClass( owner, statname );
+		if ( ammo[ i ] >= max ) {
+			return false;
+		}
+	} else if ( !idStr::Icmp( statname, "armor" ) ) {
+		if ( armor >= maxarmor ) {
+			return false;	// can't hold any more, so leave the item
+		}
+	} else if ( !idStr::Icmp( statname, "weapon" ) ) {
+		tookWeapon = false;
+		for( pos = value; pos != NULL; pos = end ) {
+			end = strchr( pos, ',' );
+			if ( end ) {
+				len = end - pos;
+				end++;
+			} else {
+				len = strlen( pos );
+			}
+
+			idStr weaponName( pos, 0, len );
+
+			// find the number of the matching weapon name
+			for( i = 0; i < MAX_WEAPONS; i++ ) {
+				if ( weaponName == spawnArgs.GetString( va( "def_weapon%d", i ) ) ) {
+					break;
+				}
+			}
+
+			if ( i >= MAX_WEAPONS ) {
+				gameLocal.Error( "Unknown weapon '%s'", weaponName.c_str() );
+			}
+
+			// cache the media for this weapon
+			weaponDecl = gameLocal.FindEntityDef( weaponName, false );
+
+			// don't pickup "no ammo" weapon types twice
+			// not for D3 SP .. there is only one case in the game where you can get a no ammo
+			// weapon when you might already have it, in that case it is more conistent to pick it up
+			if ( gameLocal.isMultiplayer && weaponDecl && ( weapons & ( 1 << i ) ) && !weaponDecl->dict.GetInt( "ammoRequired" ) ) {
+				continue;
+			}
+
+			if ( !gameLocal.world->spawnArgs.GetBool( "no_Weapons" ) || ( weaponName == "weapon_fists" ) || ( weaponName == "weapon_soulcube" ) ) {
+				if ( ( weapons & ( 1 << i ) ) == 0 || gameLocal.isMultiplayer ) {
+					tookWeapon = true;
+				}
+			}
+		}
+		return tookWeapon;
+	} else if ( !idStr::Icmp( statname, "item" ) || !idStr::Icmp( statname, "icon" ) || !idStr::Icmp( statname, "name" ) ) {
+		// ignore these as they're handled elsewhere
+		return false;
+	} else {
+		// unknown item
+		gameLocal.Warning( "Unknown stat '%s' added to player's inventory", statname );
+		return false;
+	}
+
+	return true;
+}
+
+
+/*
+===============
+idPlayer::CS_Give
+===============
+*/
+bool idPlayer::CS_Give( const char *statname, const char *value ) {
+	int amount;
+
+	if ( AI_DEAD ) {
+		return false;
+	}
+
+	if ( !idStr::Icmp( statname, "health" ) ) {
+		if ( health >= inventory.maxHealth ) {
+			return false;
+		}
+
+	} else if ( !idStr::Icmp( statname, "stamina" ) ) {
+		if ( stamina >= 100 ) {
+			return false;
+		}
+
+	} else if ( !idStr::Icmp( statname, "air" ) ) {
+		if ( airTics >= pm_airTics.GetInteger() ) {
+			return false;
+		}
+	} else {
+		return inventory.CS_Give( this, spawnArgs, statname, value, &idealWeapon, true );
+	}
+	return true;
+}
+
+/*
+===============
+idPlayer::CS_GiveItem
+
+Returns false if the item shouldn't be picked up
+===============
+*/
+
+bool idPlayer::CS_GiveItem( idItem *item )
+{
+	int					i;
+	const idKeyValue	*arg;
+	idDict				attr;
+	bool				gave;
+
+	if ( spectating ) {
+		return false;
+	}
+
+	item->GetAttributes( attr );
+
+	gave = false;
+	for( i = 0; i < attr.GetNumKeyVals(); i++ ) {
+		arg = attr.GetKeyVal( i );
+		if ( CS_Give( arg->GetKey(), arg->GetValue() ) ) {
+			gave = true;
+		}
+	}
+
+	return gave;
 }

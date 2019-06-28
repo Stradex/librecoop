@@ -355,10 +355,64 @@ bool idItem::GiveToPlayer( idPlayer *player ) {
 
 /*
 ================
+idItem::CS_GiveToPlayer
+================
+*/
+bool idItem::CS_GiveToPlayer( idPlayer *player ) {
+	if ( player == NULL ) {
+		return false;
+	}
+
+	return player->CS_GiveItem( this );
+}
+
+/*
+================
 idItem::Pickup
 ================
 */
 bool idItem::Pickup( idPlayer *player ) {
+
+	float respawn = spawnArgs.GetFloat( "respawn" );
+	bool dropped = spawnArgs.GetBool( "dropped" );
+	bool no_respawn = spawnArgs.GetBool( "no_respawn" );
+
+	if ( gameLocal.isMultiplayer && respawn == 0.0f ) {
+		respawn = 20.0f;
+	}
+
+	if ( gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased() ) { //client-side pickup for coop
+
+		if ( !CS_GiveToPlayer( player ) ) {
+			return false;
+		}
+
+		StartSound( "snd_acquire", SND_CHANNEL_ITEM, 0, false, NULL );
+
+		// clear our contents so the object isn't picked up twice
+		GetPhysics()->SetContents( 0 );
+
+		// hide the model
+		Hide();
+		// add the highlight shell
+		if ( itemShellHandle != -1 ) {
+			gameRenderWorld->FreeEntityDef( itemShellHandle );
+			itemShellHandle = -1;
+		}
+
+		if ( respawn && !dropped && !no_respawn ) {
+			//common->Printf("Item should respawn in %f seconds\n", respawn);
+			const char *sfx = spawnArgs.GetString( "fxRespawn" );
+			//if ( sfx && *sfx ) {
+			//	PostEventSec( &EV_RespawnFx, respawn - 0.5f );
+			//}
+			CS_PostEventSec( &EV_RespawnItem, respawn );
+		}
+		BecomeInactive( TH_THINK );
+		return true;
+	}
+	
+	//server-side - Singleplayer pickup
 
 	if ( !GiveToPlayer( player ) ) {
 		return false;
@@ -384,14 +438,6 @@ bool idItem::Pickup( idPlayer *player ) {
 	if ( itemShellHandle != -1 ) {
 		gameRenderWorld->FreeEntityDef( itemShellHandle );
 		itemShellHandle = -1;
-	}
-
-	float respawn = spawnArgs.GetFloat( "respawn" );
-	bool dropped = spawnArgs.GetBool( "dropped" );
-	bool no_respawn = spawnArgs.GetBool( "no_respawn" );
-
-	if ( gameLocal.isMultiplayer && respawn == 0.0f ) {
-		respawn = 20.0f;
 	}
 
 	if ( respawn && !dropped && !no_respawn ) {
@@ -727,6 +773,11 @@ idObjective::Event_Trigger
 ================
 */
 void idObjective::Event_Trigger( idEntity *activator ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		return; //clients can't touch this
+	}
+
 	idPlayer *player = gameLocal.GetLocalPlayer();
 	if ( player ) {
 
@@ -1247,6 +1298,11 @@ idItemRemover::Event_Trigger
 ================
 */
 void idItemRemover::Event_Trigger( idEntity *activator ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		return; //clients can't touch this
+	}
+
 	if ( activator->IsType( idPlayer::Type ) ) {
 		RemoveItem( static_cast<idPlayer *>(activator) );
 	}
@@ -1309,6 +1365,11 @@ idObjectiveComplete::Event_Trigger
 ================
 */
 void idObjectiveComplete::Event_Trigger( idEntity *activator ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		return; //clients can't touch this
+	}
+
 	if ( !spawnArgs.GetBool( "objEnabled" ) ) {
 		return;
 	}

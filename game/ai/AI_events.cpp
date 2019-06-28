@@ -582,6 +582,12 @@ idAI::Event_AttackMissile
 =====================
 */
 void idAI::Event_AttackMissile( const char *jointname ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		//gameLocal.Warning( "[COOP] Event_AttackMissile called by a client!\n"); //not a warning, just a natural thing in coop
+		return idThread::ReturnEntity( NULL );
+	}
+
 	idProjectile *proj;
 
 	proj = LaunchProjectile( jointname, enemy.GetEntity(), true );
@@ -594,6 +600,12 @@ idAI::Event_FireMissileAtTarget
 =====================
 */
 void idAI::Event_FireMissileAtTarget( const char *jointname, const char *targetname ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		//gameLocal.Warning( "[COOP] Event_FireMissileAtTarget called by a client!\n"); //not a warning, just a natural thing in coop
+		return idThread::ReturnEntity( NULL );
+	}
+
 	idEntity		*aent;
 	idProjectile	*proj;
 
@@ -612,6 +624,12 @@ idAI::Event_LaunchMissile
 =====================
 */
 void idAI::Event_LaunchMissile( const idVec3 &org, const idAngles &ang ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		//gameLocal.Warning( "[COOP] Event_LaunchMissile called by a client!\n"); //not a warning, just a natural thing in coop
+		return idThread::ReturnEntity( NULL );
+	}
+
 	idVec3		start;
 	trace_t		tr;
 	idBounds	projBounds;

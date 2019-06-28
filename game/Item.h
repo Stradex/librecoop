@@ -56,6 +56,8 @@ public:
 	virtual bool			Pickup( idPlayer *player );
 	virtual void			Think( void );
 	virtual void			Present();
+	//SPECIFIC COOP STUFF
+	virtual bool			CS_GiveToPlayer( idPlayer *player ); //Client-side give to player
 
 	enum {
 		EVENT_PICKUP = idEntity::EVENT_MAXEVENTS,

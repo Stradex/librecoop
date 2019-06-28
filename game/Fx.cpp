@@ -690,7 +690,7 @@ idEntityFx::StartFx
 */
 idEntityFx *idEntityFx::StartFx( const char *fx, const idVec3 *useOrigin, const idMat3 *useAxis, idEntity *ent, bool bind ) {
 
-	if ( g_skipFX.GetBool() || !fx || !*fx ) {
+	if ( g_skipFX.GetBool() || !fx || !*fx || (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient)) { //FIXME: this point should never be reached in Multiplayer at all by clients
 		return NULL;
 	}
 

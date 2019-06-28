@@ -1212,10 +1212,13 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 		if ( ent->snapshotSequence == sequence ) {
 			continue;
 		}
+		if (!ent->fl.networkSync && mpGame.IsGametypeCoopBased()) {
+			continue; //ignore client-side entities in coop (IMPORTANT TO AVOID CRASHES IN COOP)
+		}
 
 		// if the entity is not in the snapshot PVS
 		if ( !( snapshot->pvs[ent->entityNumber >> 5] & ( 1 << ( ent->entityNumber & 31 ) ) ) ) {
-			if ( ent->PhysicsTeamInPVS( pvsHandle ) ) {
+			if ( ent->PhysicsTeamInPVS( pvsHandle ) ) { //causing a fatal crash in COOP
 				if ( ent->entityNumber >= MAX_CLIENTS && ent->entityNumber < mapSpawnCount ) {
 					// server says it's not in PVS, client says it's in PVS
 					// if that happens on map entities, most likely something is wrong
@@ -1721,6 +1724,7 @@ gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const userc
 		if (ent->entityNumber == clientPlayer->entityNumber) {
 			continue;
 		}
+		ent->clientSideEntity = false; //this entity is not clientside
 		ent->thinkFlags |= TH_PHYSICS;
 		ent->ClientPredictionThink();
 	}
@@ -1739,6 +1743,7 @@ gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const userc
 		if (ent->fl.networkSync && !ent->IsType(idItem::Type) && !ent->IsType(idMover::Type) && !ent->IsType(idElevator::Type) && !ent->IsType(idDoor::Type) && !ent->IsType(idRotater::Type)) {
 			continue; //FIXME LATER, no need of this, I need to solve the duplicated entities problem at clientreadsnapshot and serverwritesnapshot
 		}
+		ent->clientSideEntity = true; //this entity is now clientside
 		ent->thinkFlags |= TH_PHYSICS;
 		ent->ClientPredictionThink();
 	}
@@ -1899,6 +1904,7 @@ bool idGameLocal::duplicateEntity(idEntity* ent) {
 				Error( "Failed to spawn backup entity of type '%s'", typeInfo->classname );
 			}
 		}
+		ent->clientSideEntity = true;
 		common->Printf("[COOP DEBUG] Entity backuped: %s -> %s...\n", ent->GetName(), ent->GetClassname()); //for debug
 		return true;
 	} else {

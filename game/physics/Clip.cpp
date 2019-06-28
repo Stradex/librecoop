@@ -965,7 +965,9 @@ idClip::TestHugeTranslation
 */
 ID_INLINE bool TestHugeTranslation( trace_t &results, const idClipModel *mdl, const idVec3 &start, const idVec3 &end, const idMat3 &trmAxis ) {
 	if ( mdl != NULL && ( end - start ).LengthSqr() > Square( CM_MAX_TRACE_DIST ) ) {
-		assert( 0 );
+		if (!gameLocal.mpGame.IsGametypeCoopBased() || gameLocal.isServer) { //Avoid crash for clients in coop, ROE did the same in CTF so...
+			assert( 0 );
+		}
 
 		results.fraction = 0.0f;
 		results.endpos = start;
@@ -975,6 +977,7 @@ ID_INLINE bool TestHugeTranslation( trace_t &results, const idClipModel *mdl, co
 		results.c.entityNum = ENTITYNUM_WORLD;
 
 		if ( mdl->GetEntity() ) {
+			//SPAM in Delta labs sector 1 (client-side) by some stupid carton box, FIXME
 			gameLocal.Printf( "huge translation for clip model %d on entity %d '%s'\n", mdl->GetId(), mdl->GetEntity()->entityNumber, mdl->GetEntity()->GetName() );
 		} else {
 			gameLocal.Printf( "huge translation for clip model %d\n", mdl->GetId() );

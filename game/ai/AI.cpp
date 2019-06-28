@@ -5368,12 +5368,10 @@ void idAI::CSAnimMove( void ) {
 	
 	idVec3 org = physicsObj.GetOrigin();
 
-	/*  
-	//No touch triggers in coop
 	if ( oldorigin != org ) {
-		TouchTriggers();
+		ClientTouchTriggers(); //client-side triggers only
 	}
-	*/
+	
 
 	if ( ai_debugMove.GetBool() ) {
 		gameRenderWorld->DebugBounds( colorMagenta, physicsObj.GetBounds(), org, gameLocal.msec );

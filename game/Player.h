@@ -189,6 +189,9 @@ public:
 
 	void					UpdateArmor( void );
 
+	//COOP specific functions
+	bool					CS_Give( idPlayer *owner, const idDict &spawnArgs, const char *statname, const char *value, int *idealWeapon, bool updateHud );
+
 	int						nextItemPickup;
 	int						nextItemNum;
 	int						onePickupTime;
@@ -523,6 +526,10 @@ public:
 
 	bool					SelfSmooth( void );
 	void					SetSelfSmooth( bool b );
+
+	//Client-side stuff for coop
+	bool					CS_Give( const char *statname, const char *value );
+	bool					CS_GiveItem( idItem *item );
 
 private:
 	jointHandle_t			hipJoint;
