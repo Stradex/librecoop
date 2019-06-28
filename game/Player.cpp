@@ -8612,7 +8612,6 @@ bool idInventory::CS_Give( idPlayer *owner, const idDict &spawnArgs, const char 
 		return false;
 	} else {
 		// unknown item
-		gameLocal.Warning( "Unknown stat '%s' added to player's inventory", statname );
 		return false;
 	}
 
