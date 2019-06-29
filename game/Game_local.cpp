@@ -38,6 +38,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "gamesys/SysCvar.h"
 #include "gamesys/SysCmds.h"
 #include "script/Script_Thread.h"
+#include "Entity.h" //added for coop by Stradex
 #include "ai/AI.h"
 #include "anim/Anim_Testmodel.h"
 #include "Camera.h"
@@ -182,9 +183,11 @@ void idGameLocal::Clear( void ) {
 	}
 	memset( usercmds, 0, sizeof( usercmds ) );
 	memset( entities, 0, sizeof( entities ) );
+	memset(coopentities, 0, sizeof(coopentities)); //added for coop
 	memset( spawnIds, -1, sizeof( spawnIds ) );
 	firstFreeIndex = 0;
 	num_entities = 0;
+	num_coopentities=0;  //added for coop
 	spawnedEntities.Clear();
 	activeEntities.Clear();
 	numEntitiesToDeactivate = 0;
@@ -1168,6 +1171,19 @@ void idGameLocal::MapPopulate( void ) {
 	// spawnCount - 1 is the number of entities spawned into the map, their indexes started at MAX_CLIENTS (included)
 	// mapSpawnCount is used as the max index of map entities, it's the first index of non-map entities
 	mapSpawnCount = MAX_CLIENTS + spawnCount - 1;
+
+	
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		int i;
+		num_coopentities = 0;
+		for (i=0; i < MAX_GENTITIES; i++) {
+			if (entities[ i ] && entities[ i ]->fl.networkSync) { //coop entity
+				entities[i]->entityCoopNumber = num_coopentities;
+				coopentities[num_coopentities++] = entities[ i ];
+				//common->Printf("[COOP] Entity %s saved as coop entity...\n", entities[ i ]->GetName());
+			}
+		}
+	}
 
 	// execute pending events before the very first game frame
 	// this makes sure the map script main() function is called
@@ -3018,6 +3034,10 @@ void idGameLocal::RegisterEntity( idEntity *ent ) {
 		spawn_entnum = firstFreeIndex++;
 	}
 
+	if (ent->fl.networkSync) {
+		coopentities[num_coopentities++] = ent; //added for coop
+	}
+
 	entities[ spawn_entnum ] = ent;
 	spawnIds[ spawn_entnum ] = spawnCount++;
 	ent->entityNumber = spawn_entnum;
@@ -3043,6 +3063,7 @@ void idGameLocal::UnregisterEntity( idEntity *ent ) {
 
 	if ( ( ent->entityNumber != ENTITYNUM_NONE ) && ( entities[ ent->entityNumber ] == ent ) ) {
 		ent->spawnNode.Remove();
+		coopentities[ ent->entityCoopNumber ] = NULL; //TEST
 		entities[ ent->entityNumber ] = NULL;
 		spawnIds[ ent->entityNumber ] = -1;
 		if ( ent->entityNumber >= MAX_CLIENTS && ent->entityNumber < firstFreeIndex ) {

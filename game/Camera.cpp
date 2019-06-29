@@ -302,7 +302,6 @@ idCameraAnim::Spawn
 =====================
 */
 void idCameraAnim::Spawn( void ) {
-
 	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
 		//No cameras in coop
 		return;

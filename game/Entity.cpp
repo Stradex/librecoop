@@ -400,6 +400,7 @@ idEntity::idEntity
 idEntity::idEntity() {
 
 	entityNumber	= ENTITYNUM_NONE;
+	entityCoopNumber = ENTITYNUM_NONE;
 	entityDefNumber = -1;
 
 	spawnNode.SetOwner( this );
@@ -1968,6 +1969,7 @@ void idEntity::Unbind( void ) {
 	}
 
 	assert( ent == this ); // If ent is not pointing to this, then something is very wrong.
+	//Causing crash in coop, delta labs sector 2b. See how to fix later
 
 	// Find the last node in my team that is bound to me.
 	// Also find the first node not bound to me, if one exists.

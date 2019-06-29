@@ -233,9 +233,11 @@ public:
 	usercmd_t				usercmds[MAX_CLIENTS];	// client input commands
 	idDict					persistentPlayerInfo[MAX_CLIENTS];
 	idEntity *				entities[MAX_GENTITIES];// index to entities
+	idEntity *				coopentities[MAX_GENTITIES];	//For coop netcode only by Stradex
 	int						spawnIds[MAX_GENTITIES];// for use in idEntityPtr
 	int						firstFreeIndex;			// first free index in the entities array
 	int						num_entities;			// current number <= MAX_GENTITIES
+	int						num_coopentities;		//for coop netcode only by stradex 
 	idHashIndex				entityHash;				// hash table to quickly find entities by name
 	idWorldspawn *			world;					// world entity
 	idLinkList<idEntity>	spawnedEntities;		// all spawned entities

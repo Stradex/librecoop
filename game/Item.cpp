@@ -75,7 +75,7 @@ idItem::idItem() {
 	shellMaterial = NULL;
 	orgOrigin.Zero();
 	canPickUp = true;
-	fl.networkSync = true;
+	//fl.networkSync = true;
 }
 
 /*
