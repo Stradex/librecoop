@@ -112,6 +112,13 @@ typedef enum {
 	MOVE_STATUS_BLOCKED_BY_MONSTER
 } moveStatus_t;
 
+//ADDED FOR COOP by Stradex
+typedef enum {
+	NETACTION_NONE,
+	NETACTION_HIDE,
+	NETACTION_SHOW
+} netActionType_t;
+
 #define	DI_NODIR	-1
 
 // obstacle avoidance
@@ -293,6 +300,15 @@ public:
 							// Finds the best collision free trajectory for a clip model.
 	static bool				PredictTrajectory( const idVec3 &firePos, const idVec3 &target, float projectileSpeed, const idVec3 &projGravity, const idClipModel *clip, int clipmask, float max_height, const idEntity *ignore, const idEntity *targetEntity, int drawtime, idVec3 &aimDir );
 
+	virtual void			ClientPredictionThink( void ); //Added for COOP by Stradex
+	virtual void			WriteToSnapshot( idBitMsgDelta &msg ) const;  //Added for COOP by Stradex
+	virtual void			ReadFromSnapshot( const idBitMsgDelta &msg );  //Added for COOP by Stradex
+	virtual bool			ServerReceiveEvent( int event, int time, const idBitMsg &msg ); //Added for COOP by Stradex
+	virtual bool			ClientReceiveEvent( int event, int time, const idBitMsg &msg ); //Added for COOP by Stradex
+	void					ClientProcessNetAction(netActionType_t newAction);  //Added for COOP by Stradex
+	idPlayer				*GetClosestPlayerEnemy( void );
+
+
 #ifdef _D3XP
 	virtual void			Gib( const idVec3 &dir, const char *damageDefName );
 #endif
@@ -419,6 +435,17 @@ protected:
 	idVec3					lastReachableEnemyPos;
 	bool					wakeOnFlashlight;
 
+	//Added for coop by Stradex
+	int						lastDamageDef;
+	idVec3					lastDamageDir;
+	int						lastDamageLocation;
+	int						currentTorsoAnim;
+	int						currentLegsAnim;
+	netActionType_t			currentNetAction;
+	idStr					currentVoiceSND;
+	idStr					currentDamageSND;
+
+
 #ifdef _D3XP
 	bool					spawnClearMoveables;
 
@@ -483,6 +510,9 @@ protected:
 	void					FlyTurn( void );
 	void					FlyMove( void );
 	void					StaticMove( void );
+
+	//client-side movement for Coop
+	void					CSAnimMove( void );
 
 	// damage
 	virtual bool			Pain( idEntity *inflictor, idEntity *attacker, int damage, const idVec3 &dir, int location );

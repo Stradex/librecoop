@@ -970,7 +970,9 @@ ID_INLINE bool TestHugeTranslation( trace_t &results, const idClipModel *mdl, co
 		// in the PVS of a player that has a flag that is spawning the idMoveableItem
 		// "nuggets".  The error seems benign and the assert was getting in the way
 		// of testing.
-		assert( 0 );
+		if (!gameLocal.mpGame.IsGametypeCoopBased() || gameLocal.isServer) { //Avoid crash for clients in coop, ROE did the same in CTF so...
+			assert( 0 );
+		}
 #endif
 
 		results.fraction = 0.0f;

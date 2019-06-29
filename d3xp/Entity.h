@@ -143,6 +143,9 @@ public:
 
 	int						health;					// FIXME: do all objects really need health?
 
+	bool					spawnedByServer;		// When entity is spawned by the server, added by stradex for COOP
+	bool					clientSideEntity;		// FIXME: I think there's no need of this but well... for COOP
+
 	struct entityFlags_s {
 		bool				notarget			:1;	// if true never attack or target this entity
 		bool				noknockback			:1;	// if true no knockback from hits
@@ -352,6 +355,7 @@ public:
 	// misc
 	virtual void			Teleport( const idVec3 &origin, const idAngles &angles, idEntity *destination );
 	bool					TouchTriggers( void ) const;
+	bool					ClientTouchTriggers( void ) const; //added for Coop
 	idCurve_Spline<idVec3> *GetSpline( void ) const;
 	virtual void			ShowEditingDialog( void );
 

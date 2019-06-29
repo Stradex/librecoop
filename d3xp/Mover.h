@@ -407,6 +407,8 @@ public:
 	void					Open( void );
 	void					SetCompanion( idDoor *door );
 
+	virtual void			ClientPredictionThink( void ); //added for Coop
+
 private:
 	float					triggersize;
 	bool					crusher;

@@ -452,6 +452,9 @@ idEntity::idEntity() {
 
 	mpGUIState = -1;
 
+	spawnedByServer = false; //added by Stradex for Coop
+	clientSideEntity = false; //added by Stradex for Coop
+
 #ifdef _D3XP
 	memset( &xrayEntity, 0, sizeof( xrayEntity ) );
 
@@ -3760,6 +3763,72 @@ bool idEntity::TouchTriggers( void ) const {
 	return ( numEntities != 0 );
 }
 
+
+/*
+============
+idEntity::ClientTouchTriggers
+
+  Activate all trigger entities touched at the current position. (Clientside for coop)
+============
+*/
+bool idEntity::ClientTouchTriggers( void ) const {
+	int				i, numClipModels, numEntities;
+	idClipModel *	cm;
+	idClipModel *	clipModels[ MAX_GENTITIES ];
+	idEntity *		ent;
+	trace_t			trace;
+
+	memset( &trace, 0, sizeof( trace ) );
+	trace.endpos = GetPhysics()->GetOrigin();
+	trace.endAxis = GetPhysics()->GetAxis();
+
+	numClipModels = gameLocal.clip.ClipModelsTouchingBounds( GetPhysics()->GetAbsBounds(), CONTENTS_TRIGGER, clipModels, MAX_GENTITIES );
+	numEntities = 0;
+
+	for ( i = 0; i < numClipModels; i++ ) {
+		cm = clipModels[ i ];
+
+		// don't touch it if we're the owner
+		if ( cm->GetOwner() == this ) {
+			continue;
+		}
+
+		ent = cm->GetEntity();
+
+		if ( !ent->RespondsTo( EV_Touch ) && !ent->HasSignal( SIG_TOUCH ) ) {
+			continue;
+		}
+
+		if ( !GetPhysics()->ClipContents( cm ) ) {
+			continue;
+		}
+
+		if (!ent->IsType(idDoor::Type) && !ent->IsType(idItem::Type)) {
+			continue; //only touch doors and items clientside
+		}
+		if (!ent->clientSideEntity) { //don't dare to touch snapshot entities
+			continue;
+		}
+
+		numEntities++;
+
+		trace.c.contents = cm->GetContents();
+		trace.c.entityNum = cm->GetEntity()->entityNumber;
+		trace.c.id = cm->GetId();
+
+		ent->Signal( SIG_TOUCH ); //oh god
+		ent->ProcessEvent( &EV_Touch, this, &trace );  //oh god
+		//gameLocal.Printf("Client touching trigger: %s\n", ent->GetName());
+
+		if ( !gameLocal.entities[ entityNumber ] ) {
+			gameLocal.Printf( "entity was removed while touching triggers\n" );
+			return true;
+		}
+	}
+
+	return ( numEntities != 0 );
+}
+
 /*
 ================
 idEntity::GetSpline
@@ -4595,6 +4664,9 @@ idEntity::Event_StartFx
 ================
 */
 void idEntity::Event_StartFx( const char *fx ) {
+	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) {
+		return; //Avoid FX spawn when via scripting for clients in coop, test
+	}
 	idEntityFx::StartFx( fx, NULL, NULL, this, true );
 }
 

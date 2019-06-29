@@ -2654,11 +2654,17 @@ void idMover_Binary::Event_Reached_BinaryMover( void ) {
 
 		if ( enabled && wait >= 0 && !spawnArgs.GetBool( "toggle" ) ) {
 			// return to pos1 after a delay
-			PostEventSec( &EV_Mover_ReturnToPos1, wait );
+			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) { 
+				CS_PostEventSec( &EV_Mover_ReturnToPos1, wait ); //added this for coop
+			} else {
+				PostEventSec( &EV_Mover_ReturnToPos1, wait );
+			}
 		}
 
 		// fire targets
-		ActivateTargets( moveMaster->GetActivator() );
+		if (!gameLocal.mpGame.IsGametypeCoopBased() || gameLocal.isServer) { //Don't activate targets in coop for clients
+			ActivateTargets( moveMaster->GetActivator() );
+		}
 
 		SetBlocked(false);
 	} else if ( moverState == MOVER_2TO1 ) {
@@ -2678,7 +2684,11 @@ void idMover_Binary::Event_Reached_BinaryMover( void ) {
 		}
 
 		if ( enabled && wait >= 0 && spawnArgs.GetBool( "continuous" ) ) {
-			PostEventSec( &EV_Activate, wait, this );
+			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) { 
+				CS_PostEventSec( &EV_Activate, wait, this ); //Added for client-side coop
+			} else {
+				PostEventSec( &EV_Activate, wait, this );
+			}
 		}
 		SetBlocked(false);
 	} else {
@@ -2722,7 +2732,11 @@ void idMover_Binary::GotoPosition1( void ) {
 	if ( moverState == MOVER_1TO2 ) {
 		// use the physics times because this might be executed during the physics simulation
 		partial = physicsObj.GetLinearEndTime() - physicsObj.GetTime();
-		assert( partial >= 0 );
+		if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) { //avoid crash in coop
+			partial = 0;
+		} else {
+			assert( partial >= 0 );
+		}
 		if ( partial < 0 ) {
 			partial = 0;
 		}
@@ -2768,7 +2782,11 @@ void idMover_Binary::GotoPosition2( void ) {
 	if ( moverState == MOVER_2TO1 ) {
 		// use the physics times because this might be executed during the physics simulation
 		partial = physicsObj.GetLinearEndTime() - physicsObj.GetTime();
-		assert( partial >= 0 );
+		if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) { //avoid crash in coop
+			partial = 0;
+		} else {
+			assert( partial >= 0 );
+		}
 		if ( partial < 0 ) {
 			partial = 0;
 		}
@@ -3166,6 +3184,7 @@ idDoor::idDoor( void ) {
 	syncLock.Clear();
 	companionDoor = NULL;
 	normalAxisIndex = 0;
+	fl.networkSync = true; //for coop
 }
 
 /*
@@ -3396,6 +3415,29 @@ void idDoor::Think( void ) {
 
 /*
 ================
+idDoor::ClientPredictionThink 
+COOP STUFF ONLY
+================
+*/
+void idDoor::ClientPredictionThink( void ) {
+	Think(); //test
+
+	if (this->clientSideEntity) { //FIXME: This is like ductape to fix clientside only doors not closing. 
+		if (this->moverState == MOVER_1TO2) {
+		//common->Printf("stateStartTime: %d - Duration :%d\n", stateStartTime, duration);
+			if (gameLocal.time > stateStartTime + duration) { //time to close this bugged door
+				Event_Reached_BinaryMover(); //FIXME: It's called twice
+			}
+		} else if (this->moverState == MOVER_2TO1) {
+			if (gameLocal.time > stateStartTime + duration) { //Confirm the door was closed
+				SetMoverState( MOVER_POS1, gameLocal.time ); //FIXME: It's called twice
+			}
+		}
+	}
+}
+
+/*
+================
 idDoor::PreBind
 ================
 */
@@ -3534,7 +3576,9 @@ void idDoor::Use( idEntity *other, idEntity *activator ) {
 				}
 			}
 		}
-		ActivateTargets( activator );
+		if (!gameLocal.mpGame.IsGametypeCoopBased() || gameLocal.isServer) { //not activate targets in coop for clients
+			ActivateTargets( activator );
+		}
 		Use_BinaryMover( activator );
 	}
 }
@@ -3863,6 +3907,11 @@ void idDoor::Event_Touch( idEntity *other, trace_t *trace ) {
 
 	if ( trigger && trace->c.id == trigger->GetId() ) {
 		if ( !IsNoTouch() && !IsLocked() && GetMoverState() != MOVER_1TO2 ) {
+			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+				if (GetMoverState() != MOVER_POS1) { //FIXME: more ductape
+					return;
+				}
+			} 
 #ifdef _D3XP
 			if ( AllowPlayerOnly( other ) ) {
 #endif

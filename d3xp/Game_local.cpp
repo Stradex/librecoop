@@ -281,6 +281,11 @@ void idGameLocal::Clear( void ) {
 	lastGUIEnt = NULL;
 	lastGUI = 0;
 
+	//added for coop
+	firstClientToSpawn = false;
+	coopMapScriptLoad = false;
+	//end for coop
+
 	memset( clientEntityStates, 0, sizeof( clientEntityStates ) );
 	memset( clientPVS, 0, sizeof( clientPVS ) );
 	memset( clientSnapshots, 0, sizeof( clientSnapshots ) );
@@ -1097,6 +1102,9 @@ void idGameLocal::LocalMapRestart( ) {
 
 	InitScriptForMap();
 
+	firstClientToSpawn = true; //added by Stradex for coop
+	coopMapScriptLoad = false; //added by Stradex for coop
+
 	MapPopulate();
 
 	// once the map is populated, set the spawnCount back to where it was so we don't risk any collision
@@ -1319,6 +1327,9 @@ void idGameLocal::InitFromNewMap( const char *mapName, idRenderWorld *renderWorl
 	LoadMap( mapName, randseed );
 
 	InitScriptForMap();
+
+	firstClientToSpawn = false; //added by Stradex for coop
+	coopMapScriptLoad = false; //added by Stradex for coop
 
 	MapPopulate();
 
@@ -2016,12 +2027,29 @@ void idGameLocal::SpawnPlayer( int clientNum ) {
 	args.SetInt( "spawn_entnum", clientNum );
 	args.Set( "name", va( "player%d", clientNum + 1 ) );
 #ifdef CTF
+	if (isMultiplayer) {
+		switch (gameType) {
+			case GAME_CTF:
+				args.Set( "classname", "player_doommarine_ctf" );
+			break;
+			case GAME_COOP:
+				args.Set( "classname", "player_doommarine_coop" ); //Added for COOP by Stradex
+			break;
+			default:
+				args.Set( "classname", "player_doommarine_mp" );
+			break;
+		}
+	} else {
+		args.Set( "classname", "player_doommarine" );
+	}
+	/*
 	if ( isMultiplayer && gameType != GAME_CTF )
 		args.Set( "classname", "player_doommarine_mp" );
 	else if ( isMultiplayer && gameType == GAME_CTF )
 		args.Set( "classname", "player_doommarine_ctf" );
 	else
 		args.Set( "classname", "player_doommarine" );
+	*/
 #else
 	args.Set( "classname", isMultiplayer ? "player_doommarine_mp" : "player_doommarine" );
 #endif
@@ -2510,6 +2538,10 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 						ent->GetPhysics()->UpdateTime( time );
 						continue;
 					}
+					if  (isMultiplayer && mpGame.IsGametypeCoopBased() && localClientNum < 0 && !gameLocal.firstClientToSpawn) {
+						num++;
+						continue; //don't let any entity to think while there're no players in-game yet for dedicated server in coop
+					}
 					ent->Think();
 					num++;
 				}
@@ -2521,6 +2553,10 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 						continue;
 					}
 #endif
+					if  (isMultiplayer && mpGame.IsGametypeCoopBased() && localClientNum < 0 && !gameLocal.firstClientToSpawn) {
+						num++;
+						continue; //don't let any entity to think while there're no players in-game yet for dedicated server in coop
+					}
 					ent->Think();
 					num++;
 				}
@@ -2923,11 +2959,48 @@ void idGameLocal::RunDebugInfo( void ) {
 
 	const idVec3 &origin = player->GetPhysics()->GetOrigin();
 
+	idMat3		axis = player->viewAngles.ToMat3(); //coop debug
+	idVec3		up = axis[ 2 ] * 5.0f;  //coop debug
+	idBounds	viewTextBounds( origin );  //coop debug
+	idBounds	viewBounds( origin );  //coop debug
+
+	if (net_clientCoopDebug.GetBool()) { //debug only, remove later
+		//Show snapshot entities only
+		viewTextBounds.ExpandSelf( 128.0f );
+		viewBounds.ExpandSelf( 512.0f );
+		for( ent = snapshotEntities.Next(); ent != NULL; ent = ent->snapshotNode.Next() ) {
+			// don't draw the worldspawn
+			if ( ent == world ) {
+				continue;
+			}
+
+			// skip if the entity is very far away
+			if ( !viewBounds.IntersectsBounds( ent->GetPhysics()->GetAbsBounds() ) ) {
+				continue;
+			}
+
+			const idBounds &entBounds = ent->GetPhysics()->GetAbsBounds();
+			int contents = ent->GetPhysics()->GetContents();
+			if ( contents & CONTENTS_BODY ) {
+				gameRenderWorld->DebugBounds( colorCyan, entBounds );
+			} else if ( contents & CONTENTS_TRIGGER ) {
+				gameRenderWorld->DebugBounds( colorOrange, entBounds );
+			} else if ( contents & CONTENTS_SOLID ) {
+				gameRenderWorld->DebugBounds( colorGreen, entBounds );
+			} else {
+				if ( !entBounds.GetVolume() ) {
+					gameRenderWorld->DebugBounds( colorMdGrey, entBounds.Expand( 8.0f ) );
+				} else {
+					gameRenderWorld->DebugBounds( colorMdGrey, entBounds );
+				}
+			}
+			if ( viewTextBounds.IntersectsBounds( entBounds ) ) {
+				gameRenderWorld->DrawText( ent->name.c_str(), entBounds.GetCenter(), 0.1f, colorWhite, axis, 1 );
+				gameRenderWorld->DrawText( va( "#%d", ent->entityNumber ), entBounds.GetCenter() + up, 0.1f, colorWhite, axis, 1 );
+			}
+		}
+	}
 	if ( g_showEntityInfo.GetBool() ) {
-		idMat3		axis = player->viewAngles.ToMat3();
-		idVec3		up = axis[ 2 ] * 5.0f;
-		idBounds	viewTextBounds( origin );
-		idBounds	viewBounds( origin );
 
 		viewTextBounds.ExpandSelf( 128.0f );
 		viewBounds.ExpandSelf( 512.0f );
@@ -3279,7 +3352,7 @@ Finds the spawn function for the entity and calls it,
 returning false if not found
 ===================
 */
-bool idGameLocal::SpawnEntityDef( const idDict &args, idEntity **ent, bool setDefaults ) {
+bool idGameLocal::SpawnEntityDef( const idDict &args, idEntity **ent, bool setDefaults, bool bIsClientReadSnapshot  ) {
 	const char	*classname;
 	const char	*spawn;
 	idTypeInfo	*cls;
@@ -4161,6 +4234,10 @@ void idGameLocal::SetCamera( idCamera *cam ) {
 	idEntity *ent;
 	idAI *ai;
 
+	if (mpGame.IsGametypeCoopBased()) { //No cinematics in COOP
+		return;
+	}
+
 	// this should fix going into a cinematic when dead.. rare but happens
 	idPlayer *client = GetLocalPlayer();
 	if ( client->health <= 0 || client->AI_DEAD ) {
@@ -4407,10 +4484,18 @@ void idGameLocal::RandomizeInitialSpawns( void ) {
 #endif
 
 	idEntity *ent;
+	char spawnDefEntity[] = "info_player_deathmatch"; //added by Stradex for COOP
 
 	if ( !isMultiplayer || isClient ) {
 		return;
 	}
+
+	if ( mpGame.IsGametypeCoopBased()) {
+		strcpy(spawnDefEntity, "info_player_coop"); //added by Stradex for COOP
+	} else {
+		strcpy(spawnDefEntity, "info_player_deathmatch");
+	}
+
 	spawnSpots.Clear();
 	initialSpots.Clear();
 #ifdef CTF
@@ -4421,7 +4506,7 @@ void idGameLocal::RandomizeInitialSpawns( void ) {
 #endif
 
 	spot.dist = 0;
-	spot.ent = FindEntityUsingDef( NULL, "info_player_deathmatch" );
+	spot.ent = FindEntityUsingDef( NULL,  static_cast<const char*>(spawnDefEntity) );
 	while( spot.ent ) {
 #ifdef CTF
 		spot.ent->spawnArgs.GetInt( "team", "-1", spot.team );
@@ -4434,7 +4519,7 @@ void idGameLocal::RandomizeInitialSpawns( void ) {
 				common->Warning( "info_player_deathmatch : invalid or no team attached to spawn point\n");
 		}
 #endif
-		spawnSpots.Append( spot );
+		spawnSpots.Append( spot ); //causing crash in ROE coop
 		if ( spot.ent->spawnArgs.GetBool( "initial" ) ) {
 #ifdef CTF
 			if ( mpGame.IsGametypeFlagBased() ) /* CTF */
@@ -4446,7 +4531,7 @@ void idGameLocal::RandomizeInitialSpawns( void ) {
 
 			initialSpots.Append( spot.ent );
 		}
-		spot.ent = FindEntityUsingDef( spot.ent, "info_player_deathmatch" );
+		spot.ent = FindEntityUsingDef( spot.ent, static_cast<const char*>(spawnDefEntity) ); 
 	}
 
 #ifdef CTF
@@ -4463,7 +4548,7 @@ void idGameLocal::RandomizeInitialSpawns( void ) {
 #endif
 
 	if ( !spawnSpots.Num() ) {
-		common->Warning( "no info_player_deathmatch in map" );
+		common->Warning( "no %s in map", static_cast<const char*>(spawnDefEntity) );
 		return;
 	}
 
@@ -4494,7 +4579,7 @@ void idGameLocal::RandomizeInitialSpawns( void ) {
 	common->Printf( "%d spawns (%d initials)\n", spawnSpots.Num(), initialSpots.Num() );
 	// if there are no initial spots in the map, consider they can all be used as initial
 	if ( !initialSpots.Num() ) {
-		common->Warning( "no info_player_deathmatch entities marked initial in map" );
+		common->Warning( "no %s entities marked initial in map", static_cast<const char*>(spawnDefEntity) );
 		for ( i = 0; i < spawnSpots.Num(); i++ ) {
 			initialSpots.Append( spawnSpots[ i ].ent );
 		}
@@ -4687,6 +4772,8 @@ void idGameLocal::UpdateServerInfoFlags() {
 		gameType = GAME_TDM;
 	} else if ( ( idStr::Icmp( serverInfo.GetString( "si_gameType" ), "Last Man" ) == 0 ) ) {
 		gameType = GAME_LASTMAN;
+	}  else if ( ( idStr::Icmp( serverInfo.GetString( "si_gameType" ), "Coop" ) == 0 ) ) { //added by Stradex for COOP
+		gameType = GAME_COOP;
 	}
 #ifdef CTF
 	else if ( ( idStr::Icmp( serverInfo.GetString( "si_gameType" ), "CTF" ) == 0 ) ) {

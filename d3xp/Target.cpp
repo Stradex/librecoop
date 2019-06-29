@@ -654,6 +654,11 @@ idTarget_GiveEmail::Event_Activate
 ================
 */
 void idTarget_GiveEmail::Event_Activate( idEntity *activator ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) { //No PDAS or emails in coop
+		return;
+	}
+
 	idPlayer *player = gameLocal.GetLocalPlayer();
 	const idDeclPDA *pda = player->GetPDA();
 	if ( pda ) {
@@ -989,6 +994,11 @@ idTarget_SetInfluence::Event_Activate
 ================
 */
 void idTarget_SetInfluence::Event_Activate( idEntity *activator ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		return; //Disabled in COOP. testing avoid crash
+	}
+
 	int i, j;
 	idEntity *ent;
 	idLight *light;

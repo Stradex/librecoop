@@ -1171,6 +1171,10 @@ void idAFEntity_Gibbable::SpawnGibs( const idVec3 &dir, const char *damageDefNam
 	idVec3 entityCenter, velocity;
 	idList<idEntity *> list;
 
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		return; //avoid crash in coop.. kind of
+	}
+
 	assert( !gameLocal.isClient );
 
 	const idDict *damageDef = gameLocal.FindEntityDefDict( damageDefName );
@@ -1429,7 +1433,9 @@ idAFEntity_WithAttachedHead::Spawn
 ================
 */
 void idAFEntity_WithAttachedHead::Spawn( void ) {
-	SetupHead();
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) { //Not heads in coop
+		SetupHead();
+	}
 
 	LoadAF();
 

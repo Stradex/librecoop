@@ -1738,6 +1738,10 @@ void idPlayer::Spawn( void ) {
 	// allow thinking during cinematics
 	cinematic = true;
 
+	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
+		gameLocal.firstClientToSpawn = true; //addded for COOP
+	}
+
 	if ( gameLocal.isMultiplayer ) {
 		// always start in spectating state waiting to be spawned in
 		// do this before SetClipModel to get the right bounding box
@@ -4202,6 +4206,10 @@ void idPlayer::GivePDA( const char *pdaName, idDict *item )
 {
 	if ( gameLocal.isMultiplayer && spectating ) {
 		return;
+	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		return; //No PDAs in Coop yet
 	}
 
 	if ( item ) {
@@ -8824,7 +8832,18 @@ void idPlayer::SetLastHitTime( int time ) {
 			if ( gameLocal.entities[ MPAim ] && gameLocal.entities[ MPAim ]->IsType( idPlayer::Type ) ) {
 				aimed = static_cast< idPlayer * >( gameLocal.entities[ MPAim ] );
 			}
-			assert( aimed );
+			if (gameLocal.mpGame.IsGametypeCoopBased()) { //avoid crash in coop
+				if ( !aimed ) {
+					hud->SetStateString( "aim_text", "Unknown" );
+					hud->SetStateFloat( "aim_color", aimed->colorBarIndex );
+					hud->HandleNamedEvent( "aim_flash" );
+					MPAimHighlight = true;
+					MPAimFadeTime = 0;
+					return;
+				}
+			} else {
+				assert( aimed );
+			}
 			// full highlight, no fade till loosing aim
 			hud->SetStateString( "aim_text", gameLocal.userInfo[ MPAim ].GetString( "ui_name" ) );
 			if ( aimed ) {
@@ -8837,7 +8856,19 @@ void idPlayer::SetLastHitTime( int time ) {
 			if ( gameLocal.entities[ lastMPAim ] && gameLocal.entities[ lastMPAim ]->IsType( idPlayer::Type ) ) {
 				aimed = static_cast< idPlayer * >( gameLocal.entities[ lastMPAim ] );
 			}
-			assert( aimed );
+			if (gameLocal.mpGame.IsGametypeCoopBased()) { //avoid crash in coop
+				if ( !aimed ) {
+					hud->SetStateString( "aim_text", "Unknown" );
+					hud->SetStateFloat( "aim_color", aimed->colorBarIndex );
+					hud->HandleNamedEvent( "aim_flash" );
+					hud->HandleNamedEvent( "aim_fade" );
+					MPAimHighlight = false;
+					MPAimFadeTime = gameLocal.realClientTime;
+					return; 
+				}
+			} else {
+				assert( aimed );
+			}
 			// start fading right away
 			hud->SetStateString( "aim_text", gameLocal.userInfo[ lastMPAim ].GetString( "ui_name" ) );
 			if ( aimed ) {
@@ -8859,12 +8890,18 @@ idPlayer::SetInfluenceLevel
 void idPlayer::SetInfluenceLevel( int level ) {
 	if ( level != influenceActive ) {
 		if ( level ) {
-			for ( idEntity *ent = gameLocal.spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next() ) {
+
+			if (!gameLocal.mpGame.IsGametypeCoopBased()) { //try to fix crash in coop by Stradex
+
+			for ( idEntity *ent = gameLocal.spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next() ) { //crash reason in coop
 				if ( ent->IsType( idProjectile::Type ) ) {
 					// remove all projectiles
-					ent->PostEventMS( &EV_Remove, 0 );
+					ent->PostEventMS( &EV_Remove, 0 ); //crash reason in coop
 				}
 			}
+
+			}
+
 			if ( weaponEnabled && weapon.GetEntity() ) {
 				weapon.GetEntity()->EnterCinematic();
 			}
@@ -9548,6 +9585,8 @@ void idPlayer::WriteToSnapshot( idBitMsgDelta &msg ) const {
 #ifdef _D3XP
 	msg.WriteBits( enviroSuitLight.GetSpawnId(), 32 );
 #endif
+	//extra added for coop
+	msg.WriteBits( noclip, 1 );
 }
 
 /*
@@ -9593,6 +9632,9 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	enviroSpawnId = msg.ReadBits( 32 );
 	enviroSuitLight.SetSpawnId( enviroSpawnId );
 #endif
+
+	//extra added for coop
+	noclip = msg.ReadBits( 1 ) != 0;
 
 	// no msg reading below this
 
@@ -10116,3 +10158,198 @@ void idPlayer::FreeModelDef( void ) {
 }
 
 #endif
+
+
+/***************
+COOP specific stuff
+****************/
+
+/*
+======
+idInventory::CS_Give
+==========
+*/
+
+bool idInventory::CS_Give( idPlayer *owner, const idDict &spawnArgs, const char *statname, const char *value, int *idealWeapon, bool updateHud ) {
+	int						i;
+	const char				*pos;
+	const char				*end;
+	int						len;
+	idStr					weaponString;
+	int						max;
+	const idDeclEntityDef	*weaponDecl;
+	bool					tookWeapon;
+	int						amount;
+	idItemInfo				info;
+	const char				*name;
+
+	if ( !idStr::Icmpn( statname, "ammo_", 5 ) ) {
+		i = AmmoIndexForAmmoClass( statname );
+		max = MaxAmmoForAmmoClass( owner, statname );
+		if ( ammo[ i ] >= max ) {
+			return false;
+		}
+	} else if ( !idStr::Icmp( statname, "armor" ) ) {
+		if ( armor >= maxarmor ) {
+			return false;	// can't hold any more, so leave the item
+		}
+	} else if ( !idStr::Icmp( statname, "weapon" ) ) {
+		tookWeapon = false;
+		for( pos = value; pos != NULL; pos = end ) {
+			end = strchr( pos, ',' );
+			if ( end ) {
+				len = end - pos;
+				end++;
+			} else {
+				len = strlen( pos );
+			}
+
+			idStr weaponName( pos, 0, len );
+
+			// find the number of the matching weapon name
+			for( i = 0; i < MAX_WEAPONS; i++ ) {
+				if ( weaponName == spawnArgs.GetString( va( "def_weapon%d", i ) ) ) {
+					break;
+				}
+			}
+
+			if ( i >= MAX_WEAPONS ) {
+				gameLocal.Error( "Unknown weapon '%s'", weaponName.c_str() );
+			}
+
+			// cache the media for this weapon
+			weaponDecl = gameLocal.FindEntityDef( weaponName, false );
+
+			// don't pickup "no ammo" weapon types twice
+			// not for D3 SP .. there is only one case in the game where you can get a no ammo
+			// weapon when you might already have it, in that case it is more conistent to pick it up
+			if ( gameLocal.isMultiplayer && weaponDecl && ( weapons & ( 1 << i ) ) && !weaponDecl->dict.GetInt( "ammoRequired" ) ) {
+				continue;
+			}
+
+			if ( !gameLocal.world->spawnArgs.GetBool( "no_Weapons" ) || ( weaponName == "weapon_fists" ) || ( weaponName == "weapon_soulcube" ) ) {
+				if ( ( weapons & ( 1 << i ) ) == 0 || gameLocal.isMultiplayer ) {
+					tookWeapon = true;
+				}
+			}
+		}
+		return tookWeapon;
+	} else if ( !idStr::Icmp( statname, "item" ) || !idStr::Icmp( statname, "icon" ) || !idStr::Icmp( statname, "name" ) ) {
+		// ignore these as they're handled elsewhere
+		return false;
+	} else {
+		// unknown item
+		return false;
+	}
+
+	return true;
+}
+
+
+/*
+===============
+idPlayer::CS_Give
+===============
+*/
+bool idPlayer::CS_Give( const char *statname, const char *value ) {
+	int amount;
+
+	if ( AI_DEAD ) {
+		return false;
+	}
+
+	if ( !idStr::Icmp( statname, "health" ) ) {
+		if ( health >= inventory.maxHealth ) {
+			return false;
+		}
+
+	} else if ( !idStr::Icmp( statname, "stamina" ) ) {
+		if ( stamina >= 100 ) {
+			return false;
+		}
+
+	} else if ( !idStr::Icmp( statname, "air" ) ) {
+		if ( airTics >= pm_airTics.GetInteger() ) {
+			return false;
+		}
+	} else {
+		return inventory.CS_Give( this, spawnArgs, statname, value, &idealWeapon, true );
+	}
+	return true;
+}
+
+/*
+===============
+idPlayer::CS_GiveItem
+
+Returns false if the item shouldn't be picked up
+===============
+*/
+
+bool idPlayer::CS_GiveItem( idItem *item )
+{
+	int					i;
+	const idKeyValue	*arg;
+	idDict				attr;
+	bool				gave;
+
+	if ( spectating ) {
+		return false;
+	}
+
+	item->GetAttributes( attr );
+
+	gave = false;
+	for( i = 0; i < attr.GetNumKeyVals(); i++ ) {
+		arg = attr.GetKeyVal( i );
+		if ( CS_Give( arg->GetKey(), arg->GetValue() ) ) {
+			gave = true;
+		}
+	}
+
+	return gave;
+}
+
+/*
+================
+idPlayer::GetViewAngles
+================
+*/
+idAngles idPlayer::GetViewAngles( void ) {
+	return viewAngles;
+}
+
+/*
+===========
+idPlayer::Teleport
+============
+*/
+void idPlayer::Teleport( const idVec3 &origin, const idAngles &angles) {
+	idVec3 org;
+
+	if ( weapon.GetEntity() ) {
+		weapon.GetEntity()->LowerWeapon();
+	}
+
+	SetOrigin( origin + idVec3( 0, 0, CM_CLIP_EPSILON ) );
+	if ( !gameLocal.isMultiplayer && GetFloorPos( 16.0f, org ) ) {
+		SetOrigin( org );
+	}
+
+	// clear the ik heights so model doesn't appear in the wrong place
+	walkIK.EnableAll();
+
+	GetPhysics()->SetLinearVelocity( vec3_origin );
+
+	SetViewAngles( angles );
+
+	legsYaw = 0.0f;
+	idealLegsYaw = 0.0f;
+	oldViewYaw = viewAngles.yaw;
+
+	if ( gameLocal.isMultiplayer ) {
+		playerView.Flash( colorWhite, 140 );
+	}
+
+	UpdateVisuals();
+}

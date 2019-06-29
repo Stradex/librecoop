@@ -28,6 +28,7 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "sys/platform.h"
 #include "idlib/math/Quat.h"
+#include "framework/async/NetworkSystem.h" //added by stradex for coop
 #include "framework/DeclEntityDef.h"
 
 #include "gamesys/SysCvar.h"
@@ -392,6 +393,15 @@ idAI::idAI() {
 	eyeFocusRate		= 0.0f;
 	headFocusRate		= 0.0f;
 	focusAlignTime		= 0;
+
+	//Added by Stradex for Coop
+	lastDamageDef			= 0;
+	lastDamageDir			= vec3_zero;
+	lastDamageLocation		= 0;
+	fl.networkSync		= true;
+	currentTorsoAnim = 0;
+	currentLegsAnim = 0;
+	currentNetAction = NETACTION_NONE;
 }
 
 /*
@@ -1127,6 +1137,10 @@ idAI::Think
 =====================
 */
 void idAI::Think( void ) {
+
+	currentTorsoAnim = animator.CurrentAnim( ANIMCHANNEL_TORSO )->AnimNum(); //added by Stradex for coop
+	currentLegsAnim = animator.CurrentAnim( ANIMCHANNEL_LEGS )->AnimNum(); //added by Stradex for coop
+
 	// if we are completely closed off from the player, don't do anything at all
 	if ( CheckDormant() ) {
 		return;
@@ -3252,6 +3266,10 @@ idAI::ReactionTo
 */
 int idAI::ReactionTo( const idEntity *ent ) {
 
+	if (!ent) {
+		return ATTACK_IGNORE; //bugged?, to avoid crash in coop
+	}
+
 	if ( ent->fl.hidden ) {
 		// ignore hidden entities
 		return ATTACK_IGNORE;
@@ -3316,6 +3334,10 @@ bool idAI::Pain( idEntity *inflictor, idEntity *attacker, int damage, const idVe
 			}
 		}
 	}
+
+	//Added by Stradex for Coop
+	lastDamageDir = dir;
+	lastDamageLocation = location;
 
 	return ( AI_PAIN != 0 );
 }
@@ -3454,12 +3476,20 @@ void idAI::Killed( idEntity *inflictor, idEntity *attacker, int damage, const id
 	Unbind();
 
 	if ( StartRagdoll() ) {
-		StartSound( "snd_death", SND_CHANNEL_VOICE, 0, false, NULL );
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			StartSound( "snd_death", SND_CHANNEL_VOICE, 0, true, NULL ); //broadcast coop
+		} else {
+			StartSound( "snd_death", SND_CHANNEL_VOICE, 0, false, NULL );
+		}
 	}
 
 	if ( spawnArgs.GetString( "model_death", "", &modelDeath ) ) {
 		// lost soul is only case that does not use a ragdoll and has a model_death so get the death sound in here
-		StartSound( "snd_death", SND_CHANNEL_VOICE, 0, false, NULL );
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			StartSound( "snd_death", SND_CHANNEL_VOICE, 0, true, NULL ); //broadcast coop
+		} else {
+			StartSound( "snd_death", SND_CHANNEL_VOICE, 0, false, NULL );
+		}
 		renderEntity.shaderParms[ SHADERPARM_TIMEOFFSET ] = -MS2SEC( gameLocal.time );
 		SetModel( modelDeath );
 		physicsObj.SetLinearVelocity( vec3_zero );
@@ -3534,7 +3564,7 @@ void idAI::PlayCinematic( void ) {
 			Hide();
 		}
 		current_cinematic = 0;
-		ActivateTargets( gameLocal.GetLocalPlayer() );
+		//ActivateTargets( gameLocal.GetLocalPlayer() ); //Disable in coop
 		fl.neverDormant = false;
 		return;
 	}
@@ -3614,7 +3644,11 @@ void idAI::Activate( idEntity *activator ) {
 	} else {
 		AI_ACTIVATED = true;
 		if ( !activator || !activator->IsType( idPlayer::Type ) ) {
-			player = gameLocal.GetLocalPlayer();
+			if (gameLocal.mpGame.IsGametypeCoopBased()) {
+				player = GetClosestPlayerEnemy();
+			} else {
+				player = gameLocal.GetLocalPlayer();
+			}
 		} else {
 			player = static_cast<idPlayer *>( activator );
 		}
@@ -4376,7 +4410,11 @@ void idAI::DirectDamage( const char *meleeDefName, idEntity *ent ) {
 
 	if ( !ent->fl.takedamage ) {
 		const idSoundShader *shader = declManager->FindSound(meleeDef->GetString( "snd_miss" ));
-		StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, false, NULL );
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, true, NULL ); //broadcast sound in coop
+		} else {
+			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, false, NULL );
+		}
 		return;
 	}
 
@@ -4386,7 +4424,11 @@ void idAI::DirectDamage( const char *meleeDefName, idEntity *ent ) {
 	p = meleeDef->GetString( "snd_hit" );
 	if ( p && *p ) {
 		shader = declManager->FindSound( p );
-		StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, false, NULL );
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, true, NULL );  //broadcast in coop
+		} else {
+			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, false, NULL );
+		}
 	}
 
 	idVec3	kickDir;
@@ -4478,7 +4520,11 @@ bool idAI::AttackMelee( const char *meleeDefName ) {
 		p = meleeDef->GetString( "snd_miss" );
 		if ( p && *p ) {
 			shader = declManager->FindSound( p );
-			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, false, NULL );
+			if (gameLocal.mpGame.IsGametypeCoopBased()) {
+				StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, true, NULL ); //broadcast in coop
+			} else {
+				StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, false, NULL );
+			}
 		}
 		return false;
 	}
@@ -4510,7 +4556,11 @@ bool idAI::AttackMelee( const char *meleeDefName ) {
 		p = meleeDef->GetString( "snd_miss" );
 		if ( p && *p ) {
 			shader = declManager->FindSound( p );
-			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, false, NULL );
+			if (gameLocal.mpGame.IsGametypeCoopBased()) {
+				StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, true, NULL ); //broadcast in coop
+			} else {
+				StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, false, NULL );
+			}
 		}
 		return false;
 	}
@@ -4521,7 +4571,11 @@ bool idAI::AttackMelee( const char *meleeDefName ) {
 	p = meleeDef->GetString( "snd_hit" );
 	if ( p && *p ) {
 		shader = declManager->FindSound( p );
-		StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, false, NULL );
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, true, NULL ); //broadcast in coop
+		} else {
+			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, false, NULL );
+		}
 	}
 
 	idVec3	kickDir;
@@ -4667,6 +4721,11 @@ idAI::Hide
 ================
 */
 void idAI::Hide( void ) {
+
+	if (gameLocal.isServer) {
+		currentNetAction = NETACTION_HIDE; //added by Stradex for COOP
+	}
+
 	idActor::Hide();
 	fl.takedamage = false;
 	physicsObj.SetContents( 0 );
@@ -4685,6 +4744,11 @@ idAI::Show
 ================
 */
 void idAI::Show( void ) {
+
+	if (gameLocal.isServer) {
+		currentNetAction = NETACTION_SHOW; //added by Stradex for COOP
+	}
+
 	idActor::Show();
 	if ( spawnArgs.GetBool( "big_monster" ) ) {
 		physicsObj.SetContents( 0 );
@@ -4769,7 +4833,11 @@ void idAI::PlayChatter( void ) {
 		return;
 	}
 
-	StartSoundShader( chat_snd, SND_CHANNEL_VOICE, 0, false, NULL );
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		StartSoundShader( chat_snd, SND_CHANNEL_VOICE, 0, true, NULL ); //broadcast in coop
+	} else {
+		StartSoundShader( chat_snd, SND_CHANNEL_VOICE, 0, false, NULL );
+	}
 
 	// set the next chat time
 	chat_time = gameLocal.time + chat_min + gameLocal.random.RandomFloat() * ( chat_max - chat_min );
@@ -5132,6 +5200,432 @@ bool idAI::UpdateAnimationControllers( void ) {
 
 	return true;
 }
+
+
+/*************************************************
+AI COOP Stuff
+*************************************************/
+
+/*
+================
+idAI::ClientPredictionThink
+================
+*/
+void idAI::ClientPredictionThink( void ) {
+	//this->Think();
+
+	if ( thinkFlags & TH_PHYSICS ) { //edited
+
+		current_yaw += deltaViewAngles.yaw;
+		ideal_yaw = idMath::AngleNormalize180( ideal_yaw + deltaViewAngles.yaw );
+		deltaViewAngles.Zero();
+		viewAxis = idAngles( 0, current_yaw, 0 ).ToMat3();
+
+		if ( num_cinematics ) {
+			if ( !IsHidden() && torsoAnim.AnimDone( 0 ) ) {
+				PlayCinematic();
+			}
+			RunPhysics();
+		} else if ( !allowHiddenMovement && IsHidden() ) {
+			// hidden monsters
+			//UpdateAIScript();
+		} else {
+			// clear the ik before we do anything else so the skeleton doesn't get updated twice
+			walkIK.ClearJointMods();
+
+			switch( move.moveType ) {
+			case MOVETYPE_DEAD :
+				// dead monsters
+				//UpdateAIScript();
+				DeadMove();
+				break;
+
+			case MOVETYPE_FLY :
+				// flying monsters
+				//UpdateEnemyPosition();
+				//UpdateAIScript();
+				FlyMove();
+				//PlayChatter();
+				//CheckBlink();
+				break;
+
+			case MOVETYPE_STATIC :
+				// static monsters
+				//UpdateEnemyPosition();
+				//UpdateAIScript();
+				StaticMove();
+				//PlayChatter();
+				//CheckBlink();
+				break;
+
+			case MOVETYPE_ANIM :
+				// animation based movement
+				//UpdateEnemyPosition();
+				//UpdateAIScript();
+				//AnimMove();
+				CSAnimMove();
+				//PlayChatter();
+				//CheckBlink();
+				break;
+
+			case MOVETYPE_SLIDE :
+				// velocity based movement
+				//UpdateEnemyPosition();
+				//UpdateAIScript();
+				SlideMove();
+				//PlayChatter();
+				//CheckBlink();
+				break;
+			}
+		}
+
+		AI_PAIN = false;
+		AI_SPECIAL_DAMAGE = 0;
+		AI_PUSHED = false;
+	}
+
+	//else if ( thinkFlags & TH_PHYSICS ) {
+	//	RunPhysics();
+	//}
+
+	UpdateMuzzleFlash();
+	UpdateAnimation();
+	UpdateParticles();
+	Present();
+	UpdateDamageEffects();
+	LinkCombat();
+}
+
+/*
+================
+ idAI::WriteToSnapshot
+================
+*/
+void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
+
+	idVec3 moveDirVec = vec3_zero;
+	idVec3 normalizedLastDamageDir = vec3_zero;
+
+	if ( (move.moveDir.LengthSqr() - 1.0f) < 0.01f) //Avoid crash
+	{
+		moveDirVec = move.moveDir;
+	}
+	if ( (lastDamageDir.LengthSqr() - 1.0f) < 0.01f) //Avoid crash
+	{
+		normalizedLastDamageDir = lastDamageDir;
+	}
+
+	physicsObj.WriteToSnapshot( msg );
+	
+	WriteBindToSnapshot( msg );
+	msg.WriteDeltaFloat( 0.0f, deltaViewAngles[0] );
+	msg.WriteDeltaFloat( 0.0f, deltaViewAngles[1] );
+	msg.WriteDeltaFloat( 0.0f, deltaViewAngles[2] );
+	msg.WriteDeltaFloat( 0.0f , deltaViewAngles.yaw);
+	msg.WriteShort( health );
+	msg.WriteDir( normalizedLastDamageDir, 9 );
+	msg.WriteShort( lastDamageLocation );
+	msg.WriteByte( move.moveCommand );
+	msg.WriteByte( move.moveStatus );
+	msg.WriteInt( move.startTime );
+	msg.WriteFloat( move.speed );
+	msg.WriteFloat(move.moveDest.x);
+	msg.WriteFloat(move.moveDest.y);
+	msg.WriteFloat(move.moveDest.z);
+
+	msg.WriteDir( moveDirVec, 9 );
+	msg.WriteShort(move.anim);
+	//msg.WriteByte( AI_MOVE_DONE );
+	//msg.WriteByte( AI_FORWARD );
+	//msg.WriteByte( AI_JUMP );
+	msg.WriteFloat(current_yaw);
+	msg.WriteFloat(ideal_yaw);
+	msg.WriteFloat(anim_turn_yaw);
+	msg.WriteFloat(anim_turn_amount);
+	msg.WriteFloat(anim_turn_angles);
+	msg.WriteShort(currentTorsoAnim);
+	msg.WriteShort(currentLegsAnim);
+	msg.WriteByte(currentNetAction);
+	
+	//lastVisibleEnemyPos
+	msg.WriteFloat(lastVisibleEnemyPos.x);
+	msg.WriteFloat(lastVisibleEnemyPos.y);
+	msg.WriteFloat(lastVisibleEnemyPos.z);
+}
+
+/*
+================
+ idAI::ReadFromSnapshot
+================
+*/
+void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
+	int		i, oldHealth, enemySpawnId, torsoAnimId, legsAnimId;
+	bool	newHitToggle, stateHitch, hasEnemy;
+	netActionType_t newNetAction;
+
+	oldHealth = health;
+
+	physicsObj.ReadFromSnapshot( msg );
+	ReadBindFromSnapshot( msg );
+	deltaViewAngles[0] = msg.ReadDeltaFloat( 0.0f );
+	deltaViewAngles[1] = msg.ReadDeltaFloat( 0.0f );
+	deltaViewAngles[2] = msg.ReadDeltaFloat( 0.0f );
+	deltaViewAngles.yaw = msg.ReadDeltaFloat( 0.0f );
+	health = msg.ReadShort();
+	lastDamageDir = msg.ReadDir( 9 );
+	lastDamageLocation = msg.ReadShort();
+	move.moveCommand = static_cast<moveCommand_t>(msg.ReadByte());
+	move.moveStatus = static_cast<moveStatus_t>(msg.ReadByte());
+	move.startTime = msg.ReadInt();
+	move.speed = msg.ReadFloat();
+	move.moveDest.x = msg.ReadFloat();
+	move.moveDest.y = msg.ReadFloat();
+	move.moveDest.z = msg.ReadFloat();
+	move.moveDir = msg.ReadDir( 9 );
+	move.anim = msg.ReadShort();
+	//AI_MOVE_DONE = msg.ReadByte();
+	//AI_FORWARD = msg.ReadByte();
+	//AI_JUMP = msg.ReadByte();
+	current_yaw = msg.ReadFloat();
+	ideal_yaw = msg.ReadFloat();
+	anim_turn_yaw = msg.ReadFloat();
+	anim_turn_amount = msg.ReadFloat();
+	anim_turn_angles = msg.ReadFloat();
+
+	torsoAnimId =  msg.ReadShort();
+	legsAnimId =  msg.ReadShort();
+	newNetAction = static_cast<netActionType_t>(msg.ReadByte());
+
+	//lastVisibleEnemyPos
+	lastVisibleEnemyPos.x = msg.ReadFloat();
+	lastVisibleEnemyPos.y = msg.ReadFloat();
+	lastVisibleEnemyPos.z = msg.ReadFloat();
+
+	if (torsoAnimId != currentTorsoAnim ) {
+		animator.CycleAnim(ANIMCHANNEL_TORSO, torsoAnimId, gameLocal.time, 2);
+	}
+	if (legsAnimId != currentLegsAnim ) {
+		animator.CycleAnim(ANIMCHANNEL_LEGS, legsAnimId, gameLocal.time, 2);
+	}
+	currentTorsoAnim = torsoAnimId;
+	currentLegsAnim = legsAnimId;
+
+
+	if ( oldHealth > 0 && health <= 0 ) {
+		// die
+		AI_DEAD = true;
+		
+		SetWaitState( "" );
+		animator.ClearAllJoints();
+
+		StartRagdoll();
+	} else if ( health < oldHealth && health > 0 ) {
+		//pain
+		//AI_PAIN = Pain( NULL, NULL, oldHealth - health, lastDamageDir, lastDamageLocation ); //causing crash.
+	}
+
+	if ( msg.HasChanged() ) {
+		ClientProcessNetAction(newNetAction);
+		UpdateVisuals();
+	}
+}
+
+/*
+================
+ idAI::ServerReceiveEvent
+================
+*/
+bool  idAI::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
+
+	if ( idEntity::ServerReceiveEvent( event, time, msg ) ) {
+		return true;
+	}
+
+	return false;
+}
+
+/*
+================
+idAI::ClientReceiveEvent
+================
+*/
+bool  idAI::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
+
+	return idActor::ClientReceiveEvent( event, time, msg );
+}
+
+/*
+================
+idAI::ClientProcessNetAction
+================
+*/
+
+void idAI::ClientProcessNetAction(netActionType_t newAction) {
+
+	if (newAction == currentNetAction) {
+		return; //no changes
+	}
+	currentNetAction = newAction;
+	switch (currentNetAction) {
+		case NETACTION_NONE:
+			//Nothing
+		break;
+		case NETACTION_SHOW:
+			Show();
+		break;
+		case NETACTION_HIDE:
+			Hide();
+		break;
+	}
+		
+
+	return;
+}
+
+/*
+================
+idAI::GetClosestPlayerEnemy
+================
+*/
+
+idPlayer *idAI::GetClosestPlayerEnemy( void ) {
+	idActor *ent;
+	idPlayer *bestEnt;
+	float	bestDistSquared;
+	float	distSquared;
+	idVec3	delta;
+	int		areaNum;
+	int		enemyAreaNum;
+	aasPath_t path;
+
+	const idVec3 &origin = physicsObj.GetOrigin();
+	areaNum = PointReachableAreaNum( origin );
+
+	bestDistSquared = idMath::INFINITY;
+	bestEnt = NULL;
+	for( ent = this->enemyList.Next(); ent != NULL; ent = ent->enemyNode.Next() ) {
+		if ( ent->fl.hidden || !ent->IsType( idPlayer::Type ) ) {
+			continue;
+		}
+		delta = ent->GetPhysics()->GetOrigin() - origin;
+		distSquared = delta.LengthSqr();
+		if ( distSquared < bestDistSquared ) {
+			const idVec3 &enemyPos = ent->GetPhysics()->GetOrigin();
+			enemyAreaNum = PointReachableAreaNum( enemyPos );
+			if ( ( areaNum != 0 ) && PathToGoal( path, areaNum, origin, enemyAreaNum, enemyPos ) ) {
+				bestEnt = static_cast<idPlayer*>(ent);
+				bestDistSquared = distSquared;
+			}
+		}
+	}
+	return bestEnt;
+}
+
+/*
+=======================
+idAI::CSAnimMove
+======================
+*/
+
+void idAI::CSAnimMove( void ) {
+
+	idVec3				goalPos;
+	idVec3				delta;
+	idVec3				goalDelta;
+	float				goalDist;
+	idVec3				newDest;
+
+	idVec3 oldorigin = physicsObj.GetOrigin();
+	idMat3 oldaxis = viewAxis;
+
+	AI_BLOCKED = false;
+
+	if ( move.moveCommand < NUM_NONMOVING_COMMANDS ){
+		move.lastMoveOrigin.Zero();
+		move.lastMoveTime = gameLocal.time;
+	}
+
+	move.obstacle = NULL;
+	if ( move.moveCommand == MOVE_FACE_ENEMY ) {  //Clients don't know the enemy entity COOP
+		TurnToward( lastVisibleEnemyPos );
+		goalPos = oldorigin;
+	} else if ( ( move.moveCommand == MOVE_FACE_ENTITY ) && move.goalEntity.GetEntity() ) {
+		TurnToward( move.goalEntity.GetEntity()->GetPhysics()->GetOrigin() );
+		goalPos = oldorigin;
+	} else if ( GetMovePos( goalPos ) ) {
+		if ( move.moveCommand != MOVE_WANDER ) {
+			CheckObstacleAvoidance( goalPos, newDest );
+			TurnToward( newDest );
+		} else {
+			TurnToward( goalPos );
+		}
+	}
+
+	Turn();
+
+	if ( move.moveCommand == MOVE_SLIDE_TO_POSITION ) {
+		if ( gameLocal.time < move.startTime + move.duration ) {
+			goalPos = move.moveDest - move.moveDir * MS2SEC( move.startTime + move.duration - gameLocal.time );
+			delta = goalPos - oldorigin;
+			delta.z = 0.0f;
+		} else {
+			delta = move.moveDest - oldorigin;
+			delta.z = 0.0f;
+			StopMove( MOVE_STATUS_DONE );
+		}
+	} else if ( allowMove ) {
+		GetMoveDelta( oldaxis, viewAxis, delta );
+	} else {
+		delta.Zero();
+	}
+
+	if ( move.moveCommand == MOVE_TO_POSITION ) {
+		goalDelta = move.moveDest - oldorigin;
+		goalDist = goalDelta.LengthFast();
+		if ( goalDist < delta.LengthFast() ) {
+			delta = goalDelta;
+		}
+	}
+
+	physicsObj.SetDelta( delta );
+	physicsObj.ForceDeltaMove( disableGravity );
+
+	RunPhysics();
+
+	if ( ai_debugMove.GetBool() ) {
+		gameRenderWorld->DebugLine( colorCyan, oldorigin, physicsObj.GetOrigin(), 5000 );
+	}
+
+	if ( !af_push_moveables && attack.Length() && TestMelee() ) {
+		//DirectDamage( attack, enemy.GetEntity() ); //No damage in COOP
+	} else {
+		idEntity *blockEnt = physicsObj.GetSlideMoveEntity();
+		if ( blockEnt && blockEnt->IsType( idMoveable::Type ) && blockEnt->GetPhysics()->IsPushable() ) {
+			KickObstacles( viewAxis[ 0 ], kickForce, blockEnt );
+		}
+	}
+
+	BlockedFailSafe();
+
+	AI_ONGROUND = physicsObj.OnGround();
+
+	
+	idVec3 org = physicsObj.GetOrigin();
+
+	if ( oldorigin != org ) {
+		ClientTouchTriggers(); //client-side triggers only
+	}
+	
+
+	if ( ai_debugMove.GetBool() ) {
+		gameRenderWorld->DebugBounds( colorMagenta, physicsObj.GetBounds(), org, gameLocal.msec );
+		gameRenderWorld->DebugBounds( colorMagenta, physicsObj.GetBounds(), move.moveDest, gameLocal.msec );
+		gameRenderWorld->DebugLine( colorYellow, org + EyeOffset(), org + EyeOffset() + viewAxis[ 0 ] * physicsObj.GetGravityAxis() * 16.0f, gameLocal.msec, true );
+		DrawRoute();
+	}
+	
+}
+
 
 /***********************************************************************
 

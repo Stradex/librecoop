@@ -2207,6 +2207,10 @@ calls Damage()
 */
 void idActor::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir,
 					  const char *damageDefName, const float damageScale, const int location ) {
+
+	if (gameLocal.isClient) {
+		return; //Client should never produce damage (COOP)
+	}
 	if ( !fl.takedamage ) {
 		return;
 	}

@@ -147,7 +147,12 @@ enum {
 	GAME_RELIABLE_MESSAGE_STARTSTATE,
 	GAME_RELIABLE_MESSAGE_MENU,
 	GAME_RELIABLE_MESSAGE_WARMUPTIME,
-	GAME_RELIABLE_MESSAGE_EVENT
+	GAME_RELIABLE_MESSAGE_EVENT,
+	//New messages added for coop
+	GAME_RELIABLE_MESSAGE_ADDCHECKPOINT,
+	GAME_RELIABLE_MESSAGE_GOTOCHECKPOINT,
+	GAME_RELIABLE_MESSAGE_GLOBALCHECKPOINT,
+	GAME_RELIABLE_MESSAGE_NOCLIP
 };
 
 typedef enum {
@@ -395,6 +400,9 @@ public:
 
 	virtual bool			DownloadRequest( const char *IP, const char *guid, const char *paks, char urls[ MAX_STRING_CHARS ] );
 
+	//Added by Stradex for Coop
+	virtual gameReturn_t	RunClientSideFrame(idPlayer	*clientPlayer, const usercmd_t *clientCmds );
+
 	virtual void				GetMapLoadingGUI( char gui[ MAX_STRING_CHARS ] );
 
 	// ---------------------- Public idGameLocal Interface -------------------
@@ -429,7 +437,7 @@ public:
 	void					SetSkill( int value );
 	gameState_t				GameState( void ) const;
 	idEntity *				SpawnEntityType( const idTypeInfo &classdef, const idDict *args = NULL, bool bIsClientReadSnapshot = false );
-	bool					SpawnEntityDef( const idDict &args, idEntity **ent = NULL, bool setDefaults = true );
+	bool					SpawnEntityDef( const idDict &args, idEntity **ent = NULL, bool setDefaults = true , bool bIsClientReadSnapshot = false ); //bIsClientReadSnapshot added by Stradex for DEBUG
 	int						GetSpawnId( const idEntity *ent ) const;
 
 	const idDeclEntityDef *	FindEntityDef( const char *name, bool makeDefault = true ) const;
@@ -508,7 +516,9 @@ public:
 	void					SetGibTime( int _time ) { nextGibTime = _time; };
 	int						GetGibTime() { return nextGibTime; };
 
-
+	//specific coop stuff
+	bool					firstClientToSpawn; //used in coop for dedicated server not starting scripts until a player joins
+	bool					coopMapScriptLoad; //used in coop for dedicated server not starting scripts until a player joins
 
 private:
 	const static int		INITIAL_SPAWN_COUNT = 1;
@@ -612,6 +622,12 @@ private:
 	void					GetShakeSounds( const idDict *dict );
 
 	void					UpdateLagometer( int aheadOfServer, int dupeUsercmds );
+
+	bool					isSnapshotEntity(idEntity* ent); //added for COOP by Stradex
+	idEntity*				getEntityBySpawnId(int spawnId);  //added for COOP by Stradex
+	idEntity*				getEntityByEntityNumber(int entityNum);  //added for COOP by Stradex
+	int						getFreeEntityNumber( void ); //added for COOP by Stradex
+	bool					duplicateEntity(idEntity* ent); //added for Coop by stradex
 };
 
 //============================================================================

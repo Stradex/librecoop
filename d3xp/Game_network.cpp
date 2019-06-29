@@ -35,6 +35,11 @@ If you have questions concerning this license or the applicable additional terms
 #include "Entity.h"
 #include "Player.h"
 
+#include "Sound.h" //FIXME, I need to solve the duplicated entities problem at clientreadsnapshot and serverwritesnapshot
+#include "Mover.h" //FIXME, I need to solve the duplicated entities problem at clientreadsnapshot and serverwritesnapshot
+#include "Misc.h"  //FIXME, I need to solve the duplicated entities problem at clientreadsnapshot and serverwritesnapshot
+#include "Trigger.h"  //FIXME, I need to solve the duplicated entities problem at clientreadsnapshot and serverwritesnapshot
+
 #include "Game_local.h"
 
 /*
@@ -59,7 +64,7 @@ idCVar net_clientSmoothing( "net_clientSmoothing", "0.8", CVAR_GAME | CVAR_FLOAT
 idCVar net_clientSelfSmoothing( "net_clientSelfSmoothing", "0.6", CVAR_GAME | CVAR_FLOAT, "smooth self position if network causes prediction error.", 0.0f, 0.95f );
 idCVar net_clientMaxPrediction( "net_clientMaxPrediction", "1000", CVAR_SYSTEM | CVAR_INTEGER | CVAR_NOCHEAT, "maximum number of milliseconds a client can predict ahead of server." );
 idCVar net_clientLagOMeter( "net_clientLagOMeter", "1", CVAR_GAME | CVAR_BOOL | CVAR_NOCHEAT | CVAR_ARCHIVE, "draw prediction graph" );
-
+idCVar net_clientCoopDebug( "net_clientCoopDebug", "0", CVAR_GAME | CVAR_BOOL | CVAR_NOCHEAT | CVAR_ARCHIVE, "TMP Cvar for debug" );
 /*
 ================
 idGameLocal::InitAsyncNetwork
@@ -233,11 +238,19 @@ int idGameLocal::ClientRemapDecl( declType_t type, int index ) {
 		return -1;
 	}
 	if ( index >= clientDeclRemap[localClientNum][(int)type].Num() ) {
-		gameLocal.Error( "client received unmapped %s decl index %d from server", declManager->GetDeclNameFromType( type ), index );
+		if (mpGame.IsGametypeCoopBased()) { //fixme later, avoid crash in coop
+			gameLocal.Warning( "client received unmapped %s decl index %d from server", declManager->GetDeclNameFromType( type ), index );
+		} else {
+			gameLocal.Error( "client received unmapped %s decl index %d from server", declManager->GetDeclNameFromType( type ), index );
+		}
 		return -1;
 	}
 	if ( clientDeclRemap[localClientNum][(int)type][index] == -1 ) {
-		gameLocal.Error( "client received unmapped %s decl index %d from server", declManager->GetDeclNameFromType( type ), index );
+		if (mpGame.IsGametypeCoopBased()) { //fixme later, avoid crash in coop
+			gameLocal.Warning( "client received unmapped %s decl index %d from server", declManager->GetDeclNameFromType( type ), index );
+		} else {
+			gameLocal.Error( "client received unmapped %s decl index %d from server", declManager->GetDeclNameFromType( type ), index );
+		}
 		return -1;
 	}
 	return clientDeclRemap[localClientNum][type][index];
@@ -617,12 +630,26 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 			continue;
 		}
 
-		// add the entity to the snapshot pvs
-		snapshot->pvs[ ent->entityNumber >> 5 ] |= 1 << ( ent->entityNumber & 31 );
+		//In coop let's ignore static snapshots and ton of other shitty stuff
+		//TryingSomething
+		if (!mpGame.IsGametypeCoopBased()) {
+			// add the entity to the snapshot pvs
+			snapshot->pvs[ ent->entityNumber >> 5 ] |= 1 << ( ent->entityNumber & 31 ); //NON-Coop keeps the original order
+		}
+		
 
 		// if that entity is not marked for network synchronization
 		if ( !ent->fl.networkSync ) {
 			continue;
+		}
+
+		if (mpGame.IsGametypeCoopBased() && ent->IsType(idItem::Type)) {
+			continue; //lot of items in SP maps, let these be client-side
+		}
+
+		if (mpGame.IsGametypeCoopBased()) {
+			// add the entity to the snapshot pvs
+			snapshot->pvs[ ent->entityNumber >> 5 ] |= 1 << ( ent->entityNumber & 31 ); //COOP add entities to the snapshot pvs only to netsync entities STRADEX
 		}
 
 		// save the write state to which we can revert when the entity didn't change at all
@@ -871,6 +898,23 @@ void idGameLocal::ServerProcessReliableMessage( int clientNum, const idBitMsg &m
 			}
 			break;
 		}
+		//coop only specific stuff
+		case GAME_RELIABLE_MESSAGE_ADDCHECKPOINT: {
+			mpGame.WantAddCheckpoint(clientNum);
+			break;
+		}
+		case GAME_RELIABLE_MESSAGE_GOTOCHECKPOINT: {
+			mpGame.WantUseCheckpoint(clientNum);
+			break;
+		}
+		case GAME_RELIABLE_MESSAGE_GLOBALCHECKPOINT: {
+			mpGame.WantAddCheckpoint(clientNum, true);
+			break;
+		}
+		case GAME_RELIABLE_MESSAGE_NOCLIP: {
+			mpGame.WantNoClip(clientNum);
+			break;
+		}
 		default: {
 			Warning( "Unknown client->server reliable message: %d", id );
 			break;
@@ -1065,7 +1109,17 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 				common->Warning( "ClientReadSnapshot: recycling client entity %d\n", i );
 			}
 
-			delete ent;
+			//Pretty dirty hack stuff for COOP, FIXME: search for a best workaround
+			if (ent && (ent->IsType(idProjectile::Type) || ent->IsType(idTrigger::Type) || ent->spawnedByServer || ent->spawnArgs.GetBool("dropped") || ((ent->entityDefNumber == entityDefNumber) && (ent->GetType()->typeNum == typeNum)))) {
+				//delete ent;
+				//common->Printf("Por seguridad te eliminamos\n");
+				if (ent->spawnedByServer) {
+					common->Printf("Deleting %s anyways cause was spawned by server...\n", ent->GetName());
+				}
+				delete ent;
+			} else {
+				duplicateEntity(ent);
+			}
 
 			spawnCount = spawnId;
 
@@ -1091,6 +1145,8 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 			if ( i < MAX_CLIENTS && i >= numClients ) {
 				numClients = i + 1;
 			}
+
+			ent->spawnedByServer = true; //Added  by Stradex for Coop
 		}
 
 		// add the entity to the snapshot list
@@ -1181,6 +1237,10 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 		// if the entity is already in the snapshot
 		if ( ent->snapshotSequence == sequence ) {
 			continue;
+		}
+
+		if (!ent->fl.networkSync && mpGame.IsGametypeCoopBased()) {
+			continue; //ignore client-side entities in coop (IMPORTANT TO AVOID CRASHES IN COOP)
 		}
 
 		// if the entity is not in the snapshot PVS
@@ -1551,9 +1611,19 @@ gameReturn_t idGameLocal::ClientPrediction( int clientNum, const usercmd_t *clie
 	memcpy( usercmds, clientCmds, numClients * sizeof( usercmds[ 0 ] ) );
 
 	// run prediction on all entities from the last snapshot
-	for( ent = snapshotEntities.Next(); ent != NULL; ent = ent->snapshotNode.Next() ) {
-		ent->thinkFlags |= TH_PHYSICS;
-		ent->ClientPredictionThink();
+	if (!mpGame.IsGametypeCoopBased()) { //non-coop original netcode
+		for( ent = snapshotEntities.Next(); ent != NULL; ent = ent->snapshotNode.Next() ) {
+			ent->thinkFlags |= TH_PHYSICS;
+			ent->ClientPredictionThink();
+		}
+	} else { //COOP netcode
+
+	if (lastPredictFrame) {
+		RunClientSideFrame(player, clientCmds);
+	}
+		//Predict only player
+		player->thinkFlags  |= TH_PHYSICS;
+		player->ClientPredictionThink();
 	}
 
 	// service any pending events
@@ -1658,6 +1728,195 @@ bool idGameLocal::DownloadRequest( const char *IP, const char *guid, const char 
 	idStr::Copynz( urls, reply, MAX_STRING_CHARS );
 	return true;
 }
+
+
+/*
+==========================
+SPECIFIC COOP METHODS
+==========================
+*/
+
+/*
+================
+idGameLocal::RunClientSideFrame
+All specific COOP player clientside logic happens here
+================
+*/
+gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const usercmd_t *clientCmds )
+{
+	idEntity *ent;
+	gameReturn_t ret;
+	const renderView_t *view;
+	int			num;
+
+	for( ent = snapshotEntities.Next(); ent != NULL; ent = ent->snapshotNode.Next() ) {
+		if (ent->entityNumber == clientPlayer->entityNumber) {
+			continue;
+		}
+		ent->clientSideEntity = false; //this entity is not clientside
+		ent->thinkFlags |= TH_PHYSICS;
+		ent->ClientPredictionThink();
+	}
+
+	SortActiveEntityList();
+
+	//No cinematics in coop yet
+	for( ent = activeEntities.Next(); ent != NULL; ent = ent->activeNode.Next() ) {
+		if (isSnapshotEntity(ent)) {
+			continue;
+		}
+		if (ent->entityNumber == clientPlayer->entityNumber) {
+			common->Printf("Ignoring player clientside\n");
+			continue;
+		}
+		if (ent->fl.networkSync && !ent->IsType(idItem::Type) && !ent->IsType(idMover::Type) && !ent->IsType(idElevator::Type) && !ent->IsType(idDoor::Type) && !ent->IsType(idRotater::Type)) {
+			continue; //FIXME LATER, no need of this, I need to solve the duplicated entities problem at clientreadsnapshot and serverwritesnapshot
+		}
+		ent->clientSideEntity = true; //this entity is now clientside
+		ent->thinkFlags |= TH_PHYSICS;
+		ent->ClientPredictionThink();
+	}
+
+	// remove any entities that have stopped thinking
+	if ( numEntitiesToDeactivate ) {
+		idEntity *next_ent;
+		int c = 0;
+		for( ent = activeEntities.Next(); ent != NULL; ent = next_ent ) {
+			next_ent = ent->activeNode.Next();
+			if ( !ent->thinkFlags ) {
+				ent->activeNode.Remove();
+				c++;
+			}
+		}
+		//assert( numEntitiesToDeactivate == c );
+		numEntitiesToDeactivate = 0;
+	}
+
+	return ret;
+}
+
+
+/*
+=============
+idGameLocal::isSnapshotEntity
+=============
+*/
+
+bool idGameLocal::isSnapshotEntity(idEntity* ent){
+	idEntity* snapEnt;
+
+	for( snapEnt = snapshotEntities.Next(); snapEnt != NULL; snapEnt = snapEnt->snapshotNode.Next() ) {
+		if (snapEnt->entityNumber == ent->entityNumber) {
+			return true;
+		}
+	}
+	return false;
+}
+
+idEntity* idGameLocal::getEntityBySpawnId(int spawnId){
+	idEntity *ent;
+
+	for( ent = spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next() ) {
+		if (this->GetSpawnId(ent) == spawnId) {
+			return ent;
+		}
+	}
+
+	return NULL;
+}
+
+idEntity* idGameLocal::getEntityByEntityNumber(int entityNum)
+{
+	idEntity *ent;
+
+	for( ent = spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next() ) {
+		if (ent->entityNumber == entityNum) {
+			return ent;
+		}
+	}
+
+	return NULL;
+}
+
+
+int idGameLocal::getFreeEntityNumber( void ) {
+	int i;
+	idEntity* ent;
+	//for( i = MAX_CLIENTS; i < ENTITYNUM_MAX_NORMAL; i++ ) {
+	for (i = CS_ENTITIES_START; i < MAX_GENTITIES; i++) { //Client-side entities from 3096 to 4095
+		ent = entities[i];
+		if (!ent) {
+			return i;
+		}
+	}
+	return -1; //no free slot o.O
+}
+
+bool idGameLocal::duplicateEntity(idEntity* ent) {
+	idDict			args;
+	idTypeInfo		*typeInfo;
+
+	if (!ent) {
+		delete ent;
+		return false;
+	}
+
+	int freeEntitySlot = getFreeEntityNumber();  //FUCK NO, TRY ANOTHER THING (slow af cause bad entityNumber choice). FIXME LATER
+	if (freeEntitySlot >= MAX_CLIENTS)
+	{
+		int bakEnt_spawnId = this->GetSpawnId(ent);
+		char *bakEnt_name = (char*)malloc(strlen(ent->GetName()) + 1);
+		strcpy(bakEnt_name, ent->GetName());
+		typeInfo = idClass::GetType( ent->Type.typeNum );
+
+		int backEnt_defNumber = ent->entityDefNumber;
+
+		idVec3 bakEnt_origin = ent->GetLocalCoordinates( ent->GetPhysics()->GetOrigin() ); //get origin pos
+
+		args.Clear();
+		args.Copy(ent->spawnArgs);
+		delete ent;
+
+		args.SetInt( "spawn_entnum", freeEntitySlot );
+		args.Set( "name", bakEnt_name );
+		args.Set("origin", bakEnt_origin.ToString());
+		
+		if (this->FindEntity(bakEnt_name)) {
+			Error( "Backuped entity with name '%s' already exists!", bakEnt_name  );
+		}
+
+		//this->GetSpawnId
+
+		if ( backEnt_defNumber >= 0 ) {
+			if ( backEnt_defNumber >= declManager->GetNumDecls( DECL_ENTITYDEF ) ) {
+				//assert(0); //crash to find bug
+				Error( "(this makes non-sense) Client has %d entityDefs instead of %d", backEnt_defNumber, declManager->GetNumDecls( DECL_ENTITYDEF ) );
+			}
+			//args.Set("classname", bakEnt_classname);
+			char *bakEnt_classname = (char*)malloc(strlen(declManager->DeclByIndex( DECL_ENTITYDEF, backEnt_defNumber, false )->GetName()) + 1);
+			strcpy(bakEnt_classname, declManager->DeclByIndex( DECL_ENTITYDEF, backEnt_defNumber, false )->GetName());
+			args.Set( "classname", bakEnt_classname );
+			if ( !SpawnEntityDef( args, &ent, true, true )) {
+				//assert(0); //crash to find bug
+				Error( "Failed to spawn backup entity with classname '%s' of type '%s'", bakEnt_classname, typeInfo->classname );
+			}
+		} else {
+			ent = SpawnEntityType( *typeInfo, &args, true );
+			if ( !ent ) {
+				Error( "Failed to spawn backup entity of type '%s'", typeInfo->classname );
+			}
+		}
+		ent->clientSideEntity = true;
+		common->Printf("[COOP DEBUG] Entity backuped: %s -> %s...\n", ent->GetName(), ent->GetClassname()); //for debug
+		return true;
+	} else {
+		common->Printf("[COOP DEBUG] Unable to backup entity: %s...\n", ent->GetName()); //for debug
+	}
+
+	delete ent;
+	return false;
+}
+
 
 /*
 ===============

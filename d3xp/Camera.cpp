@@ -52,6 +52,10 @@ idCamera::Spawn
 =====================
 */
 void idCamera::Spawn( void ) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) { //careful, this may be the reason in all the bugs for COOP
+		//No cameras in coop
+		return;
+	}
 }
 
 /*
@@ -320,6 +324,10 @@ idCameraAnim::Load
 ================
 */
 void idCameraAnim::LoadAnim( void ) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) { //careful, this stuff is pretty stupid I believe
+		//No cameras in coop
+		return;
+	}
 	int			version;
 	idLexer		parser( LEXFL_ALLOWPATHNAMES | LEXFL_NOSTRINGESCAPECHARS | LEXFL_NOSTRINGCONCAT );
 	idToken		token;
@@ -466,6 +474,10 @@ void idCameraAnim::Start( void ) {
 	starttime = gameLocal.time;
 	gameLocal.SetCamera( this );
 	BecomeActive( TH_THINK );
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		return; //Disabled cinematics in COOP
+	}
 
 	// if the player has already created the renderview for this frame, have him update it again so that the camera starts this frame
 	if ( gameLocal.GetLocalPlayer()->GetRenderView()->time == gameLocal.time ) {

@@ -36,6 +36,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "ui/UserInterface.h"
 
 #include "gamesys/SysCvar.h"
+#include "WorldSpawn.h" //Added for COOP by Stradex
 #include "Player.h"
 #include "Game_local.h"
 
@@ -237,8 +238,9 @@ void idMultiplayerGame::SpawnPlayer( int clientNum ) {
 	if ( !gameLocal.isClient ) {
 		idPlayer *p = static_cast< idPlayer * >( gameLocal.entities[ clientNum ] );
 		p->spawnedTime = gameLocal.time;
-
-		if ( IsGametypeTeamBased() ) {  /* CTF */
+		if (gameLocal.gameType == GAME_COOP) {
+			p->team = 0;//Always team 0 in Coop
+		} else if ( IsGametypeTeamBased() ) {  /* CTF */
 			SwitchToTeam( clientNum, -1, p->team );
 		}
 		p->tourneyRank = 0;
@@ -246,6 +248,12 @@ void idMultiplayerGame::SpawnPlayer( int clientNum ) {
 			p->tourneyRank++;
 		}
 		playerState[ clientNum ].ingame = ingame;
+
+		//added for coop
+		if ( gameLocal.gameType == GAME_COOP ) {
+			playerCheckpoints[clientNum] = p->GetLocalCoordinates( p->GetPhysics()->GetOrigin() ); //get spawn position as initial checkpoint
+			common->Printf("Saving player %d checkpoint\n", clientNum);
+		}
 	}
 }
 
@@ -1418,6 +1426,9 @@ void idMultiplayerGame::NewState( gameState_t news, idPlayer *player ) {
 	gameLocal.DPrintf( "%s -> %s\n", GameStateStrings[ gameState ], GameStateStrings[ news ] );
 	switch( news ) {
 		case GAMEON: {
+			if (IsGametypeCoopBased()) { //added by Stradex (crashing on linux), don't restart the map in Coop
+				break;
+			}
 			gameLocal.LocalMapRestart();
 			outMsg.Init( msgBuf, sizeof( msgBuf ) );
 			outMsg.WriteByte( GAME_RELIABLE_MESSAGE_RESTART );
@@ -1792,6 +1803,11 @@ void idMultiplayerGame::Run() {
 	assert( !gameLocal.isClient );
 
 	pureReady = true;
+
+	if (!gameLocal.coopMapScriptLoad && gameLocal.firstClientToSpawn && IsGametypeCoopBased() && gameLocal.localClientNum < 0) { //first player joined in the dedicated server in coop
+		gameLocal.coopMapScriptLoad = true;
+		gameLocal.world->InitializateMapScript();
+	}
 
 	if ( gameState == INACTIVE ) {
 		lastGameType = gameLocal.gameType;
@@ -3022,7 +3038,8 @@ void idMultiplayerGame::CheckRespawns( idPlayer *spectator ) {
 				}
 			} else {
 				if ( gameLocal.gameType == GAME_DM ||		// CTF : 3wave sboily, was DM really included before?
-					 IsGametypeTeamBased() )
+					 IsGametypeTeamBased() ||
+					 gameLocal.gameType == GAME_COOP) //added for coop
 				{
 					if ( gameState == WARMUP || gameState == COUNTDOWN || gameState == GAMEON ) {
 						p->ServerSpectate( false );
@@ -4169,6 +4186,7 @@ bool idMultiplayerGame::IsGametypeTeamBased( void ) /* CTF */
 	case GAME_DM:
 	case GAME_TOURNEY:
 	case GAME_LASTMAN:
+	case GAME_COOP:
 		return false;
 #ifdef CTF
 	case GAME_CTF:
@@ -4196,6 +4214,7 @@ bool idMultiplayerGame::IsGametypeFlagBased( void )  {
 	case GAME_TOURNEY:
 	case GAME_LASTMAN:
 	case GAME_TDM:
+	case GAME_COOP:
 		return false;
 
 #ifdef CTF
@@ -4388,3 +4407,89 @@ idStr idMultiplayerGame::GetBestGametype( const char* map, const char* gametype 
 	return gametype;
 }
 #endif
+
+//NEW COOP METHODS
+
+/*
+================
+idMultiplayerGame::IsGametypeCoopBased
+================
+*/
+bool idMultiplayerGame::IsGametypeCoopBased( void )  {
+	switch ( gameLocal.gameType )
+	{
+	case GAME_SP:
+	case GAME_DM:
+	case GAME_TOURNEY:
+	case GAME_LASTMAN:
+	case GAME_TDM:
+	case GAME_CTF: //added for D3XP
+		return false;
+
+	case GAME_COOP:
+		return true;
+
+	default:
+		assert( !"Add support for your new gametype here." );
+	}
+
+	return false;
+
+}
+
+
+/*
+================
+idMultiplayerGame::WantAddCheckpoint
+================
+*/
+void idMultiplayerGame::WantAddCheckpoint( int clientNum , bool isGlobal) {
+	idEntity *ent = gameLocal.entities[ clientNum ];
+	idPlayer *p; 
+	idVec3 pPos;
+	if ( ent && ent->IsType( idPlayer::Type ) ) {
+		p = static_cast<idPlayer *>( ent );
+		pPos = p->GetLocalCoordinates( p->GetPhysics()->GetOrigin() );
+		if (isGlobal) {
+			int i;
+			for (i=0; i < MAX_CLIENTS; i++) {
+				playerCheckpoints[i] = pPos;
+			}
+			cmdSystem->BufferCommandText( CMD_EXEC_NOW, va( "say '%s^0' created a new global checkpoint!\n", gameLocal.userInfo[ p->entityNumber ].GetString( "ui_name" ) ) );
+			//common->Printf("Player %d added a global checkpoint\n", clientNum);
+			//gameLocal.mpGame.say
+		} else {
+			playerCheckpoints[clientNum] = pPos;
+			common->Printf("Player %d added a checkpoint\n", clientNum);
+		}
+		//static_cast<idPlayer *>( ent )->Kill( false, false );
+	}
+}
+
+/*
+================
+idMultiplayerGame::WantUseCheckpoint
+================
+*/
+void idMultiplayerGame::WantUseCheckpoint( int clientNum ) {
+	idEntity *ent = gameLocal.entities[ clientNum ];
+	idPlayer *p; 
+	if ( ent && ent->IsType( idPlayer::Type ) ) {
+		p = static_cast<idPlayer *>( ent );
+		p->Teleport(playerCheckpoints[clientNum], p->GetViewAngles()); 
+		common->Printf("Player %d used checkpoint\n", clientNum);
+	}
+}
+
+/*
+================
+idMultiplayerGame::WantUseCheckpoint
+================
+*/
+void idMultiplayerGame::WantNoClip( int clientNum ) {
+	idEntity *ent = gameLocal.entities[ clientNum ];
+	if ( ent && ent->IsType( idPlayer::Type ) ) {
+		bool noClipStatus = static_cast<idPlayer *>( ent )->noclip;
+		static_cast<idPlayer *>( ent )->noclip = !noClipStatus;
+	}
+}
