@@ -1429,6 +1429,10 @@ void idPlayer::Spawn( void ) {
 	// allow thinking during cinematics
 	cinematic = true;
 
+	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
+		gameLocal.firstClientToSpawn = true; //addded for COOP
+	}
+
 	if ( gameLocal.isMultiplayer ) {
 		// always start in spectating state waiting to be spawned in
 		// do this before SetClipModel to get the right bounding box
@@ -7449,7 +7453,18 @@ void idPlayer::SetLastHitTime( int time ) {
 			if ( gameLocal.entities[ MPAim ] && gameLocal.entities[ MPAim ]->IsType( idPlayer::Type ) ) {
 				aimed = static_cast< idPlayer * >( gameLocal.entities[ MPAim ] );
 			}
-			assert( aimed );
+			if (gameLocal.mpGame.IsGametypeCoopBased()) { //avoid crash in coop
+				if ( !aimed ) {
+					hud->SetStateString( "aim_text", "Unknown" );
+					hud->SetStateFloat( "aim_color", aimed->colorBarIndex );
+					hud->HandleNamedEvent( "aim_flash" );
+					MPAimHighlight = true;
+					MPAimFadeTime = 0;
+					return;
+				}
+			} else {
+				assert( aimed );
+			}
 			// full highlight, no fade till loosing aim
 			hud->SetStateString( "aim_text", gameLocal.userInfo[ MPAim ].GetString( "ui_name" ) );
 			if ( aimed ) {
@@ -7462,7 +7477,20 @@ void idPlayer::SetLastHitTime( int time ) {
 			if ( gameLocal.entities[ lastMPAim ] && gameLocal.entities[ lastMPAim ]->IsType( idPlayer::Type ) ) {
 				aimed = static_cast< idPlayer * >( gameLocal.entities[ lastMPAim ] );
 			}
-			assert( aimed );
+			if (gameLocal.mpGame.IsGametypeCoopBased()) { //avoid crash in coop
+				if ( !aimed ) {
+					hud->SetStateString( "aim_text", "Unknown" );
+					hud->SetStateFloat( "aim_color", aimed->colorBarIndex );
+					hud->HandleNamedEvent( "aim_flash" );
+					hud->HandleNamedEvent( "aim_fade" );
+					MPAimHighlight = false;
+					MPAimFadeTime = gameLocal.realClientTime;
+					return; 
+				}
+			} else {
+				assert( aimed );
+			}
+			
 			// start fading right away
 			hud->SetStateString( "aim_text", gameLocal.userInfo[ lastMPAim ].GetString( "ui_name" ) );
 			if ( aimed ) {

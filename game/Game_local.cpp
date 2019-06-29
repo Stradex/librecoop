@@ -244,6 +244,11 @@ void idGameLocal::Clear( void ) {
 	lastGUIEnt = NULL;
 	lastGUI = 0;
 
+	//added for coop
+	firstClientToSpawn = false;
+	coopMapScriptLoad = false;
+	//end for coop
+
 	memset( clientEntityStates, 0, sizeof( clientEntityStates ) );
 	memset( clientPVS, 0, sizeof( clientPVS ) );
 	memset( clientSnapshots, 0, sizeof( clientSnapshots ) );
@@ -985,6 +990,9 @@ void idGameLocal::LocalMapRestart( ) {
 
 	InitScriptForMap();
 
+	firstClientToSpawn = true; //added by Stradex for coop
+	coopMapScriptLoad = false; //added by Stradex for coop
+
 	MapPopulate();
 
 	// once the map is populated, set the spawnCount back to where it was so we don't risk any collision
@@ -1193,6 +1201,9 @@ void idGameLocal::InitFromNewMap( const char *mapName, idRenderWorld *renderWorl
 	LoadMap( mapName, randseed );
 
 	InitScriptForMap();
+
+	firstClientToSpawn = false; //added by Stradex for coop
+	coopMapScriptLoad = false; //added by Stradex for coop
 
 	MapPopulate();
 
@@ -2229,7 +2240,7 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 
 		// clear any debug lines from a previous frame
 		gameRenderWorld->DebugClearLines( time );
-
+		
 		// clear any debug polygons from a previous frame
 		gameRenderWorld->DebugClearPolygons( time );
 
@@ -2280,12 +2291,20 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 						ent->GetPhysics()->UpdateTime( time );
 						continue;
 					}
+					if  (isMultiplayer && mpGame.IsGametypeCoopBased() && localClientNum < 0 && !gameLocal.firstClientToSpawn) {
+						num++;
+						continue; //don't let any entity to think while there're no players in-game yet for dedicated server in coop
+					}
 					ent->Think();
 					num++;
 				}
 			} else {
 				num = 0;
 				for( ent = activeEntities.Next(); ent != NULL; ent = ent->activeNode.Next() ) {
+					if  (isMultiplayer && mpGame.IsGametypeCoopBased() && localClientNum < 0 && !gameLocal.firstClientToSpawn) {
+						num++;
+						continue;//don't let any entity to think while there're no players in-game yet for dedicated server in coop
+					}
 					ent->Think();
 					num++;
 				}
@@ -4192,11 +4211,7 @@ void idGameLocal::RandomizeInitialSpawns( void ) {
 	initialSpots.Clear();
 	spot.dist = 0;
 
-	if ( mpGame.IsGametypeCoopBased()) {
-		spot.ent = FindEntityUsingDef( NULL, static_cast<const char*>(spawnDefEntity) ); 
-	} else {
-		spot.ent = FindEntityUsingDef( NULL,  static_cast<const char*>(spawnDefEntity) );
-	}
+	spot.ent = FindEntityUsingDef( NULL,  static_cast<const char*>(spawnDefEntity) );
 	
 	while( spot.ent ) {
 		spawnSpots.Append( spot );
@@ -4242,6 +4257,8 @@ idEntity *idGameLocal::SelectInitialSpawnPoint( idPlayer *player ) {
 	idVec3			pos;
 	float			dist;
 	bool			alone;
+
+	
 
 	if ( !isMultiplayer || !spawnSpots.Num() ) {
 		spot.ent = FindEntityUsingDef( NULL, "info_player_start" );

@@ -36,6 +36,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "ui/UserInterface.h"
 
 #include "gamesys/SysCvar.h"
+#include "WorldSpawn.h" //Added for COOP by Stradex
 #include "Player.h"
 #include "Game_local.h"
 
@@ -1341,6 +1342,13 @@ void idMultiplayerGame::Run() {
 	assert( !gameLocal.isClient );
 
 	pureReady = true;
+
+	if (!gameLocal.coopMapScriptLoad && gameLocal.firstClientToSpawn && IsGametypeCoopBased() && gameLocal.localClientNum < 0) { //first player joined by the dedicated server
+		gameLocal.coopMapScriptLoad = true;
+		gameLocal.world->InitializateMapScript();
+	} else if (!gameLocal.firstClientToSpawn && IsGametypeCoopBased() && gameLocal.localClientNum < 0) {
+		//return; //Freeze time until a player joins in a dedicated server in coop
+	}
 
 	if ( gameState == INACTIVE ) {
 		lastGameType = gameLocal.gameType;

@@ -456,6 +456,9 @@ public:
 
 	bool					NeedRestart();
 
+	//specific coop stuff
+	bool					firstClientToSpawn; //used in coop for dedicated server not starting scripts until a player joins
+	bool					coopMapScriptLoad; //used in coop for dedicated server not starting scripts until a player joins
 private:
 	const static int		INITIAL_SPAWN_COUNT = 1;
 
