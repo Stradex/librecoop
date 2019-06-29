@@ -3546,7 +3546,9 @@ void idMultiplayerGame::WantAddCheckpoint( int clientNum , bool isGlobal) {
 			for (i=0; i < MAX_CLIENTS; i++) {
 				playerCheckpoints[i] = pPos;
 			}
-			common->Printf("Player %d added a global checkpoint\n", clientNum);
+			cmdSystem->BufferCommandText( CMD_EXEC_NOW, va( "say '%s^0' created a new global checkpoint!\n", gameLocal.userInfo[ p->entityNumber ].GetString( "ui_name" ) ) );
+			//common->Printf("Player %d added a global checkpoint\n", clientNum);
+			//gameLocal.mpGame.say
 		} else {
 			playerCheckpoints[clientNum] = pPos;
 			common->Printf("Player %d added a checkpoint\n", clientNum);
