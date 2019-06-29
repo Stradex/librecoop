@@ -217,6 +217,12 @@ void idMultiplayerGame::SpawnPlayer( int clientNum ) {
 			p->tourneyRank++;
 		}
 		playerState[ clientNum ].ingame = ingame;
+
+		//added for coop
+		if ( gameLocal.gameType == GAME_COOP ) {
+			playerCheckpoints[clientNum] = p->GetLocalCoordinates( p->GetPhysics()->GetOrigin() ); //get spawn position as initial checkpoint
+			common->Printf("Saving player %d checkpoint\n", clientNum);
+		}
 	}
 }
 
@@ -3517,4 +3523,62 @@ idStr idMultiplayerGame::GetBestGametype( const char* map, const char* gametype 
 
 	//For testing a new map let it play any gametpye
 	return gametype;
+}
+
+/*****************
+SPECIFIC COOP STUFF
+*******************/
+
+/*
+================
+idMultiplayerGame::WantAddCheckpoint
+================
+*/
+void idMultiplayerGame::WantAddCheckpoint( int clientNum , bool isGlobal) {
+	idEntity *ent = gameLocal.entities[ clientNum ];
+	idPlayer *p; 
+	idVec3 pPos;
+	if ( ent && ent->IsType( idPlayer::Type ) ) {
+		p = static_cast<idPlayer *>( ent );
+		pPos = p->GetLocalCoordinates( p->GetPhysics()->GetOrigin() );
+		if (isGlobal) {
+			int i;
+			for (i=0; i < MAX_CLIENTS; i++) {
+				playerCheckpoints[i] = pPos;
+			}
+			common->Printf("Player %d added a global checkpoint\n", clientNum);
+		} else {
+			playerCheckpoints[clientNum] = pPos;
+			common->Printf("Player %d added a checkpoint\n", clientNum);
+		}
+		//static_cast<idPlayer *>( ent )->Kill( false, false );
+	}
+}
+
+/*
+================
+idMultiplayerGame::WantUseCheckpoint
+================
+*/
+void idMultiplayerGame::WantUseCheckpoint( int clientNum ) {
+	idEntity *ent = gameLocal.entities[ clientNum ];
+	idPlayer *p; 
+	if ( ent && ent->IsType( idPlayer::Type ) ) {
+		p = static_cast<idPlayer *>( ent );
+		p->Teleport(playerCheckpoints[clientNum], p->GetViewAngles()); 
+		common->Printf("Player %d used checkpoint\n", clientNum);
+	}
+}
+
+/*
+================
+idMultiplayerGame::WantUseCheckpoint
+================
+*/
+void idMultiplayerGame::WantNoClip( int clientNum ) {
+	idEntity *ent = gameLocal.entities[ clientNum ];
+	if ( ent && ent->IsType( idPlayer::Type ) ) {
+		bool noClipStatus = static_cast<idPlayer *>( ent )->noclip;
+		static_cast<idPlayer *>( ent )->noclip = !noClipStatus;
+	}
 }

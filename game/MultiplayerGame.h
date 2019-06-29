@@ -243,6 +243,11 @@ public:
 
 	void			PlayerStats( int clientNum, char *data, const int len );
 
+	//specific coop functions
+	void			WantUseCheckpoint( int clientNum );
+	void			WantAddCheckpoint( int clientNum , bool isGlobal=false);
+	void			WantNoClip( int clientNum );
+
 private:
 	static const char	*MPGuis[];
 	static const char	*ThrottleVars[];
@@ -255,6 +260,7 @@ private:
 	int				pingUpdateTime;			// time to update ping
 
 	mpPlayerState_t	playerState[ MAX_CLIENTS ];
+	idVec3			playerCheckpoints[ MAX_CLIENTS ]; //added for coop checkpoints
 
 											// keep track of clients which are willingly in spectator mode
 

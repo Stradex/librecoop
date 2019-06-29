@@ -388,6 +388,7 @@ public:
 
 							// use exitEntityNum to specify a teleport with private camera view and delayed exit
 	virtual void			Teleport( const idVec3 &origin, const idAngles &angles, idEntity *destination );
+	virtual void			Teleport( const idVec3 &origin, const idAngles &angles ); //For coop only
 
 	void					Kill( bool delayRespawn, bool nodamage );
 	virtual void			Killed( idEntity *inflictor, idEntity *attacker, int damage, const idVec3 &dir, int location );
@@ -526,6 +527,8 @@ public:
 
 	bool					SelfSmooth( void );
 	void					SetSelfSmooth( bool b );
+
+	idAngles				GetViewAngles( void ); //added for coop checkpoint teleport
 
 	//Client-side stuff for coop
 	bool					CS_Give( const char *statname, const char *value );

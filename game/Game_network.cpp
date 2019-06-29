@@ -901,6 +901,23 @@ void idGameLocal::ServerProcessReliableMessage( int clientNum, const idBitMsg &m
 			}
 			break;
 		}
+		//coop only specific stuff
+		case GAME_RELIABLE_MESSAGE_ADDCHECKPOINT: {
+			mpGame.WantAddCheckpoint(clientNum);
+			break;
+		}
+		case GAME_RELIABLE_MESSAGE_GOTOCHECKPOINT: {
+			mpGame.WantUseCheckpoint(clientNum);
+			break;
+		}
+		case GAME_RELIABLE_MESSAGE_GLOBALCHECKPOINT: {
+			mpGame.WantAddCheckpoint(clientNum, true);
+			break;
+		}
+		case GAME_RELIABLE_MESSAGE_NOCLIP: {
+			mpGame.WantNoClip(clientNum);
+			break;
+		}
 		default: {
 			Warning( "Unknown client->server reliable message: %d", id );
 			break;

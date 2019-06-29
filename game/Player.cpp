@@ -8034,6 +8034,9 @@ void idPlayer::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteBits( weaponGone, 1 );
 	msg.WriteBits( isLagged, 1 );
 	msg.WriteBits( isChatting, 1 );
+
+	//extra added for coop
+	msg.WriteBits( noclip, 1 );
 }
 
 /*
@@ -8071,6 +8074,9 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	weaponGone = msg.ReadBits( 1 ) != 0;
 	isLagged = msg.ReadBits( 1 ) != 0;
 	isChatting = msg.ReadBits( 1 ) != 0;
+
+	//extra added for coop
+	noclip = msg.ReadBits( 1 ) != 0;
 
 	// no msg reading below this
 
@@ -8681,4 +8687,48 @@ bool idPlayer::CS_GiveItem( idItem *item )
 	}
 
 	return gave;
+}
+
+/*
+================
+idPlayer::GetViewAngles
+================
+*/
+idAngles idPlayer::GetViewAngles( void ) {
+	return viewAngles;
+}
+
+/*
+===========
+idPlayer::Teleport
+============
+*/
+void idPlayer::Teleport( const idVec3 &origin, const idAngles &angles) {
+	idVec3 org;
+
+	if ( weapon.GetEntity() ) {
+		weapon.GetEntity()->LowerWeapon();
+	}
+
+	SetOrigin( origin + idVec3( 0, 0, CM_CLIP_EPSILON ) );
+	if ( !gameLocal.isMultiplayer && GetFloorPos( 16.0f, org ) ) {
+		SetOrigin( org );
+	}
+
+	// clear the ik heights so model doesn't appear in the wrong place
+	walkIK.EnableAll();
+
+	GetPhysics()->SetLinearVelocity( vec3_origin );
+
+	SetViewAngles( angles );
+
+	legsYaw = 0.0f;
+	idealLegsYaw = 0.0f;
+	oldViewYaw = viewAngles.yaw;
+
+	if ( gameLocal.isMultiplayer ) {
+		playerView.Flash( colorWhite, 140 );
+	}
+
+	UpdateVisuals();
 }
