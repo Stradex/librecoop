@@ -117,6 +117,8 @@ public:
 	idAngles			GetAngles( const char *key, const char *defaultString = NULL ) const;
 	idMat3				GetMatrix( const char *key, const char *defaultString = NULL ) const;
 
+	bool				GetBool( const char *key, const bool defaultBool ) const; //added for LM
+
 	bool				GetString( const char *key, const char *defaultString, const char **out ) const;
 	bool				GetString( const char *key, const char *defaultString, idStr &out ) const;
 	bool				GetFloat( const char *key, const char *defaultString, float &out ) const;
@@ -127,6 +129,8 @@ public:
 	bool				GetVec4( const char *key, const char *defaultString, idVec4 &out ) const;
 	bool				GetAngles( const char *key, const char *defaultString, idAngles &out ) const;
 	bool				GetMatrix( const char *key, const char *defaultString, idMat3 &out ) const;
+
+	bool				GetBool( const char *key, const bool defaultBool, bool &out ) const; 	//added for LM
 
 	int					GetNumKeyVals( void ) const;
 	const idKeyValue *	GetKeyVal( int index ) const;
@@ -262,6 +266,16 @@ ID_INLINE int idDict::GetInt( const char *key, const char *defaultString ) const
 ID_INLINE bool idDict::GetBool( const char *key, const char *defaultString ) const {
 	return ( atoi( GetString( key, defaultString ) ) != 0 );
 }
+
+//Added for LM
+ID_INLINE bool idDict::GetBool( const char *key, const bool defaultBool ) const {
+	const idKeyValue *kv = FindKey( key );
+	if ( kv ) {
+		return atoi( kv->GetValue() ) != 0;
+	}
+	return defaultBool;
+}
+
 
 ID_INLINE idVec3 idDict::GetVector( const char *key, const char *defaultString ) const {
 	idVec3 out;

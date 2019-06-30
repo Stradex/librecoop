@@ -416,6 +416,7 @@ idEntity::idEntity
 idEntity::idEntity() {
 
 	entityNumber	= ENTITYNUM_NONE;
+	entityCoopNumber = ENTITYNUM_NONE; //for coop
 	entityDefNumber = -1;
 
 	spawnNode.SetOwner( this );

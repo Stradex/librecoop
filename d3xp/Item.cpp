@@ -75,7 +75,8 @@ idItem::idItem() {
 	shellMaterial = NULL;
 	orgOrigin.Zero();
 	canPickUp = true;
-	fl.networkSync = true;
+	//Commented for coop
+	//fl.networkSync = true;
 }
 
 /*

@@ -643,10 +643,6 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 			continue;
 		}
 
-		if (mpGame.IsGametypeCoopBased() && ent->IsType(idItem::Type)) {
-			continue; //lot of items in SP maps, let these be client-side
-		}
-
 		if (mpGame.IsGametypeCoopBased()) {
 			// add the entity to the snapshot pvs
 			snapshot->pvs[ ent->entityNumber >> 5 ] |= 1 << ( ent->entityNumber & 31 ); //COOP add entities to the snapshot pvs only to netsync entities STRADEX
@@ -657,6 +653,8 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 
 		// write the entity to the snapshot
 		msg.WriteBits( ent->entityNumber, GENTITYNUM_BITS );
+		// write the entity coop number to the snapshot
+		msg.WriteBits( ent->entityCoopNumber, GENTITYNUM_BITS );
 
 		base = clientEntityStates[clientNum][ent->entityNumber];
 		if ( base ) {
@@ -1030,6 +1028,7 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 	snapshot_t		*snapshot;
 	entityState_t	*base, *newBase;
 	int				spawnId;
+	int				coopId=ENTITYNUM_NONE; //for coop
 	int				numSourceAreas, sourceAreas[ idEntity::MAX_PVS_AREAS ];
 	idWeapon		*weap;
 
@@ -1075,6 +1074,8 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 	// read all entities from the snapshot
 	for ( i = msg.ReadBits( GENTITYNUM_BITS ); i != ENTITYNUM_NONE; i = msg.ReadBits( GENTITYNUM_BITS ) ) {
 
+		coopId = msg.ReadBits( GENTITYNUM_BITS );
+
 		base = clientEntityStates[clientNum][i];
 		if ( base ) {
 			base->state.BeginReading();
@@ -1103,7 +1104,21 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 
 		// if there is no entity or an entity of the wrong type
 		if ( !ent || ent->GetType()->typeNum != typeNum || ent->entityDefNumber != entityDefNumber || spawnId != spawnIds[ i ] ) {
+			//For coop
+			bool isCoopEntity=false;
+			if (coopId != ENTITYNUM_NONE && coopentities[coopId] != NULL) {
 
+				ent = coopentities[coopId];
+
+				if ( ent && ent->GetType()->typeNum == typeNum && ent->entityDefNumber == entityDefNumber && !ent->IsType(idActor::Type) ) { //dirty hack
+					isCoopEntity=true;
+				} else {
+					ent = entities[i]; //go back : p
+				}
+
+			}
+
+			if (!isCoopEntity) {
 			if ( i < MAX_CLIENTS && ent ) {
 				// SPAWN_PLAYER should be taking care of spawning the entity with the right spawnId
 				common->Warning( "ClientReadSnapshot: recycling client entity %d\n", i );
@@ -1147,10 +1162,17 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 			}
 
 			ent->spawnedByServer = true; //Added  by Stradex for Coop
+
+			}
 		}
 
 		// add the entity to the snapshot list
 		ent->snapshotNode.AddToEnd( snapshotEntities );
+
+		if (ent->snapshotSequence == sequence) { //DEBUG for coop
+			common->Printf("Bad shit... duplicated snapshot read...\n");
+		}
+
 		ent->snapshotSequence = sequence;
 
 		// read the class specific data from the snapshot
@@ -1766,10 +1788,10 @@ gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const userc
 			continue;
 		}
 		if (ent->entityNumber == clientPlayer->entityNumber) {
-			common->Printf("Ignoring player clientside\n");
+			//common->Printf("Ignoring player clientside\n");
 			continue;
 		}
-		if (ent->fl.networkSync && !ent->IsType(idItem::Type) && !ent->IsType(idMover::Type) && !ent->IsType(idElevator::Type) && !ent->IsType(idDoor::Type) && !ent->IsType(idRotater::Type)) {
+		if (ent->fl.networkSync && !ent->IsType(idMover::Type) && !ent->IsType(idElevator::Type) && !ent->IsType(idDoor::Type) && !ent->IsType(idRotater::Type)) {
 			continue; //FIXME LATER, no need of this, I need to solve the duplicated entities problem at clientreadsnapshot and serverwritesnapshot
 		}
 		ent->clientSideEntity = true; //this entity is now clientside
