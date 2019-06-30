@@ -5363,6 +5363,11 @@ bool idAnimatedEntity::ClientReceiveEvent( int event, int time, const idBitMsg &
 			localDir = msg.ReadDir( 24 );
 			damageDefIndex = gameLocal.ClientRemapDecl( DECL_ENTITYDEF, msg.ReadInt() );
 			materialIndex = gameLocal.ClientRemapDecl( DECL_MATERIAL, msg.ReadInt() );
+
+			if ((damageDefIndex == -1 || materialIndex  == -1 ) && gameLocal.mpGame.IsGametypeCoopBased()){ //ugly avoid crash in coop
+				return true;
+			}
+
 			const idDeclEntityDef *damageDef = static_cast<const idDeclEntityDef *>( declManager->DeclByIndex( DECL_ENTITYDEF, damageDefIndex ) );
 			const idMaterial *collisionMaterial = static_cast<const idMaterial *>( declManager->DeclByIndex( DECL_MATERIAL, materialIndex ) );
 			AddLocalDamageEffect( jointNum, localOrigin, localNormal, localDir, damageDef, collisionMaterial );
