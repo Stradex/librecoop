@@ -350,37 +350,57 @@ void idAI::Event_Touch( idEntity *other, trace_t *trace ) {
 idAI::Event_FindEnemy
 =====================
 */
-void idAI::Event_FindEnemy( int useFOV ) {
+void idAI::Event_FindEnemy(int useFOV) {
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-		Event_FindEnemyAI(useFOV); //Use this in COOP, TMP
-	} else {
-	int			i;
-	idEntity	*ent;
-	idActor		*actor;
+		idPlayer* closestPlayer = NULL;
+		float shortestDist = INFINITE;
+		idPlayer* player;
+		float dist;
+		for (int i = 0; i < gameLocal.numClients; i++) {
+			player = gameLocal.GetClientByNum(i);
 
-	if ( gameLocal.InPlayerPVS( this ) ) {
-		for ( i = 0; i < gameLocal.numClients ; i++ ) {
-			ent = gameLocal.entities[ i ];
-
-			if ( !ent || !ent->IsType( idActor::Type ) ) {
+			if (player->spectating || player->health <= 0 || !(ReactionTo(player) & ATTACK_ON_SIGHT)) {
 				continue;
 			}
 
-			actor = static_cast<idActor *>( ent );
-			if ( ( actor->health <= 0 ) || !( ReactionTo( actor ) & ATTACK_ON_SIGHT ) ) {
-				continue;
+			dist = TravelDistance(this->GetPhysics()->GetOrigin(), player->GetPhysics()->GetOrigin());
+
+			if (dist < shortestDist) {
+				shortestDist = dist;
+				closestPlayer = player;
 			}
 
-			if ( CanSee( actor, useFOV != 0 ) ) {
-				idThread::ReturnEntity( actor );
+			if (CanSee(closestPlayer, useFOV != 0)) {
+				idThread::ReturnEntity(closestPlayer);
 				return;
 			}
 		}
-	}
+	} else {
+		int			i;
+		idEntity* ent;
+		idActor* actor;
 
-	idThread::ReturnEntity( NULL );
+		if (gameLocal.InPlayerPVS(this)) {
+			for (i = 0; i < gameLocal.numClients; i++) {
+				ent = gameLocal.entities[i];
 
+				if (!ent || !ent->IsType(idActor::Type)) {
+					continue;
+				}
+
+				actor = static_cast<idActor*>(ent);
+				if ((actor->health <= 0) || !(ReactionTo(actor) & ATTACK_ON_SIGHT)) {
+					continue;
+				}
+
+				if (CanSee(actor, useFOV != 0)) {
+					idThread::ReturnEntity(actor);
+					return;
+				}
+			}
+		}
 	}
+	idThread::ReturnEntity(NULL);
 }
 
 /*
