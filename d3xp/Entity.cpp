@@ -416,6 +416,7 @@ idEntity::idEntity
 idEntity::idEntity() {
 
 	entityNumber	= ENTITYNUM_NONE;
+	entityCoopNumber = ENTITYNUM_NONE; //for coop
 	entityDefNumber = -1;
 
 	spawnNode.SetOwner( this );
@@ -5575,7 +5576,12 @@ bool idAnimatedEntity::ClientReceiveEvent( int event, int time, const idBitMsg &
 			localDir = msg.ReadDir( 24 );
 			damageDefIndex = gameLocal.ClientRemapDecl( DECL_ENTITYDEF, msg.ReadInt() );
 			materialIndex = gameLocal.ClientRemapDecl( DECL_MATERIAL, msg.ReadInt() );
-			const idDeclEntityDef *damageDef = static_cast<const idDeclEntityDef *>( declManager->DeclByIndex( DECL_ENTITYDEF, damageDefIndex ) );
+
+			if ((damageDefIndex == -1 || materialIndex  == -1 ) && gameLocal.mpGame.IsGametypeCoopBased()){ //ugly avoid crash in coop
+				return true;
+			}
+
+			const idDeclEntityDef *damageDef = static_cast<const idDeclEntityDef *>( declManager->DeclByIndex( DECL_ENTITYDEF, damageDefIndex ) ); //causing some crashes in coop
 			const idMaterial *collisionMaterial = static_cast<const idMaterial *>( declManager->DeclByIndex( DECL_MATERIAL, materialIndex ) );
 			AddLocalDamageEffect( jointNum, localOrigin, localNormal, localDir, damageDef, collisionMaterial );
 			return true;

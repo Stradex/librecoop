@@ -526,7 +526,20 @@ void Cmd_Noclip_f( const idCmdArgs &args ) {
 	} else {
 		msg = "noclip ON\n";
 	}
-	player->noclip = !player->noclip;
+	//NOCLIP for coop
+	if (gameLocal.isMultiplayer) { 
+		if (gameLocal.isClient) {
+			idBitMsg	outMsg;
+			byte		msgBuf[ MAX_GAME_MESSAGE_SIZE ];
+			outMsg.Init( msgBuf, sizeof( msgBuf ) );
+			outMsg.WriteByte( GAME_RELIABLE_MESSAGE_NOCLIP );
+			networkSystem->ClientSendReliableMessage( outMsg );
+		} else {
+			player->noclip = !player->noclip;
+		}
+	} else {
+		player->noclip = !player->noclip;
+	}
 
 	gameLocal.Printf( "%s", msg );
 }

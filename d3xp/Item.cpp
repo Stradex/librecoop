@@ -75,7 +75,8 @@ idItem::idItem() {
 	shellMaterial = NULL;
 	orgOrigin.Zero();
 	canPickUp = true;
-	fl.networkSync = true;
+	//Commented for coop
+	//fl.networkSync = true;
 }
 
 /*
@@ -1619,7 +1620,7 @@ idVideoCDItem::GiveToPlayer
 bool idVideoCDItem::GiveToPlayer( idPlayer *player ) {
 
 	if (gameLocal.mpGame.IsGametypeCoopBased()) { //disable video pickup in COOP to avoid crash
-		return true;
+		return true; //should be false?, I think so
 	}
 
 	idStr str = spawnArgs.GetString( "video" );

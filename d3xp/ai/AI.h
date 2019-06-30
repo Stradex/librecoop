@@ -375,6 +375,8 @@ protected:
 	idVec3					projectileGravity;
 	idEntityPtr<idProjectile> projectile;
 	idStr					attack;
+	//Added for the LM
+	idVec3					homingMissileGoal;
 
 	// chatter/talking
 	const idSoundShader		*chat_snd;
@@ -616,6 +618,9 @@ protected:
 	void					Event_FireMissileAtTarget( const char *jointname, const char *targetname );
 	void					Event_LaunchMissile( const idVec3 &muzzle, const idAngles &ang );
 #ifdef _D3XP
+	
+	void					Event_LaunchHomingMissile(); //Added for the LM
+	void					Event_SetHomingMissileGoal(); //Added for the LM
 	void					Event_LaunchProjectile( const char *entityDefName );
 #endif
 	void					Event_AttackMelee( const char *meleeDefName );
