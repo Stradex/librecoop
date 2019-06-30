@@ -207,13 +207,18 @@ void idTarget_EndLevel::Event_Activate( idEntity *activator ) {
 		return;
 	}
 
-	if ( spawnArgs.GetInt( "devmap", "0" ) ) {
-		gameLocal.sessionCommand = "devmap ";	// only for special demos
+	if ( gameLocal.mpGame.IsGametypeCoopBased() ) {
+		si_map.SetString(nextMap);
+		gameLocal.MapRestart();
 	} else {
-		gameLocal.sessionCommand = "map ";
+		if (spawnArgs.GetInt("devmap", "0")) {
+			gameLocal.sessionCommand = "devmap ";	// only for special demos
+		}
+		else {
+			gameLocal.sessionCommand = "map ";
+		}
+		gameLocal.sessionCommand += nextMap;
 	}
-
-	gameLocal.sessionCommand += nextMap;
 }
 
 
