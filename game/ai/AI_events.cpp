@@ -379,7 +379,11 @@ void idAI::Event_FindEnemyAI( int useFOV ) {
 		}
 
 		actor = static_cast<idActor *>( ent );
-		if ( ( actor->health <= 0 ) || (!( ReactionTo( actor ) & ATTACK_ON_SIGHT ) && !ent->IsType( idPlayer::Type ) ) ) { //!ent->IsType( idPlayer::Type ) dirty hack, just for test
+		if (!ent->IsType(idPlayer::Type)) {
+			continue;
+		}
+
+		if ( ( actor->health <= 0 ) || (!( ReactionTo( actor ) & ATTACK_ON_SIGHT ) ) ) {
 			continue;
 		}
 
