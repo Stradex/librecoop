@@ -659,6 +659,12 @@ void idProjectile::AddDefaultDamageEffect( const trace_t &collision, const idVec
 		idBitMsg	msg;
 		byte		msgBuf[MAX_EVENT_PARAM_SIZE];
 		int			excludeClient;
+		idVec3		collisionDirVec = vec3_zero; //added for coop to avoid crash
+
+		if ( (collision.c.normal.LengthSqr() - 1.0f) < 0.01f) //Avoid crash in coop
+		{
+			collisionDirVec = collision.c.normal;
+		}
 
 		if ( spawnArgs.GetBool( "net_instanthit" ) ) {
 			excludeClient = owner.GetEntityNum();
@@ -671,7 +677,8 @@ void idProjectile::AddDefaultDamageEffect( const trace_t &collision, const idVec
 		msg.WriteFloat( collision.c.point[0] );
 		msg.WriteFloat( collision.c.point[1] );
 		msg.WriteFloat( collision.c.point[2] );
-		msg.WriteDir( collision.c.normal, 24 );
+		//msg.WriteDir( collision.c.normal, 24 );
+		msg.WriteDir( collisionDirVec, 24 ); //Avoid crash in coop
 		msg.WriteInt( ( collision.c.material != NULL ) ? gameLocal.ServerRemapDecl( -1, DECL_MATERIAL, collision.c.material->Index() ) : -1 );
 		msg.WriteFloat( velocity[0], 5, 10 );
 		msg.WriteFloat( velocity[1], 5, 10 );
