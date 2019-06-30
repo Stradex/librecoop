@@ -345,6 +345,9 @@ bool idItem::GiveToPlayer( idPlayer *player ) {
 	if ( player == NULL ) {
 		return false;
 	}
+	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()){ //how the fuck this point is reached?
+		return false;
+	}
 
 	if ( spawnArgs.GetBool( "inv_carry" ) ) {
 		return player->GiveInventoryItem( &spawnArgs );
@@ -682,6 +685,11 @@ bool idItemPowerup::GiveToPlayer( idPlayer *player ) {
 	if ( player->spectating ) {
 		return false;
 	}
+
+	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()){ //how the fuck this point is reached?
+		return false;
+	}
+
 	player->GivePowerUp( type, time * 1000 );
 	return true;
 }
@@ -868,6 +876,11 @@ idVideoCDItem::GiveToPlayer
 ================
 */
 bool idVideoCDItem::GiveToPlayer( idPlayer *player ) {
+
+	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()){ //how the fuck this point is reached?
+		return false;
+	}
+
 	idStr str = spawnArgs.GetString( "video" );
 	if ( player && str.Length() ) {
 		player->GiveVideo( str, &spawnArgs );
@@ -1253,6 +1266,11 @@ idMoveablePDAItem::GiveToPlayer
 ================
 */
 bool idMoveablePDAItem::GiveToPlayer(idPlayer *player) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) { //disable pda pickup in COOP to avoid crash
+		return true;
+	}
+
 	const char *str = spawnArgs.GetString( "pda_name" );
 	if ( player ) {
 		player->GivePDA( str, &spawnArgs );
