@@ -374,12 +374,12 @@ void idAI::Event_FindEnemyAI( int useFOV ) {
 	bestDist = idMath::INFINITY;
 	bestEnemy = NULL;
 	for ( ent = gameLocal.activeEntities.Next(); ent != NULL; ent = ent->activeNode.Next() ) {
-		if ( ent->fl.hidden || ent->fl.isDormant || !ent->IsType( idActor::Type ) ) {
+		if ( ent->fl.hidden || ent->fl.isDormant || !ent->IsType( idActor::Type ) || !ent->IsType(idPlayer::Type) ) {
 			continue;
 		}
 
 		actor = static_cast<idActor *>( ent );
-		if ( ( actor->health <= 0 ) || (!( ReactionTo( actor ) & ATTACK_ON_SIGHT ) && !ent->IsType( idPlayer::Type ) ) ) { //!ent->IsType( idPlayer::Type ) dirty hack, just for test
+		if ( ( actor->health <= 0 ) || (!( ReactionTo( actor ) & ATTACK_ON_SIGHT ) ) ) {
 			continue;
 		}
 
