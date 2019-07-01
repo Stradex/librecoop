@@ -3444,7 +3444,7 @@ void idMultiplayerGame::ClientReadWarmupTime( const idBitMsg &msg ) {
 idMultiplayerGame::IsGametypeFlagBased
 ================
 */
-bool idMultiplayerGame::IsGametypeCoopBased( void )  {
+bool idMultiplayerGame::IsGametypeCoopBased( void ) const  {
 	switch ( gameLocal.gameType )
 	{
 	case GAME_SP:

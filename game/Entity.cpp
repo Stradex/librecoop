@@ -405,6 +405,7 @@ idEntity::idEntity() {
 
 	spawnNode.SetOwner( this );
 	activeNode.SetOwner( this );
+	coopNode.SetOwner( this ); //added by Stradex for Coop
 
 	snapshotNode.SetOwner( this );
 	snapshotSequence = -1;
