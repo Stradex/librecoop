@@ -353,7 +353,7 @@ idAI::Event_FindEnemy
 void idAI::Event_FindEnemy(int useFOV) {
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
 		idPlayer* closestPlayer = NULL;
-		float shortestDist = INFINITE;
+		float shortestDist = idMath::INFINITY;
 		idPlayer* player;
 		float dist;
 		for (int i = 0; i < gameLocal.numClients; i++) {
