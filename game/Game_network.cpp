@@ -454,6 +454,7 @@ void idGameLocal::ServerWriteInitialReliableMessages( int clientNum ) {
 		outMsg.WriteByte( GAME_RELIABLE_MESSAGE_EVENT );
 		if (mpGame.IsGametypeCoopBased()) {
 			outMsg.WriteBits( event->coopId, 32 ); //testing coop netsync
+			outMsg.WriteBits( event->spawnId, 32 ); //added for coop
 		} else {
 			outMsg.WriteBits( event->spawnId, 32 );
 		}
@@ -494,6 +495,7 @@ void idGameLocal::SaveEntityNetworkEvent( const idEntity *ent, int eventId, cons
 	
 	if (mpGame.IsGametypeCoopBased()) {
 		event->coopId = GetCoopId( ent ); //test netcode sync
+		event->spawnId = GetSpawnId( ent ); //added for coop
 	} else {
 		event->spawnId = GetSpawnId( ent );
 	}
@@ -860,26 +862,20 @@ void idGameLocal::ServerProcessEntityNetworkEventQueue( void ) {
 		}
 
 		idEntityPtr< idEntity > entPtr;
-		if (mpGame.IsGametypeCoopBased()) {
+		if (mpGame.IsGametypeCoopBased() && (event->coopId >= 0)) {
 			if( !entPtr.SetCoopId( event->coopId ) ) {
 				NetworkEventWarning( event, "Entity does not exist any longer, or has not been spawned yet." );
 			}  else {
 				ent = entPtr.GetCoopEntity();
 
-				//assert( ent );
+				assert( ent );
 
 				eventMsg.Init( event->paramsBuf, sizeof( event->paramsBuf ) );
 				eventMsg.SetSize( event->paramsSize );
 				eventMsg.BeginReading();
 
-				if (!ent) {
-					common->Warning("[COOP] Shit, event with coopId %d (spawnId %d) entity don't exists!\n", event->coopId, event->spawnId);
-				} else {
-					if ( !ent->ServerReceiveEvent( event->event, event->time, eventMsg ) ) {
-						NetworkEventWarning( event, "unknown event" );
-					}  else {
-						common->Printf("[COOP] Sending event with coopId %d (spawnId %d) from entity %s fine\n", event->coopId, event->spawnId, ent->GetName());
-					}
+				if ( !ent->ServerReceiveEvent( event->event, event->time, eventMsg ) ) {
+					NetworkEventWarning( event, "unknown event" );
 				}
 			}
 		} else {
@@ -987,6 +983,7 @@ void idGameLocal::ServerProcessReliableMessage( int clientNum, const idBitMsg &m
 
 			if (mpGame.IsGametypeCoopBased()) {
 				event->coopId = msg.ReadBits( 32 );
+				event->spawnId = msg.ReadBits( 32 ); //added for coop
 			} else {
 				event->spawnId = msg.ReadBits( 32 );
 			}
@@ -1536,7 +1533,7 @@ void idGameLocal::ClientProcessEntityNetworkEventQueue( void ) {
 
 		idEntityPtr< idEntity > entPtr;
 
-		if (mpGame.IsGametypeCoopBased()) {
+		if (mpGame.IsGametypeCoopBased() && (event->coopId >= 0)) {
 			if( !entPtr.SetCoopId( event->coopId ) ) {
 				if( !gameLocal.coopentities[ event->coopId & ( ( 1 << GENTITYNUM_BITS ) - 1 ) ] ) {
 					// if new entity exists in this position, silently ignore
@@ -1546,20 +1543,14 @@ void idGameLocal::ClientProcessEntityNetworkEventQueue( void ) {
 
 				ent = entPtr.GetCoopEntity();
 
-				//assert( ent );
+				assert( ent );
 
 				eventMsg.Init( event->paramsBuf, sizeof( event->paramsBuf ) );
 				eventMsg.SetSize( event->paramsSize );
 				eventMsg.BeginReading();
 
-				if (!ent) {
-					common->Warning("[COOP] Shit, event with coopId %d (spawid: %d) entity don't exists!\n", event->coopId, event->spawnId);
-				} else {
-					if ( !ent->ClientReceiveEvent( event->event, event->time, eventMsg ) ) {
-						NetworkEventWarning( event, "unknown event" );
-					} else {
-						common->Printf("[COOP] Receiving event with coopId %d (spawnid: %d) from entity %s fine\n", event->coopId, event->spawnId, ent->GetName());
-					}
+				if ( !ent->ClientReceiveEvent( event->event, event->time, eventMsg ) ) {
+					NetworkEventWarning( event, "unknown event" );
 				}
 			}
 		} else {
@@ -1651,14 +1642,17 @@ void idGameLocal::ClientProcessReliableMessage( int clientNum, const idBitMsg &m
 		case GAME_RELIABLE_MESSAGE_DELETE_ENT: {
 			idEntityPtr< idEntity > entPtr;
 
-			if (mpGame.IsGametypeCoopBased()) { //testing new netcode sync for coop
-				int coopId = msg.ReadBits( 32 );
+			int coopId = msg.ReadBits( 32 );
+			int spawnId = msg.ReadBits( 32 );
+
+			if (mpGame.IsGametypeCoopBased() && (coopId >= 0)) { //testing new netcode sync for coop
+
 				if( !entPtr.SetCoopId( coopId ) ) {
 					break;
 				}
 				delete entPtr.GetCoopEntity();
 			} else {
-				int spawnId = msg.ReadBits( 32 );
+
 				if( !entPtr.SetSpawnId( spawnId ) ) {
 					break;
 				}
@@ -1706,6 +1700,7 @@ void idGameLocal::ClientProcessReliableMessage( int clientNum, const idBitMsg &m
 
 			if (mpGame.IsGametypeCoopBased()) {
 				event->coopId = msg.ReadBits( 32 ); //new netcode sync for coop
+				event->spawnId = msg.ReadBits( 32 ); //added for coop
 			} else {
 				event->spawnId = msg.ReadBits( 32 );
 			}

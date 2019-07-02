@@ -592,6 +592,7 @@ idEntity::~idEntity( void ) {
 
 		if (gameLocal.mpGame.IsGametypeCoopBased()) {
 			msg.WriteBits( gameLocal.GetCoopId( this ), 32 );
+			msg.WriteBits( gameLocal.GetSpawnId( this ), 32 ); 
 		} else {
 			msg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
 		}
@@ -4831,6 +4832,8 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 	outMsg.WriteByte( GAME_RELIABLE_MESSAGE_EVENT );
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
 		outMsg.WriteBits( gameLocal.GetCoopId( this ), 32 );
+		outMsg.WriteBits( gameLocal.GetSpawnId( this ), 32 ); //added for coop
+		//common->Printf("idEntity::ServerSendEvent entity %s with coopid %d\n", GetName(), gameLocal.GetCoopId( this ));
 	} else {
 		outMsg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
 	}
@@ -4879,6 +4882,7 @@ void idEntity::ClientSendEvent( int eventId, const idBitMsg *msg ) const {
 
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
 		outMsg.WriteBits( gameLocal.GetCoopId( this ), 32 );
+		outMsg.WriteBits( gameLocal.GetSpawnId( this ), 32 ); //added for coop
 	} else {
 		outMsg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
 	}
