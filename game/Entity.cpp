@@ -1976,8 +1976,15 @@ void idEntity::Unbind( void ) {
 	for( ent = teamMaster->teamChain; ent && ( ent != this ); ent = ent->teamChain ) {
 		prev = ent;
 	}
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		if (ent != this) {
+			common->Warning("[COOP] Fatal! Unable to unbind entity! %s\n ", this->GetName());
+			return;
+		}
+	} else {
+		assert( ent == this ); // If ent is not pointing to this, then something is very wrong.
+	}
 
-	assert( ent == this ); // If ent is not pointing to this, then something is very wrong.
 	//Causing crash in coop, delta labs sector 2b. See how to fix later
 
 	// Find the last node in my team that is bound to me.
