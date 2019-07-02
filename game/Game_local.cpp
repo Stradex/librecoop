@@ -3079,6 +3079,9 @@ void idGameLocal::RegisterEntity( idEntity *ent ) {
 	}
 
 	if (ent->fl.networkSync || spawnArgs.GetInt( "coop_entnum", "0")) {
+		if (ent->IsType(idWeapon::Type)) {
+			common->Printf("Registering weapon....\n");
+		}
 		RegisterCoopEntity(ent); //for coop only
 	}
 

@@ -469,7 +469,12 @@ void idEntity::Spawn( void ) {
 	const char			*classname;
 	const char			*scriptObjectName;
 
-	gameLocal.RegisterEntity( this );
+	networkSync = spawnArgs.FindKey( "networkSync" );
+	if ( networkSync ) {
+		fl.networkSync = ( atoi( networkSync->GetValue() ) != 0 );
+	}
+
+	gameLocal.RegisterEntity( this ); //afer networkSync so coopentities can get updated correctly..
 
 	spawnArgs.GetString( "classname", NULL, &classname );
 	const idDeclEntityDef *def = gameLocal.FindEntityDef( classname, false );
@@ -516,11 +521,6 @@ void idEntity::Spawn( void ) {
 		PostEventMS( &EV_Hide, 0 );
 	}
 	cinematic = spawnArgs.GetBool( "cinematic", "0" );
-
-	networkSync = spawnArgs.FindKey( "networkSync" );
-	if ( networkSync ) {
-		fl.networkSync = ( atoi( networkSync->GetValue() ) != 0 );
-	}
 
 #if 0
 	if ( !gameLocal.isClient ) {

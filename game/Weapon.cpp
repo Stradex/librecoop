@@ -177,11 +177,14 @@ idWeapon::Spawn
 void idWeapon::Spawn( void ) {
 	if ( !gameLocal.isClient ) {
 		// setup the world model
-
 		worldModel = static_cast< idAnimatedEntity * >( gameLocal.SpawnEntityType( idAnimatedEntity::Type, NULL ) );
 		worldModel.GetEntity()->fl.networkSync = true;
-		//spawnArgs.SetInt( "coop_entnum",  worldModel.GetEntity()->entityNumber ); 
-		//gameLocal.RegisterCoopEntity(worldModel.GetEntity());  //added for coop
+		gameLocal.RegisterCoopEntity(worldModel.GetEntity()); //just lol
+		worldModel.SetCoopId(gameLocal.GetCoopId(worldModel.GetEntity())); //Dirty dirty hack
+	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased())	{
+		worldModel.forceCoopEntity = true; //evil stuff here
 	}
 
 	thread = new idThread();
@@ -197,12 +200,14 @@ Only called at player spawn time, not each weapon switch
 ================
 */
 void idWeapon::SetOwner( idPlayer *_owner ) {
+
 	assert( !owner );
 	owner = _owner;
 	SetName( va( "%s_weapon", owner->name.c_str() ) );
 
 	if ( worldModel.GetEntity() ) {
 		worldModel.GetEntity()->SetName( va( "%s_weapon_worldmodel", owner->name.c_str() ) );
+		common->Printf("World model set..\n");
 	}
 }
 
@@ -2269,7 +2274,6 @@ void idWeapon::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	} else {
 		msg.WriteBits( worldModel.GetSpawnId(), 32 );
 	}
-	
 	msg.WriteBits( lightOn, 1 );
 	msg.WriteBits( isFiring ? 1 : 0, 1 );
 }
@@ -2286,8 +2290,9 @@ void idWeapon::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	} else {
 		worldModel.SetSpawnId( msg.ReadBits( 32 ) );
 	}
-	
+
 	bool snapLight = msg.ReadBits( 1 ) != 0;
+	
 	isFiring = msg.ReadBits( 1 ) != 0;
 
 	// WEAPON_NETFIRING is only turned on for other clients we're predicting. not for local client

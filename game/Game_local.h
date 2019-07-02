@@ -227,6 +227,7 @@ public:
 	bool					UpdateCoopId( void );
 	type *					GetCoopEntity( void ) const;
 	int						GetCoopEntityNum( void ) const;
+	bool					forceCoopEntity; //EVIL HACK
 
 private:
 	int						spawnId;
@@ -611,6 +612,7 @@ template< class type >
 ID_INLINE idEntityPtr<type>::idEntityPtr() {
 	spawnId = 0;
 	coopId = 0;
+	forceCoopEntity = false;
 }
 
 template< class type >
@@ -656,10 +658,16 @@ ID_INLINE bool idEntityPtr<type>::IsValid( void ) const {
 
 template< class type >
 ID_INLINE type *idEntityPtr<type>::GetEntity( void ) const {
+
+	if (forceCoopEntity) {
+		return GetCoopEntity(); //evil stuff, forgive me god
+	}
+
 	int entityNum = spawnId & ( ( 1 << GENTITYNUM_BITS ) - 1 );
 	if ( gameLocal.spawnIds[ entityNum ] == ( spawnId >> GENTITYNUM_BITS ) ) {
 		return static_cast<type *>( gameLocal.entities[ entityNum ] );
 	}
+
 	return NULL;
 }
 

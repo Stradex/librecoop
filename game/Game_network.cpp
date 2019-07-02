@@ -1307,13 +1307,10 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 				}
 			}
 			
-
 			if ( i < MAX_CLIENTS && i >= numClients ) {
 				numClients = i + 1;
 			}
-			if (ent->IsType(idWeapon::Type)) {
-				common->Printf("Arma %s con nombre %s spawneada\n", ent->GetClassname(), ent->GetName());
-			}
+
 			ent->spawnedByServer = true; //Added  by Stradex for Coop
 		}
 
