@@ -589,7 +589,14 @@ idEntity::~idEntity( void ) {
 
 		msg.Init( msgBuf, sizeof( msgBuf ) );
 		msg.WriteByte( GAME_RELIABLE_MESSAGE_DELETE_ENT );
-		msg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
+
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			msg.WriteBits( gameLocal.GetCoopId( this ), 32 );
+		} else {
+			msg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
+		}
+
+		
 		networkSystem->ServerSendReliableMessage( -1, msg );
 	}
 
@@ -4822,7 +4829,12 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 	outMsg.Init( msgBuf, sizeof( msgBuf ) );
 	outMsg.BeginWriting();
 	outMsg.WriteByte( GAME_RELIABLE_MESSAGE_EVENT );
-	outMsg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		outMsg.WriteBits( gameLocal.GetCoopId( this ), 32 );
+	} else {
+		outMsg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
+	}
+	
 	outMsg.WriteByte( eventId );
 	outMsg.WriteInt( gameLocal.time );
 	if ( msg ) {
@@ -4864,7 +4876,14 @@ void idEntity::ClientSendEvent( int eventId, const idBitMsg *msg ) const {
 	outMsg.Init( msgBuf, sizeof( msgBuf ) );
 	outMsg.BeginWriting();
 	outMsg.WriteByte( GAME_RELIABLE_MESSAGE_EVENT );
-	outMsg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		outMsg.WriteBits( gameLocal.GetCoopId( this ), 32 );
+	} else {
+		outMsg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
+	}
+
+	
 	outMsg.WriteByte( eventId );
 	outMsg.WriteInt( gameLocal.time );
 	if ( msg ) {

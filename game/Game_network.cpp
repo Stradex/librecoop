@@ -864,14 +864,22 @@ void idGameLocal::ServerProcessEntityNetworkEventQueue( void ) {
 			if( !entPtr.SetCoopId( event->coopId ) ) {
 				NetworkEventWarning( event, "Entity does not exist any longer, or has not been spawned yet." );
 			}  else {
-				ent = entPtr.GetEntity();
-				assert( ent );
+				ent = entPtr.GetCoopEntity();
+
+				//assert( ent );
 
 				eventMsg.Init( event->paramsBuf, sizeof( event->paramsBuf ) );
 				eventMsg.SetSize( event->paramsSize );
 				eventMsg.BeginReading();
-				if ( !ent->ServerReceiveEvent( event->event, event->time, eventMsg ) ) {
-					NetworkEventWarning( event, "unknown event" );
+
+				if (!ent) {
+					common->Warning("[COOP] Shit, event with coopId %d (spawnId %d) entity don't exists!\n", event->coopId, event->spawnId);
+				} else {
+					if ( !ent->ServerReceiveEvent( event->event, event->time, eventMsg ) ) {
+						NetworkEventWarning( event, "unknown event" );
+					}  else {
+						common->Printf("[COOP] Sending event with coopId %d (spawnId %d) from entity %s fine\n", event->coopId, event->spawnId, ent->GetName());
+					}
 				}
 			}
 		} else {
@@ -1232,7 +1240,13 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 				// SPAWN_PLAYER should be taking care of spawning the entity with the right spawnId
 				common->Warning( "ClientReadSnapshot: recycling client entity %d\n", i );
 			}
-			
+
+			if (ent) {
+				if (coopId != coopIds[ i ]) {
+					common->Printf("Deleting %s cause different coopId (client: %d, server: %d)...\n", ent->GetName(), coopIds[ i ], coopId);
+				}
+			}
+
 			/*
 			//Pretty dirty hack stuff for COOP, FIXME: search for a best workaround
 			if (ent && (ent->IsType(idProjectile::Type) || ent->IsType(idTrigger::Type) || ent->spawnedByServer || ent->spawnArgs.GetBool("dropped") || ((ent->entityDefNumber == entityDefNumber) && (ent->GetType()->typeNum == typeNum)))) {
@@ -1529,14 +1543,23 @@ void idGameLocal::ClientProcessEntityNetworkEventQueue( void ) {
 					NetworkEventWarning( event, "Entity does not exist any longer, or has not been spawned yet." );
 				}
 			} else {
-				ent = entPtr.GetEntity();
-				assert( ent );
+
+				ent = entPtr.GetCoopEntity();
+
+				//assert( ent );
 
 				eventMsg.Init( event->paramsBuf, sizeof( event->paramsBuf ) );
 				eventMsg.SetSize( event->paramsSize );
 				eventMsg.BeginReading();
-				if ( !ent->ClientReceiveEvent( event->event, event->time, eventMsg ) ) {
-					NetworkEventWarning( event, "unknown event" );
+
+				if (!ent) {
+					common->Warning("[COOP] Shit, event with coopId %d (spawid: %d) entity don't exists!\n", event->coopId, event->spawnId);
+				} else {
+					if ( !ent->ClientReceiveEvent( event->event, event->time, eventMsg ) ) {
+						NetworkEventWarning( event, "unknown event" );
+					} else {
+						common->Printf("[COOP] Receiving event with coopId %d (spawnid: %d) from entity %s fine\n", event->coopId, event->spawnId, ent->GetName());
+					}
 				}
 			}
 		} else {
@@ -1981,7 +2004,7 @@ gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const userc
 			continue;
 		}
 		if (ent->entityCoopNumber == clientPlayer->entityCoopNumber) {
-			//common->Printf("Ignoring player clientside\n");
+			common->Printf("Ignoring player clientside\n");
 			continue;
 		}
 		if (ent->fl.networkSync && !ent->IsType(idMover::Type) && !ent->IsType(idElevator::Type) && !ent->IsType(idDoor::Type) && !ent->IsType(idRotater::Type)) {
@@ -2048,7 +2071,7 @@ bool idGameLocal::isSnapshotEntity(idEntity* ent){
 	idEntity* snapEnt;
 
 	for( snapEnt = snapshotEntities.Next(); snapEnt != NULL; snapEnt = snapEnt->snapshotNode.Next() ) {
-		if (snapEnt->entityNumber == ent->entityNumber) {
+		if (snapEnt->entityCoopNumber == ent->entityCoopNumber) {
 			return true;
 		}
 	}

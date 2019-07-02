@@ -403,6 +403,7 @@ public:
 	const idDict *			FindEntityDefDict( const char *name, bool makeDefault = true ) const;
 
 	void					RegisterEntity( idEntity *ent );
+	void					RegisterCoopEntity( idEntity *ent ); //added by Stradex for coop
 	void					UnregisterEntity( idEntity *ent );
 
 	bool					RequirementMet( idEntity *activator, const idStr &requires, int removeItem );
@@ -609,6 +610,7 @@ public:
 template< class type >
 ID_INLINE idEntityPtr<type>::idEntityPtr() {
 	spawnId = 0;
+	coopId = 0;
 }
 
 template< class type >

@@ -1178,15 +1178,28 @@ void idPlayer::SetupWeaponEntity( void ) {
 	int w;
 	const char *weap;
 
-	if ( weapon.GetEntity() ) {
-		// get rid of old weapon
-		weapon.GetEntity()->Clear();
-		currentWeapon = -1;
-	} else if ( !gameLocal.isClient ) {
-		weapon = static_cast<idWeapon *>( gameLocal.SpawnEntityType( idWeapon::Type, NULL ) );
-		weapon.GetEntity()->SetOwner( this );
-		currentWeapon = -1;
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		if ( weapon.GetCoopEntity() ) {
+			// get rid of old weapon
+			weapon.GetCoopEntity()->Clear();
+			currentWeapon = -1;
+		} else if ( !gameLocal.isClient ) {
+			weapon = static_cast<idWeapon *>( gameLocal.SpawnEntityType( idWeapon::Type, NULL ) );
+			weapon.GetCoopEntity()->SetOwner( this );
+			currentWeapon = -1;
+		}
+	}  else {
+		if ( weapon.GetEntity() ) {
+			// get rid of old weapon
+			weapon.GetEntity()->Clear();
+			currentWeapon = -1;
+		} else if ( !gameLocal.isClient ) {
+			weapon = static_cast<idWeapon *>( gameLocal.SpawnEntityType( idWeapon::Type, NULL ) );
+			weapon.GetEntity()->SetOwner( this );
+			currentWeapon = -1;
+		}
 	}
+
 
 	for( w = 0; w < MAX_WEAPONS; w++ ) {
 		weap = spawnArgs.GetString( va( "def_weapon%d", w ) );
@@ -8061,7 +8074,13 @@ void idPlayer::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteShort( lastDamageLocation );
 	msg.WriteBits( idealWeapon, idMath::BitsForInteger( MAX_WEAPONS ) );
 	msg.WriteBits( inventory.weapons, MAX_WEAPONS );
-	msg.WriteBits( weapon.GetSpawnId(), 32 );
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		msg.WriteBits( weapon.GetCoopId(), 32 );
+	} else {
+		msg.WriteBits( weapon.GetSpawnId(), 32 );
+	}
+	
 	msg.WriteBits( spectator, idMath::BitsForInteger( MAX_CLIENTS ) );
 	msg.WriteBits( lastHitToggle, 1 );
 	msg.WriteBits( weaponGone, 1 );
@@ -8078,7 +8097,7 @@ idPlayer::ReadFromSnapshot
 ================
 */
 void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
-	int		i, oldHealth, newIdealWeapon, weaponSpawnId;
+	int		i, oldHealth, newIdealWeapon, weaponSpawnId, weaponCoopId;
 	bool	newHitToggle, stateHitch;
 
 	if ( snapshotSequence - lastSnapshotSequence > 1 ) {
@@ -8101,7 +8120,12 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	lastDamageLocation = msg.ReadShort();
 	newIdealWeapon = msg.ReadBits( idMath::BitsForInteger( MAX_WEAPONS ) );
 	inventory.weapons = msg.ReadBits( MAX_WEAPONS );
-	weaponSpawnId = msg.ReadBits( 32 );
+	
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		weaponCoopId = msg.ReadBits( 32 );
+	} else {
+		weaponSpawnId = msg.ReadBits( 32 );
+	}
 	spectator = msg.ReadBits( idMath::BitsForInteger( MAX_CLIENTS ) );
 	newHitToggle = msg.ReadBits( 1 ) != 0;
 	weaponGone = msg.ReadBits( 1 ) != 0;
@@ -8113,13 +8137,24 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 	// no msg reading below this
 
-	if ( weapon.SetSpawnId( weaponSpawnId ) ) {
-		if ( weapon.GetEntity() ) {
-			// maintain ownership locally
-			weapon.GetEntity()->SetOwner( this );
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		if ( weapon.SetCoopId( weaponCoopId ) ) {
+			if ( weapon.GetCoopEntity() ) {
+				// maintain ownership locally
+				weapon.GetCoopEntity()->SetOwner( this );
+			}
+			currentWeapon = -1;
 		}
-		currentWeapon = -1;
+	} else {
+		if ( weapon.SetSpawnId( weaponSpawnId ) ) {
+			if ( weapon.GetEntity() ) {
+				// maintain ownership locally
+				weapon.GetEntity()->SetOwner( this );
+			}
+			currentWeapon = -1;
+		}
 	}
+
 	// if not a local client assume the client has all ammo types
 	if ( entityNumber != gameLocal.localClientNum ) {
 		for( i = 0; i < AMMO_NUMTYPES; i++ ) {

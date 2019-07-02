@@ -3032,6 +3032,35 @@ bool idGameLocal::CheatsOk( bool requirePlayer ) {
 idGameLocal::RegisterEntity
 ===================
 */
+void idGameLocal::RegisterCoopEntity( idEntity *ent ) {
+	int coop_entnum;
+
+	if ( !spawnArgs.GetInt( "coop_entnum", "0", coop_entnum ) ) {
+		while( coopentities[firstFreeCoopIndex] && firstFreeCoopIndex < ENTITYNUM_MAX_NORMAL ) {
+			firstFreeCoopIndex++;
+		}
+		if ( firstFreeCoopIndex >= ENTITYNUM_MAX_NORMAL ) {
+			Error( "no free coop entities" );
+		}
+		coop_entnum = firstFreeCoopIndex++;
+	}
+
+	coopentities[coop_entnum] = ent; //added for coop
+	coopIds[coop_entnum] = coopCount++;
+	ent->entityCoopNumber = coop_entnum;
+	ent->coopNode.AddToEnd(coopSyncEntities); //added for coop
+
+	if ( coop_entnum >= num_coopentities ) {
+		num_coopentities++;
+	}
+
+}
+
+/*
+===================
+idGameLocal::RegisterEntity
+===================
+*/
 void idGameLocal::RegisterEntity( idEntity *ent ) {
 	int spawn_entnum;
 
@@ -3049,27 +3078,8 @@ void idGameLocal::RegisterEntity( idEntity *ent ) {
 		spawn_entnum = firstFreeIndex++;
 	}
 
-	if (ent->fl.networkSync) {
-		int coop_entnum;
-
-		if ( !spawnArgs.GetInt( "coop_entnum", "0", coop_entnum ) ) {
-			while( coopentities[firstFreeCoopIndex] && firstFreeCoopIndex < ENTITYNUM_MAX_NORMAL ) {
-				firstFreeCoopIndex++;
-			}
-			if ( firstFreeCoopIndex >= ENTITYNUM_MAX_NORMAL ) {
-				Error( "no free coop entities" );
-			}
-			coop_entnum = firstFreeCoopIndex++;
-		}
-
-		coopentities[coop_entnum] = ent; //added for coop
-		coopIds[coop_entnum] = coopCount++;
-		ent->entityCoopNumber = coop_entnum;
-		ent->coopNode.AddToEnd(coopSyncEntities); //added for coop
-
-		if ( coop_entnum >= num_coopentities ) {
-			num_coopentities++;
-		}
+	if (ent->fl.networkSync || spawnArgs.GetInt( "coop_entnum", "0")) {
+		RegisterCoopEntity(ent); //for coop only
 	}
 
 	entities[ spawn_entnum ] = ent;
