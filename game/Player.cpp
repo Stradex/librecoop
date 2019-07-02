@@ -1178,17 +1178,6 @@ void idPlayer::SetupWeaponEntity( void ) {
 	int w;
 	const char *weap;
 
-	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-		if ( weapon.GetCoopEntity() ) {
-			// get rid of old weapon
-			weapon.GetCoopEntity()->Clear();
-			currentWeapon = -1;
-		} else if ( !gameLocal.isClient ) {
-			weapon = static_cast<idWeapon *>( gameLocal.SpawnEntityType( idWeapon::Type, NULL ) );
-			weapon.GetCoopEntity()->SetOwner( this );
-			currentWeapon = -1;
-		}
-	}  else {
 		if ( weapon.GetEntity() ) {
 			// get rid of old weapon
 			weapon.GetEntity()->Clear();
@@ -1198,7 +1187,6 @@ void idPlayer::SetupWeaponEntity( void ) {
 			weapon.GetEntity()->SetOwner( this );
 			currentWeapon = -1;
 		}
-	}
 
 
 	for( w = 0; w < MAX_WEAPONS; w++ ) {
@@ -8075,11 +8063,7 @@ void idPlayer::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteBits( idealWeapon, idMath::BitsForInteger( MAX_WEAPONS ) );
 	msg.WriteBits( inventory.weapons, MAX_WEAPONS );
 
-	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-		msg.WriteBits( weapon.GetCoopId(), 32 );
-	} else {
-		msg.WriteBits( weapon.GetSpawnId(), 32 );
-	}
+	msg.WriteBits( weapon.GetSpawnId(), 32 );
 	
 	msg.WriteBits( spectator, idMath::BitsForInteger( MAX_CLIENTS ) );
 	msg.WriteBits( lastHitToggle, 1 );
@@ -8120,12 +8104,7 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	lastDamageLocation = msg.ReadShort();
 	newIdealWeapon = msg.ReadBits( idMath::BitsForInteger( MAX_WEAPONS ) );
 	inventory.weapons = msg.ReadBits( MAX_WEAPONS );
-	
-	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-		weaponCoopId = msg.ReadBits( 32 );
-	} else {
-		weaponSpawnId = msg.ReadBits( 32 );
-	}
+	weaponSpawnId = msg.ReadBits( 32 );
 	spectator = msg.ReadBits( idMath::BitsForInteger( MAX_CLIENTS ) );
 	newHitToggle = msg.ReadBits( 1 ) != 0;
 	weaponGone = msg.ReadBits( 1 ) != 0;
@@ -8137,22 +8116,12 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 	// no msg reading below this
 
-	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-		if ( weapon.SetCoopId( weaponCoopId ) ) {
-			if ( weapon.GetCoopEntity() ) {
-				// maintain ownership locally
-				weapon.GetCoopEntity()->SetOwner( this );
-			}
-			currentWeapon = -1;
+	if ( weapon.SetSpawnId( weaponSpawnId ) ) {
+		if ( weapon.GetEntity() ) {
+			// maintain ownership locally
+			weapon.GetEntity()->SetOwner( this );
 		}
-	} else {
-		if ( weapon.SetSpawnId( weaponSpawnId ) ) {
-			if ( weapon.GetEntity() ) {
-				// maintain ownership locally
-				weapon.GetEntity()->SetOwner( this );
-			}
-			currentWeapon = -1;
-		}
+		currentWeapon = -1;
 	}
 
 	// if not a local client assume the client has all ammo types

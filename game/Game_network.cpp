@@ -361,6 +361,7 @@ void idGameLocal::ServerClientBegin( int clientNum ) {
 
 	if (mpGame.IsGametypeCoopBased()) {
 		outMsg.WriteInt( coopIds[ clientNum ] ); //Testing new sync for coop
+		outMsg.WriteInt( spawnIds[ clientNum ] );
 	} else {
 		outMsg.WriteInt( spawnIds[ clientNum ] );
 	}
@@ -440,6 +441,7 @@ void idGameLocal::ServerWriteInitialReliableMessages( int clientNum ) {
 
 		if (mpGame.IsGametypeCoopBased()) {
 			outMsg.WriteInt( coopIds[ i ] );
+			outMsg.WriteInt( spawnIds[ i ] );
 		} else {
 			outMsg.WriteInt( spawnIds[ i ] );
 		}
@@ -1238,12 +1240,6 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 				common->Warning( "ClientReadSnapshot: recycling client entity %d\n", i );
 			}
 
-			if (ent) {
-				if (coopId != coopIds[ i ]) {
-					common->Printf("Deleting %s cause different coopId (client: %d, server: %d)...\n", ent->GetName(), coopIds[ i ], coopId);
-				}
-			}
-
 			/*
 			//Pretty dirty hack stuff for COOP, FIXME: search for a best workaround
 			if (ent && (ent->IsType(idProjectile::Type) || ent->IsType(idTrigger::Type) || ent->spawnedByServer || ent->spawnArgs.GetBool("dropped") || ((ent->entityDefNumber == entityDefNumber) && (ent->GetType()->typeNum == typeNum)))) {
@@ -1260,7 +1256,7 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 				duplicateEntity(ent);
 			}*/
 			
-			delete ent; //????
+			delete ent;
 
 			if (mpGame.IsGametypeCoopBased()) {
 				coopCount = coopId;
@@ -1315,7 +1311,9 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 			if ( i < MAX_CLIENTS && i >= numClients ) {
 				numClients = i + 1;
 			}
-
+			if (ent->IsType(idWeapon::Type)) {
+				common->Printf("Arma %s con nombre %s spawneada\n", ent->GetClassname(), ent->GetName());
+			}
 			ent->spawnedByServer = true; //Added  by Stradex for Coop
 		}
 
@@ -1617,16 +1615,18 @@ void idGameLocal::ClientProcessReliableMessage( int clientNum, const idBitMsg &m
 		}
 		case GAME_RELIABLE_MESSAGE_SPAWN_PLAYER: {
 			int client = msg.ReadByte();
-
+			int coopId = msg.ReadInt();
+			int spawnId = msg.ReadInt();
 			if (mpGame.IsGametypeCoopBased()) { //net netcode sync for coop
-				int coopId = msg.ReadInt();
+
 				if ( !coopentities[ client ] ) {
 					SpawnPlayer( client );
-					coopentities[ client ]->FreeModelDef();
+					entities[ client ]->FreeModelDef();
 				}
 				coopIds[ client ] = coopId;
+				spawnIds[ client ] = spawnId;
 			} else {
-				int spawnId = msg.ReadInt();
+
 				if ( !entities[ client ] ) {
 					SpawnPlayer( client );
 					entities[ client ]->FreeModelDef();
@@ -1993,7 +1993,7 @@ gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const userc
 
 	SortActiveEntityList();
 
-	//No cinematics in coop yet
+	//Non-sync clientside think
 	for( ent = activeEntities.Next(); ent != NULL; ent = ent->activeNode.Next() ) {
 		if (isSnapshotEntity(ent)) {
 			continue;
@@ -2002,9 +2002,7 @@ gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const userc
 			common->Printf("Ignoring player clientside\n");
 			continue;
 		}
-		if (ent->fl.networkSync && !ent->IsType(idMover::Type) && !ent->IsType(idElevator::Type) && !ent->IsType(idDoor::Type) && !ent->IsType(idRotater::Type)) {
-			continue; //FIXME LATER, no need of this, I need to solve the duplicated entities problem at clientreadsnapshot and serverwritesnapshot
-		}
+
 		ent->clientSideEntity = true; //this entity is now clientside
 		ent->thinkFlags |= TH_PHYSICS;
 		ent->ClientPredictionThink();

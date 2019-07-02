@@ -177,9 +177,11 @@ idWeapon::Spawn
 void idWeapon::Spawn( void ) {
 	if ( !gameLocal.isClient ) {
 		// setup the world model
+
 		worldModel = static_cast< idAnimatedEntity * >( gameLocal.SpawnEntityType( idAnimatedEntity::Type, NULL ) );
 		worldModel.GetEntity()->fl.networkSync = true;
-		gameLocal.RegisterCoopEntity(worldModel.GetEntity());  //added for coop
+		//spawnArgs.SetInt( "coop_entnum",  worldModel.GetEntity()->entityNumber ); 
+		//gameLocal.RegisterCoopEntity(worldModel.GetEntity());  //added for coop
 	}
 
 	thread = new idThread();
