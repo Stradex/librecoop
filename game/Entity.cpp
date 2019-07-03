@@ -1771,7 +1771,12 @@ idEntity::InitBind
 bool idEntity::InitBind( idEntity *master ) {
 
 	if ( master == this ) {
-		gameLocal.Error( "Tried to bind an object to itself." );
+		if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) {
+			gameLocal.Warning( "[COOP] Fatal! Tried to bind an object to itself." );
+		} else {
+			gameLocal.Error( "Tried to bind an object to itself." );
+		}
+		
 		return false;
 	}
 
