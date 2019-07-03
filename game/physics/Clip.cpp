@@ -545,8 +545,10 @@ idClipModel::Link
 ===============
 */
 void idClipModel::Link( idClip &clp ) {
-
-	assert( idClipModel::entity );
+	
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) { //avoid very strange and uncommon crash in coop
+		assert( idClipModel::entity );
+	}
 	if ( !idClipModel::entity ) {
 		return;
 	}
