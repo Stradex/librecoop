@@ -3595,6 +3595,11 @@ void idMultiplayerGame::WantNoClip( int clientNum ) {
 	}
 }
 
+/*
+================
+idMultiplayerGame::IncrementFrags
+================
+*/
 void idMultiplayerGame::IncrementFrags(idPlayer* player) {
 	if (player) {
 		playerState[player->entityNumber].fragCount++;
