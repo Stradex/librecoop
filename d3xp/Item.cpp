@@ -304,12 +304,12 @@ void idItem::Spawn( void ) {
 
 #ifdef CTF
 	// idItemTeam does not rotate and bob
-	if ( spawnArgs.GetBool( "spin" ) || (gameLocal.isMultiplayer && !this->IsType( idItemTeam::Type ) ) ) {
+	if ( spawnArgs.GetBool( "spin" ) || (gameLocal.isMultiplayer && !this->IsType( idItemTeam::Type ) && !gameLocal.mpGame.IsGametypeCoopBased()) ) {
 		spin = true;
 		BecomeActive( TH_THINK );
 	}
 #else
-	if ( spawnArgs.GetBool( "spin" ) || gameLocal.isMultiplayer ) {
+	if ( spawnArgs.GetBool( "spin" ) || (gameLocal.isMultiplayer && !gameLocal.mpGame.IsGametypeCoopBased())) {
 		spin = true;
 		BecomeActive( TH_THINK );
 	}
