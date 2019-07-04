@@ -3523,6 +3523,10 @@ void idAI::Killed( idEntity *inflictor, idEntity *attacker, int damage, const id
 	}
 #endif
 
+	if (gameLocal.mpGame.IsGametypeCoopBased() && attacker && attacker->IsType(idPlayer::Type)) {
+		gameLocal.mpGame.IncrementFrags(static_cast<idPlayer*>(attacker));
+	}
+
 #ifdef _D3XP
 	if(spawnArgs.GetBool("harvest_on_death")) {
 		const idDict *harvestDef = gameLocal.FindEntityDefDict( spawnArgs.GetString("def_harvest_type"), false );
