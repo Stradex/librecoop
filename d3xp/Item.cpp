@@ -387,7 +387,7 @@ bool idItem::Pickup( idPlayer *player ) {
 	bool dropped = spawnArgs.GetBool( "dropped" );
 	bool no_respawn = spawnArgs.GetBool( "no_respawn" );
 
-	if ( gameLocal.isMultiplayer && respawn == 0.0f ) {
+	if ( !gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isMultiplayer && respawn == 0.0f ) {
 		respawn = 20.0f;
 	}
 
