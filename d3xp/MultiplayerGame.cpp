@@ -4415,7 +4415,7 @@ idStr idMultiplayerGame::GetBestGametype( const char* map, const char* gametype 
 idMultiplayerGame::IsGametypeCoopBased
 ================
 */
-bool idMultiplayerGame::IsGametypeCoopBased( void )  {
+bool idMultiplayerGame::IsGametypeCoopBased( void ) const {
 	switch ( gameLocal.gameType )
 	{
 	case GAME_SP:

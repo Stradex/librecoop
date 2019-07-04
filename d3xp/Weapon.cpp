@@ -209,6 +209,8 @@ void idWeapon::Spawn( void ) {
 		// setup the world model
 		worldModel = static_cast< idAnimatedEntity * >( gameLocal.SpawnEntityType( idAnimatedEntity::Type, NULL ) );
 		worldModel.GetEntity()->fl.networkSync = true;
+		gameLocal.RegisterCoopEntity(worldModel.GetEntity()); //just lol
+		worldModel.SetCoopId(gameLocal.GetCoopId(worldModel.GetEntity())); //Dirty dirty hack
 	}
 
 #ifdef _D3XP
@@ -216,6 +218,10 @@ void idWeapon::Spawn( void ) {
 		grabber.Initialize();
 	}
 #endif
+
+	if (gameLocal.mpGame.IsGametypeCoopBased())	{
+		worldModel.forceCoopEntity = true; //evil stuff here
+	}
 
 	thread = new idThread();
 	thread->ManualDelete();
@@ -2688,7 +2694,11 @@ idWeapon::WriteToSnapshot
 */
 void idWeapon::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteBits( ammoClip, ASYNC_PLAYER_INV_CLIP_BITS );
-	msg.WriteBits( worldModel.GetSpawnId(), 32 );
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		msg.WriteBits( worldModel.GetCoopId(), 32 );
+	} else {
+		msg.WriteBits( worldModel.GetSpawnId(), 32 );
+	}
 	msg.WriteBits( lightOn, 1 );
 	msg.WriteBits( isFiring ? 1 : 0, 1 );
 }
@@ -2700,7 +2710,11 @@ idWeapon::ReadFromSnapshot
 */
 void idWeapon::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	ammoClip = msg.ReadBits( ASYNC_PLAYER_INV_CLIP_BITS );
-	worldModel.SetSpawnId( msg.ReadBits( 32 ) );
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		worldModel.SetCoopId( msg.ReadBits( 32 ) );
+	} else {
+		worldModel.SetSpawnId( msg.ReadBits( 32 ) );
+	}
 	bool snapLight = msg.ReadBits( 1 ) != 0;
 	isFiring = msg.ReadBits( 1 ) != 0;
 
