@@ -3428,6 +3428,10 @@ void idAI::Killed( idEntity *inflictor, idEntity *attacker, int damage, const id
 		kv = spawnArgs.MatchPrefix( "def_drops", kv );
 	}
 
+	if (gameLocal.mpGame.IsGametypeCoopBased() && attacker && attacker->IsType(idPlayer::Type)) {
+		gameLocal.mpGame.IncrementFrags(static_cast<idPlayer*>(attacker));
+	}
+
 	if ( ( attacker && attacker->IsType( idPlayer::Type ) ) && ( inflictor && !inflictor->IsType( idSoulCubeMissile::Type ) ) ) {
 		static_cast< idPlayer* >( attacker )->AddAIKill();
 	}

@@ -247,6 +247,7 @@ public:
 	void			WantUseCheckpoint( int clientNum );
 	void			WantAddCheckpoint( int clientNum , bool isGlobal=false);
 	void			WantNoClip( int clientNum );
+	void			IncrementFrags(idPlayer* player);
 
 private:
 	static const char	*MPGuis[];

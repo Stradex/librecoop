@@ -900,7 +900,9 @@ void idMultiplayerGame::PlayerDeath( idPlayer *dead, idPlayer *killer, bool tele
 	assert( !gameLocal.isClient );
 
 	if ( killer ) {
-		if ( gameLocal.gameType == GAME_LASTMAN ) {
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			playerState[killer->entityNumber].fragCount -= 1;
+		} else if ( gameLocal.gameType == GAME_LASTMAN ) {
 			playerState[ dead->entityNumber ].fragCount--;
 		} else if ( gameLocal.gameType == GAME_TDM ) {
 			if ( killer == dead || killer->team == dead->team ) {
@@ -3590,5 +3592,11 @@ void idMultiplayerGame::WantNoClip( int clientNum ) {
 	if ( ent && ent->IsType( idPlayer::Type ) ) {
 		bool noClipStatus = static_cast<idPlayer *>( ent )->noclip;
 		static_cast<idPlayer *>( ent )->noclip = !noClipStatus;
+	}
+}
+
+void idMultiplayerGame::IncrementFrags(idPlayer* player) {
+	if (player) {
+		playerState[player->entityNumber].fragCount++;
 	}
 }
