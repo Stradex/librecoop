@@ -39,6 +39,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "WorldSpawn.h" //Added for COOP by Stradex
 #include "Player.h"
 #include "Game_local.h"
+#include "Target.h"
 
 #include "MultiplayerGame.h"
 
@@ -622,8 +623,14 @@ void idMultiplayerGame::UpdateScoreboard( idUserInterface *scoreBoard, idPlayer 
 		timeinfo = va("%s", common->GetLanguageDict()->GetString( "#str_07209" ));
 	}
 	scoreBoard->SetStateString( "gameinfo", gameinfo );
-	scoreBoard->SetStateString( "livesinfo", livesinfo );
-	scoreBoard->SetStateString( "timeinfo", timeinfo );
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		scoreBoard->SetStateString("livesinfo", "");
+		scoreBoard->SetStateString("timeinfo", "");
+	}
+	else {
+		scoreBoard->SetStateString("livesinfo", livesinfo);
+		scoreBoard->SetStateString("timeinfo", timeinfo);
+	}
 
 	scoreBoard->Redraw( gameLocal.time );
 }
@@ -972,6 +979,10 @@ idPlayer *idMultiplayerGame::FragLimitHit() {
 	int fragLimit		= gameLocal.serverInfo.GetInt( "si_fragLimit" );
 	idPlayer *leader;
 
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		return NULL;
+	}
+
 #ifdef CTF
 	if ( IsGametypeFlagBased() ) /* CTF */
 		return NULL;
@@ -1026,6 +1037,9 @@ idMultiplayerGame::TimeLimitHit
 */
 bool idMultiplayerGame::TimeLimitHit() {
 	int timeLimit = gameLocal.serverInfo.GetInt( "si_timeLimit" );
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		return false;
+	}
 	if ( timeLimit ) {
 		if ( gameLocal.time >= matchStartedTime + timeLimit * 60000 ) {
 			return true;
@@ -1326,7 +1340,9 @@ void idMultiplayerGame::PlayerDeath( idPlayer *dead, idPlayer *killer, bool tele
 	assert( !gameLocal.isClient );
 
 	if ( killer ) {
-		if ( gameLocal.gameType == GAME_LASTMAN ) {
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			playerState[killer->entityNumber].fragCount -= 1;
+		} else if ( gameLocal.gameType == GAME_LASTMAN ) {
 			playerState[ dead->entityNumber ].fragCount--;
 
 		} else if ( IsGametypeTeamBased() ) { /* CTF */
@@ -1724,7 +1740,28 @@ void idMultiplayerGame::ExecuteVote( void ) {
 #endif
 			break;
 		case VOTE_NEXTMAP:
-			cmdSystem->BufferCommandText( CMD_EXEC_APPEND, "serverNextMap\n" );
+			if (gameLocal.mpGame.IsGametypeCoopBased()) {
+				idEntity* ent;
+				idStr nextMap = "";
+				for (int i = 0; i < gameLocal.num_entities; i++) {
+					ent = gameLocal.entities[i];
+					if (ent && ent->IsType(idTarget_EndLevel::Type)) {
+						nextMap = ent->spawnArgs.GetString("nextMap", "");
+					}
+				}
+				if (nextMap != "") {
+					gameLocal.Printf("Loading next map ", nextMap);
+					si_map.SetString(nextMap);
+					gameLocal.MapRestart();
+				}
+				else {
+					gameLocal.Warning("Failed to find next map from target_endLevel");
+					cmdSystem->BufferCommandText(CMD_EXEC_APPEND, "serverNextMap\n");
+				}
+			}
+			else {
+				cmdSystem->BufferCommandText(CMD_EXEC_APPEND, "serverNextMap\n");
+			}
 			break;
 	}
 }
@@ -1811,7 +1848,11 @@ void idMultiplayerGame::Run() {
 
 	if ( gameState == INACTIVE ) {
 		lastGameType = gameLocal.gameType;
-		NewState( WARMUP );
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			NewState(GAMEON);
+		} else {
+			NewState(WARMUP);
+		}
 	}
 
 	CheckVote();
@@ -4491,5 +4532,16 @@ void idMultiplayerGame::WantNoClip( int clientNum ) {
 	if ( ent && ent->IsType( idPlayer::Type ) ) {
 		bool noClipStatus = static_cast<idPlayer *>( ent )->noclip;
 		static_cast<idPlayer *>( ent )->noclip = !noClipStatus;
+	}
+}
+
+/*
+================
+idMultiplayerGame::IncrementFrags
+================
+*/
+void idMultiplayerGame::IncrementFrags(idPlayer* player) {
+	if (player) {
+		playerState[player->entityNumber].fragCount++;
 	}
 }

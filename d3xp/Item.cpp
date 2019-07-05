@@ -304,12 +304,12 @@ void idItem::Spawn( void ) {
 
 #ifdef CTF
 	// idItemTeam does not rotate and bob
-	if ( spawnArgs.GetBool( "spin" ) || (gameLocal.isMultiplayer && !this->IsType( idItemTeam::Type ) ) ) {
+	if ( spawnArgs.GetBool( "spin" ) || (gameLocal.isMultiplayer && !this->IsType( idItemTeam::Type ) && !gameLocal.mpGame.IsGametypeCoopBased()) ) {
 		spin = true;
 		BecomeActive( TH_THINK );
 	}
 #else
-	if ( spawnArgs.GetBool( "spin" ) || gameLocal.isMultiplayer ) {
+	if ( spawnArgs.GetBool( "spin" ) || (gameLocal.isMultiplayer && !gameLocal.mpGame.IsGametypeCoopBased())) {
 		spin = true;
 		BecomeActive( TH_THINK );
 	}
@@ -387,7 +387,7 @@ bool idItem::Pickup( idPlayer *player ) {
 	bool dropped = spawnArgs.GetBool( "dropped" );
 	bool no_respawn = spawnArgs.GetBool( "no_respawn" );
 
-	if ( gameLocal.isMultiplayer && respawn == 0.0f ) {
+	if ((!gameLocal.mpGame.IsGametypeCoopBased() || cvarSystem->GetCVarBool("si_itemRespawn")) && gameLocal.isMultiplayer && respawn == 0.0f ) {
 		respawn = 20.0f;
 	}
 
