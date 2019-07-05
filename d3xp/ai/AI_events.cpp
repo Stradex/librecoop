@@ -359,7 +359,8 @@ void idAI::Event_FindEnemy(int useFOV) {
 		for (int i = 0; i < gameLocal.numClients; i++) {
 			player = gameLocal.GetClientByNum(i);
 
-			if (player->spectating || player->health <= 0 || !(ReactionTo(player) & ATTACK_ON_SIGHT)) {
+			//if (!player || player->spectating || player->health <= 0 || !(ReactionTo(player) & ATTACK_ON_SIGHT)) {
+			if (!player || player->spectating || player->health <= 0) { //idk why !(ReactionTo(player) & ATTACK_ON_SIGHT) isn't working
 				continue;
 			}
 
@@ -427,7 +428,7 @@ void idAI::Event_FindEnemyAI( int useFOV ) {
 		}
 
 		actor = static_cast<idActor *>( ent );
-		if ( ( actor->health <= 0 ) || (!( ReactionTo( actor ) & ATTACK_ON_SIGHT ) && !ent->IsType( idPlayer::Type ) ) ) { //!ent->IsType( idPlayer::Type ) dirty hack, just for test
+		if ( ( actor->health <= 0 ) || !( ReactionTo( actor ) & ATTACK_ON_SIGHT ) ) { //!ent->IsType( idPlayer::Type ) dirty hack, just for test
 			continue;
 		}
 
