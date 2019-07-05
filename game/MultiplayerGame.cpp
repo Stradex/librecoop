@@ -1381,7 +1381,11 @@ void idMultiplayerGame::Run() {
 
 	if ( gameState == INACTIVE ) {
 		lastGameType = gameLocal.gameType;
-		NewState( WARMUP );
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			NewState(GAMEON);
+		} else {
+			NewState(WARMUP);
+		}
 	}
 
 	CheckVote();
