@@ -247,6 +247,9 @@ extern idCVar	si_gameType;
 extern idCVar	si_map;
 extern idCVar	si_spectators;
 
+extern idCVar	si_shootDoors;
+extern idCVar	si_itemRespawn; // added for coop
+
 extern idCVar	net_clientSelfSmoothing;
 extern idCVar	net_clientLagOMeter;
 extern idCVar	net_clientCoopDebug; //added for debug stuff only

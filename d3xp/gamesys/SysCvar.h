@@ -280,6 +280,9 @@ extern idCVar	si_gameType;
 extern idCVar	si_map;
 extern idCVar	si_spectators;
 
+extern idCVar	si_shootDoors;
+extern idCVar	si_itemRespawn; // added for coop
+
 #ifdef CTF
 extern idCVar si_flagDropTimeLimit;
 extern idCVar si_midnight;
