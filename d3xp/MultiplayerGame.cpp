@@ -1031,6 +1031,9 @@ idMultiplayerGame::TimeLimitHit
 */
 bool idMultiplayerGame::TimeLimitHit() {
 	int timeLimit = gameLocal.serverInfo.GetInt( "si_timeLimit" );
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		return false;
+	}
 	if ( timeLimit ) {
 		if ( gameLocal.time >= matchStartedTime + timeLimit * 60000 ) {
 			return true;
