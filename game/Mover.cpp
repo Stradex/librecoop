@@ -3378,6 +3378,11 @@ idDoor::ClientPredictionThink
 ================
 */
 void idDoor::ClientPredictionThink( void ) {
+
+	idEntity::Think();
+
+	 //not good with the new netcode
+	/*
 	Think(); //test
 
 	if (this->clientSideEntity) { //FIXME: This is like ductape to fix clientside only doors not closing. 
@@ -3392,6 +3397,7 @@ void idDoor::ClientPredictionThink( void ) {
 			}
 		}
 	}
+	*/
 }
 
 /*

@@ -633,6 +633,9 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 	entityState_t *base, *newBase;
 	int numSourceAreas, sourceAreas[ idEntity::MAX_PVS_AREAS ];
 
+	//just for netcode coop debug
+	int serverSendEntitiesCount=0;
+
 	if (mpGame.IsGametypeCoopBased()) {
 		player = static_cast<idPlayer *>( coopentities[ clientNum ] );
 	} else {
@@ -678,6 +681,13 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 		if ( !ent->PhysicsTeamInPVS( pvsHandle ) && (((ent->entityNumber != clientNum) && !mpGame.IsGametypeCoopBased()) || ((ent->entityCoopNumber != clientNum) && mpGame.IsGametypeCoopBased()))  ) {
 			continue;
 		}
+		
+		
+		//Coop stuff
+		if (!ent->IsActive() && !ent->IsMasterActive() && !ent->firstTimeInClientPVS[clientNum]) { //ignore inactive entities that the player already saw before
+			continue;
+		}
+
 		//In coop let's ignore static snapshots and ton of other shitty stuff
 		//TryingSomething
 		
@@ -694,6 +704,7 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 			continue;
 		}
 
+		serverSendEntitiesCount++;
 		/*
 		if (mpGame.IsGametypeCoopBased() &&
 			(ent->IsType(idStaticEntity::Type) || ent->IsType(idFuncSmoke::Type) || ent->IsType(idTextEntity::Type) ||
@@ -710,6 +721,8 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 			snapshot->pvs[ ent->entityNumber >> 5 ] |= 1 << ( ent->entityNumber & 31 ); //COOP add entities to the snapshot pvs only to netsync entities STRADEX
 		}
 		
+		ent->firstTimeInClientPVS[clientNum] = false; //Let the server know that this client already saw this entity for atleast one time
+
 		// save the write state to which we can revert when the entity didn't change at all
 		msg.SaveWriteState( msgSize, msgWriteBit );
 	
@@ -813,6 +826,9 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 	// copy the client PVS string
 	memcpy( clientInPVS, snapshot->pvs, ( numPVSClients + 7 ) >> 3 );
 	LittleRevBytes( clientInPVS, sizeof( int ), sizeof( clientInPVS ) / sizeof ( int ) );
+
+	//just for coop debug (May a cvar for test would be cool)
+	//common->Printf("Sending %d entities to client number: %d\n", serverSendEntitiesCount, clientNum);
 }
 
 /*

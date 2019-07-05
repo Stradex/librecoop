@@ -148,6 +148,7 @@ public:
 
 	bool					spawnedByServer;		// When entity is spawned by the server, added by stradex for COOP
 	bool					clientSideEntity;		// FIXME: I think there's no need of this but well... for COOP
+	bool					firstTimeInClientPVS[MAX_CLIENTS]; //added for Netcode optimization for COOP (Stradex)
 
 	struct entityFlags_s {
 		bool				notarget			:1;	// if true never attack or target this entity
@@ -263,6 +264,8 @@ public:
 	idVec3					GetWorldCoordinates( const idVec3 &vec ) const;
 	bool					GetMasterPosition( idVec3 &masterOrigin, idMat3 &masterAxis ) const;
 	void					GetWorldVelocities( idVec3 &linearVelocity, idVec3 &angularVelocity ) const;
+
+	bool					IsMasterActive ( void ) const; //added for coop netcode
 
 	// physics
 							// set a new physics object to be used by this entity

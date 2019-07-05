@@ -439,6 +439,10 @@ idEntity::idEntity() {
 	mpGUIState = -1;
 	spawnedByServer = false; //added by Stradex for Coop
 	clientSideEntity = false; //added by Stradex for Coop
+
+	for (int i=0; i < MAX_CLIENTS; i++) {
+		firstTimeInClientPVS[i] = true; //added by Stradex for Coop netcode optimization
+	}
 }
 
 /*
@@ -2069,6 +2073,19 @@ bool idEntity::IsBound( void ) const {
 		return true;
 	}
 	return false;
+}
+
+/*
+================
+idEntity::IsMasterActive
+Coop stuff
+================
+*/
+bool idEntity::IsMasterActive( void ) const {
+	if ( !bindMaster || !bindMaster->IsActive() ) {
+		return false;
+	}
+	return true;
 }
 
 /*
