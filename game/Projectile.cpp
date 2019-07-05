@@ -1088,7 +1088,12 @@ idProjectile::WriteToSnapshot
 ================
 */
 void idProjectile::WriteToSnapshot( idBitMsgDelta &msg ) const {
-	msg.WriteBits( owner.GetSpawnId(), 32 );
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		msg.WriteBits( owner.GetCoopId(), 32 );
+	} else {
+		msg.WriteBits( owner.GetSpawnId(), 32 );
+	}
+	
 	msg.WriteBits( state, 3 );
 	msg.WriteBits( fl.hidden, 1 );
 	if ( netSyncPhysics ) {
@@ -1117,7 +1122,12 @@ idProjectile::ReadFromSnapshot
 void idProjectile::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	projectileState_t newState;
 
-	owner.SetSpawnId( msg.ReadBits( 32 ) );
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		owner.SetCoopId( msg.ReadBits( 32 ) );
+	} else {
+		owner.SetSpawnId( msg.ReadBits( 32 ) );
+	}
+	
 	newState = (projectileState_t) msg.ReadBits( 3 );
 	if ( msg.ReadBits( 1 ) ) {
 		Hide();

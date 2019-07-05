@@ -368,7 +368,7 @@ private:
 public:
 	idStr			GetBestGametype( const char* map, const char* gametype ); //Added for COOP mod by Stradex
 	void			SetBestGametype( const char * map ); //Added for COOP mod by Stradex
-	bool            IsGametypeCoopBased( void ); //Added for COOP mod by Stradex
+	bool            IsGametypeCoopBased( void ) const; //Added for COOP mod by Stradex
 };
 
 ID_INLINE idMultiplayerGame::gameState_t idMultiplayerGame::GetGameState( void ) const {

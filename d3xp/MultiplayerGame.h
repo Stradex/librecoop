@@ -474,7 +474,7 @@ public:
 bool            IsGametypeFlagBased( void );
 bool            IsGametypeTeamBased( void );
 /* #endif CTF */
-bool            IsGametypeCoopBased( void ); //Added for COOP mod by Stradex
+bool            IsGametypeCoopBased( void ) const; //Added for COOP mod by Stradex
 };
 
 ID_INLINE idMultiplayerGame::gameState_t idMultiplayerGame::GetGameState( void ) const {

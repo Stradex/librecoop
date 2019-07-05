@@ -329,7 +329,7 @@ void idAI::Event_FindEnemy( int useFOV ) {
 		for (int i = 0; i < gameLocal.numClients; i++) {
 			player = gameLocal.GetClientByNum(i);
 
-			if (player->spectating || player->health <= 0 || !(ReactionTo(player) & ATTACK_ON_SIGHT)) {
+			if (!player || player->spectating || player->health <= 0 || !(ReactionTo(player) & ATTACK_ON_SIGHT)) {
 				continue;
 			}
 

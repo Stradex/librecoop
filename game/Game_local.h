@@ -98,6 +98,7 @@ extern const int NUM_RENDER_PORTAL_BITS;
 */
 typedef struct entityState_s {
 	int						entityNumber;
+	int						entityCoopNumber; //added for coop by Stradex
 	idBitMsg				state;
 	byte					stateBuf[MAX_ENTITY_STATE_SIZE];
 	struct entityState_s *	next;
@@ -114,6 +115,7 @@ const int MAX_EVENT_PARAM_SIZE		= 128;
 
 typedef struct entityNetEvent_s {
 	int						spawnId;
+	int						coopId; //added for coop by stradex
 	int						event;
 	int						time;
 	int						paramsSize;
@@ -219,8 +221,17 @@ public:
 	type *					GetEntity( void ) const;
 	int						GetEntityNum( void ) const;
 
+	//added for coop by Stradex
+	int						GetCoopId( void ) const { return coopId; }
+	bool					SetCoopId( int id );
+	bool					UpdateCoopId( void );
+	type *					GetCoopEntity( void ) const;
+	int						GetCoopEntityNum( void ) const;
+	bool					forceCoopEntity; //EVIL HACK
+
 private:
 	int						spawnId;
+	int						coopId; 	//added for coop by Stradex
 };
 
 //============================================================================
@@ -233,11 +244,9 @@ public:
 	usercmd_t				usercmds[MAX_CLIENTS];	// client input commands
 	idDict					persistentPlayerInfo[MAX_CLIENTS];
 	idEntity *				entities[MAX_GENTITIES];// index to entities
-	idEntity *				coopentities[MAX_GENTITIES];	//For coop netcode only by Stradex
 	int						spawnIds[MAX_GENTITIES];// for use in idEntityPtr
 	int						firstFreeIndex;			// first free index in the entities array
 	int						num_entities;			// current number <= MAX_GENTITIES
-	int						num_coopentities;		//for coop netcode only by stradex 
 	idHashIndex				entityHash;				// hash table to quickly find entities by name
 	idWorldspawn *			world;					// world entity
 	idLinkList<idEntity>	spawnedEntities;		// all spawned entities
@@ -246,6 +255,13 @@ public:
 	bool					sortPushers;			// true if active lists needs to be reordered to place pushers at the front
 	bool					sortTeamMasters;		// true if active lists needs to be reordered to place physics team masters before their slaves
 	idDict					persistentLevelInfo;	// contains args that are kept around between levels
+
+	//BY stradex for coop netcode
+	int						firstFreeCoopIndex;			// first free index in the entities array for coop
+	idEntity *				coopentities[MAX_GENTITIES];	//For coop netcode only by Stradex
+	int						coopIds[MAX_GENTITIES];			// for use in idEntityPtr in coop
+	int						num_coopentities;				//for coop netcode only by stradex 
+	idLinkList<idEntity>	coopSyncEntities;				// all net-synced (used by Coop only)
 
 	// can be used to automatically effect every material in the world that references globalParms
 	float					globalShaderParms[ MAX_GLOBAL_SHADER_PARMS ];
@@ -382,11 +398,13 @@ public:
 	idEntity *				SpawnEntityType( const idTypeInfo &classdef, const idDict *args = NULL, bool bIsClientReadSnapshot = false );
 	bool					SpawnEntityDef( const idDict &args, idEntity **ent = NULL, bool setDefaults = true , bool bIsClientReadSnapshot = false ); //bIsClientReadSnapshot added by Stradex for DEBUG
 	int						GetSpawnId( const idEntity *ent ) const;
+	int						GetCoopId( const idEntity *ent ) const; //added by Stradex for coop
 
 	const idDeclEntityDef *	FindEntityDef( const char *name, bool makeDefault = true ) const;
 	const idDict *			FindEntityDefDict( const char *name, bool makeDefault = true ) const;
 
 	void					RegisterEntity( idEntity *ent );
+	void					RegisterCoopEntity( idEntity *ent ); //added by Stradex for coop
 	void					UnregisterEntity( idEntity *ent );
 
 	bool					RequirementMet( idEntity *activator, const idStr &requires, int removeItem );
@@ -470,6 +488,9 @@ private:
 
 	int						spawnCount;
 	int						mapSpawnCount;			// it's handy to know which entities are part of the map
+
+	int						coopCount;				//added by Stradex for coop entities
+	int						mapCoopCount;			//added by Stradex for coop entities
 
 	idLocationEntity **		locationEntities;		// for location names, etc
 
@@ -590,6 +611,8 @@ public:
 template< class type >
 ID_INLINE idEntityPtr<type>::idEntityPtr() {
 	spawnId = 0;
+	coopId = 0;
+	forceCoopEntity = false;
 }
 
 template< class type >
@@ -606,8 +629,10 @@ template< class type >
 ID_INLINE idEntityPtr<type> &idEntityPtr<type>::operator=( type *ent ) {
 	if ( ent == NULL ) {
 		spawnId = 0;
+		coopId = 0;
 	} else {
 		spawnId = ( gameLocal.spawnIds[ent->entityNumber] << GENTITYNUM_BITS ) | ent->entityNumber;
+		coopId = ( gameLocal.coopIds[ent->entityCoopNumber] << GENTITYNUM_BITS ) | ent->entityCoopNumber;
 	}
 	return *this;
 }
@@ -633,16 +658,54 @@ ID_INLINE bool idEntityPtr<type>::IsValid( void ) const {
 
 template< class type >
 ID_INLINE type *idEntityPtr<type>::GetEntity( void ) const {
+
+	if (forceCoopEntity) {
+		return GetCoopEntity(); //evil stuff, forgive me god
+	}
+
 	int entityNum = spawnId & ( ( 1 << GENTITYNUM_BITS ) - 1 );
 	if ( gameLocal.spawnIds[ entityNum ] == ( spawnId >> GENTITYNUM_BITS ) ) {
 		return static_cast<type *>( gameLocal.entities[ entityNum ] );
 	}
+
 	return NULL;
 }
 
 template< class type >
 ID_INLINE int idEntityPtr<type>::GetEntityNum( void ) const {
 	return ( spawnId & ( ( 1 << GENTITYNUM_BITS ) - 1 ) );
+}
+
+/***************
+Added by Stradex for coop
+***************/
+
+template< class type >
+ID_INLINE bool idEntityPtr<type>::SetCoopId( int id ) {
+	// the reason for this first check is unclear:
+	// the function returning false may mean the spawnId is already set right, or the entity is missing
+	if ( id == coopId ) {
+		return false;
+	}
+	if ( ( id >> GENTITYNUM_BITS ) == gameLocal.coopIds[ id & ( ( 1 << GENTITYNUM_BITS ) - 1 ) ] ) {
+		coopId = id;
+		return true;
+	}
+	return false;
+}
+
+template< class type >
+ID_INLINE type *idEntityPtr<type>::GetCoopEntity( void ) const {
+	int entityNum = coopId & ( ( 1 << GENTITYNUM_BITS ) - 1 );
+	if ( gameLocal.coopIds[ entityNum ] == ( coopId >> GENTITYNUM_BITS ) ) {
+		return static_cast<type *>( gameLocal.coopentities[ entityNum ] );
+	}
+	return NULL;
+}
+
+template< class type >
+ID_INLINE int idEntityPtr<type>::GetCoopEntityNum( void ) const {
+	return ( coopId & ( ( 1 << GENTITYNUM_BITS ) - 1 ) );
 }
 
 //============================================================================

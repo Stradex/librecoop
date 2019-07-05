@@ -1178,15 +1178,16 @@ void idPlayer::SetupWeaponEntity( void ) {
 	int w;
 	const char *weap;
 
-	if ( weapon.GetEntity() ) {
-		// get rid of old weapon
-		weapon.GetEntity()->Clear();
-		currentWeapon = -1;
-	} else if ( !gameLocal.isClient ) {
-		weapon = static_cast<idWeapon *>( gameLocal.SpawnEntityType( idWeapon::Type, NULL ) );
-		weapon.GetEntity()->SetOwner( this );
-		currentWeapon = -1;
-	}
+		if ( weapon.GetEntity() ) {
+			// get rid of old weapon
+			weapon.GetEntity()->Clear();
+			currentWeapon = -1;
+		} else if ( !gameLocal.isClient ) {
+			weapon = static_cast<idWeapon *>( gameLocal.SpawnEntityType( idWeapon::Type, NULL ) );
+			weapon.GetEntity()->SetOwner( this );
+			currentWeapon = -1;
+		}
+
 
 	for( w = 0; w < MAX_WEAPONS; w++ ) {
 		weap = spawnArgs.GetString( va( "def_weapon%d", w ) );
@@ -1517,6 +1518,11 @@ void idPlayer::Spawn( void ) {
 	if ( gameLocal.isMultiplayer ) {
 		Init();
 		Hide();	// properly hidden if starting as a spectator
+
+		if (gameLocal.mpGame.IsGametypeCoopBased()){
+			weapon.forceCoopEntity = true; //evil stuff
+		}
+
 		if ( !gameLocal.isClient ) {
 			// set yourself ready to spawn. idMultiplayerGame will decide when/if appropriate and call SpawnFromSpawnSpot
 			SetupWeaponEntity();
@@ -2486,8 +2492,35 @@ void idPlayer::UpdateHudAmmo( idUserInterface *_hud ) {
 	int inclip;
 	int ammoamount;
 
-	assert( weapon.GetEntity() );
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		assert( weapon.GetCoopEntity() );
+	} else {
+		assert( weapon.GetEntity() );
+	}
+	
 	assert( _hud );
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+
+	inclip		= weapon.GetCoopEntity()->AmmoInClip();
+	ammoamount	= weapon.GetCoopEntity()->AmmoAvailable();
+	if ( ammoamount < 0 || !weapon.GetEntity()->IsReady() ) {
+		// show infinite ammo
+		_hud->SetStateString( "player_ammo", "" );
+		_hud->SetStateString( "player_totalammo", "" );
+	} else {
+		// show remaining ammo
+		_hud->SetStateString( "player_totalammo", va( "%i", ammoamount - inclip ) );
+		_hud->SetStateString( "player_ammo", weapon.GetCoopEntity()->ClipSize() ? va( "%i", inclip ) : "--" );		// how much in the current clip
+		_hud->SetStateString( "player_clips", weapon.GetCoopEntity()->ClipSize() ? va( "%i", ammoamount / weapon.GetCoopEntity()->ClipSize() ) : "--" );
+		_hud->SetStateString( "player_allammo", va( "%i/%i", inclip, ammoamount - inclip ) );
+	}
+
+	_hud->SetStateBool( "player_ammo_empty", ( ammoamount == 0 ) );
+	_hud->SetStateBool( "player_clip_empty", ( weapon.GetCoopEntity()->ClipSize() ? inclip == 0 : false ) );
+	_hud->SetStateBool( "player_clip_low", ( weapon.GetCoopEntity()->ClipSize() ? inclip <= weapon.GetEntity()->LowAmmo() : false ) );
+
+	} else {
 
 	inclip		= weapon.GetEntity()->AmmoInClip();
 	ammoamount	= weapon.GetEntity()->AmmoAvailable();
@@ -2506,6 +2539,12 @@ void idPlayer::UpdateHudAmmo( idUserInterface *_hud ) {
 	_hud->SetStateBool( "player_ammo_empty", ( ammoamount == 0 ) );
 	_hud->SetStateBool( "player_clip_empty", ( weapon.GetEntity()->ClipSize() ? inclip == 0 : false ) );
 	_hud->SetStateBool( "player_clip_low", ( weapon.GetEntity()->ClipSize() ? inclip <= weapon.GetEntity()->LowAmmo() : false ) );
+
+	}
+
+
+
+
 
 	_hud->HandleNamedEvent( "updateAmmo" );
 }
@@ -2617,7 +2656,7 @@ idPlayer::DrawHUD
 */
 void idPlayer::DrawHUD( idUserInterface *_hud ) {
 
-	if ( !weapon.GetEntity() || influenceActive != INFLUENCE_NONE || privateCameraView || gameLocal.GetCamera() || !_hud || !g_showHud.GetBool() ) {
+	if ( (!weapon.GetEntity() && !gameLocal.mpGame.IsGametypeCoopBased()) || (!weapon.GetCoopEntity() && gameLocal.mpGame.IsGametypeCoopBased()) || influenceActive != INFLUENCE_NONE || privateCameraView || gameLocal.GetCamera() || !_hud || !g_showHud.GetBool() ) {
 		return;
 	}
 
@@ -4036,6 +4075,7 @@ void idPlayer::UpdateWeapon( void ) {
 		// clients need to wait till the weapon and it's world model entity
 		// are present and synchronized ( weapon.worldModel idEntityPtr to idAnimatedEntity )
 		if ( !weapon.GetEntity()->IsWorldModelReady() ) {
+			//common->Printf("Not world model yet...\n");
 			return;
 		}
 	}
@@ -8061,7 +8101,13 @@ void idPlayer::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteShort( lastDamageLocation );
 	msg.WriteBits( idealWeapon, idMath::BitsForInteger( MAX_WEAPONS ) );
 	msg.WriteBits( inventory.weapons, MAX_WEAPONS );
-	msg.WriteBits( weapon.GetSpawnId(), 32 );
+	
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		msg.WriteBits( weapon.GetCoopId(), 32 );
+	} else {
+		msg.WriteBits( weapon.GetSpawnId(), 32 );
+	}
+	
 	msg.WriteBits( spectator, idMath::BitsForInteger( MAX_CLIENTS ) );
 	msg.WriteBits( lastHitToggle, 1 );
 	msg.WriteBits( weaponGone, 1 );
@@ -8078,7 +8124,7 @@ idPlayer::ReadFromSnapshot
 ================
 */
 void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
-	int		i, oldHealth, newIdealWeapon, weaponSpawnId;
+	int		i, oldHealth, newIdealWeapon, weaponSpawnId, weaponCoopId;
 	bool	newHitToggle, stateHitch;
 
 	if ( snapshotSequence - lastSnapshotSequence > 1 ) {
@@ -8101,7 +8147,12 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	lastDamageLocation = msg.ReadShort();
 	newIdealWeapon = msg.ReadBits( idMath::BitsForInteger( MAX_WEAPONS ) );
 	inventory.weapons = msg.ReadBits( MAX_WEAPONS );
-	weaponSpawnId = msg.ReadBits( 32 );
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		weaponCoopId = msg.ReadBits( 32 );
+	} else {
+		weaponSpawnId = msg.ReadBits( 32 );
+	}
 	spectator = msg.ReadBits( idMath::BitsForInteger( MAX_CLIENTS ) );
 	newHitToggle = msg.ReadBits( 1 ) != 0;
 	weaponGone = msg.ReadBits( 1 ) != 0;
@@ -8112,14 +8163,25 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	noclip = msg.ReadBits( 1 ) != 0;
 
 	// no msg reading below this
-
-	if ( weapon.SetSpawnId( weaponSpawnId ) ) {
-		if ( weapon.GetEntity() ) {
-			// maintain ownership locally
-			weapon.GetEntity()->SetOwner( this );
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		if ( weapon.SetCoopId( weaponCoopId ) ) {
+			if ( weapon.GetCoopEntity() ) {
+				// maintain ownership locally
+				weapon.GetCoopEntity()->SetOwner( this );
+			}
+			currentWeapon = -1;
 		}
-		currentWeapon = -1;
+	} else {
+		if ( weapon.SetSpawnId( weaponSpawnId ) ) {
+			if ( weapon.GetEntity() ) {
+				// maintain ownership locally
+				weapon.GetEntity()->SetOwner( this );
+			}
+			currentWeapon = -1;
+		}
 	}
+
+
 	// if not a local client assume the client has all ammo types
 	if ( entityNumber != gameLocal.localClientNum ) {
 		for( i = 0; i < AMMO_NUMTYPES; i++ ) {

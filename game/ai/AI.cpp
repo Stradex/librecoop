@@ -5177,13 +5177,11 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		
 		SetWaitState( "" );
 		animator.ClearAllJoints();
-
 		StartRagdoll();
 	} else if ( health < oldHealth && health > 0 ) {
 		//pain
 		//AI_PAIN = Pain( NULL, NULL, oldHealth - health, lastDamageDir, lastDamageLocation ); //causing crash.
 	}
-
 	if ( msg.HasChanged() ) {
 		ClientProcessNetAction(newNetAction);
 		UpdateVisuals();

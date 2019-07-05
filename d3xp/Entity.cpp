@@ -421,6 +421,8 @@ idEntity::idEntity() {
 
 	spawnNode.SetOwner( this );
 	activeNode.SetOwner( this );
+	coopNode.SetOwner( this ); //added by Stradex for Coop
+
 
 	snapshotNode.SetOwner( this );
 	snapshotSequence = -1;
@@ -495,7 +497,12 @@ void idEntity::Spawn( void ) {
 	const char			*classname;
 	const char			*scriptObjectName;
 
-	gameLocal.RegisterEntity( this );
+	networkSync = spawnArgs.FindKey( "networkSync" );
+	if ( networkSync ) {
+		fl.networkSync = ( atoi( networkSync->GetValue() ) != 0 );
+	}
+
+	gameLocal.RegisterEntity( this ); //afer networkSync so coopentities can get updated correctly..
 
 	spawnArgs.GetString( "classname", NULL, &classname );
 	const idDeclEntityDef *def = gameLocal.FindEntityDef( classname, false );
@@ -554,11 +561,6 @@ void idEntity::Spawn( void ) {
 		PostEventMS( &EV_Hide, 0 );
 	}
 	cinematic = spawnArgs.GetBool( "cinematic", "0" );
-
-	networkSync = spawnArgs.FindKey( "networkSync" );
-	if ( networkSync ) {
-		fl.networkSync = ( atoi( networkSync->GetValue() ) != 0 );
-	}
 
 #if 0
 	if ( !gameLocal.isClient ) {
@@ -632,7 +634,12 @@ idEntity::~idEntity( void ) {
 
 		msg.Init( msgBuf, sizeof( msgBuf ) );
 		msg.WriteByte( GAME_RELIABLE_MESSAGE_DELETE_ENT );
-		msg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			msg.WriteBits( gameLocal.GetCoopId( this ), 32 );
+			msg.WriteBits( gameLocal.GetSpawnId( this ), 32 ); 
+		} else {
+			msg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
+		}
 		networkSystem->ServerSendReliableMessage( -1, msg );
 	}
 
@@ -1855,7 +1862,12 @@ idEntity::InitBind
 bool idEntity::InitBind( idEntity *master ) {
 
 	if ( master == this ) {
-		gameLocal.Error( "Tried to bind an object to itself." );
+		if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) {
+			gameLocal.Warning( "[COOP] Fatal! Tried to bind an object to itself." );
+		} else {
+			gameLocal.Error( "Tried to bind an object to itself." );
+		}
+
 		return false;
 	}
 
@@ -2061,7 +2073,14 @@ void idEntity::Unbind( void ) {
 		prev = ent;
 	}
 
-	assert( ent == this ); // If ent is not pointing to this, then something is very wrong.
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		if (ent != this) {
+			common->Warning("[COOP] Fatal! Unable to unbind entity! %s\n ", this->GetName());
+			return;
+		}
+	} else {
+		assert( ent == this ); // If ent is not pointing to this, then something is very wrong.
+	}
 
 	// Find the last node in my team that is bound to me.
 	// Also find the first node not bound to me, if one exists.
@@ -4996,7 +5015,15 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 	outMsg.Init( msgBuf, sizeof( msgBuf ) );
 	outMsg.BeginWriting();
 	outMsg.WriteByte( GAME_RELIABLE_MESSAGE_EVENT );
-	outMsg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		outMsg.WriteBits( gameLocal.GetCoopId( this ), 32 );
+		outMsg.WriteBits( gameLocal.GetSpawnId( this ), 32 ); //added for coop
+		//common->Printf("idEntity::ServerSendEvent entity %s with coopid %d\n", GetName(), gameLocal.GetCoopId( this ));
+	} else {
+		outMsg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
+	}
+
 	outMsg.WriteByte( eventId );
 	outMsg.WriteInt( gameLocal.time );
 	if ( msg ) {
@@ -5038,7 +5065,13 @@ void idEntity::ClientSendEvent( int eventId, const idBitMsg *msg ) const {
 	outMsg.Init( msgBuf, sizeof( msgBuf ) );
 	outMsg.BeginWriting();
 	outMsg.WriteByte( GAME_RELIABLE_MESSAGE_EVENT );
-	outMsg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		outMsg.WriteBits( gameLocal.GetCoopId( this ), 32 );
+		outMsg.WriteBits( gameLocal.GetSpawnId( this ), 32 ); //added for coop
+	} else {
+		outMsg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
+	}
+
 	outMsg.WriteByte( eventId );
 	outMsg.WriteInt( gameLocal.time );
 	if ( msg ) {

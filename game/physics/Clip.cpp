@@ -545,8 +545,10 @@ idClipModel::Link
 ===============
 */
 void idClipModel::Link( idClip &clp ) {
-
-	assert( idClipModel::entity );
+	
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) { //avoid very strange and uncommon crash in coop
+		assert( idClipModel::entity );
+	}
 	if ( !idClipModel::entity ) {
 		return;
 	}
@@ -965,7 +967,7 @@ idClip::TestHugeTranslation
 */
 ID_INLINE bool TestHugeTranslation( trace_t &results, const idClipModel *mdl, const idVec3 &start, const idVec3 &end, const idMat3 &trmAxis ) {
 	if ( mdl != NULL && ( end - start ).LengthSqr() > Square( CM_MAX_TRACE_DIST ) ) {
-		if (!gameLocal.mpGame.IsGametypeCoopBased() || gameLocal.isServer) { //Avoid crash for clients in coop, ROE did the same in CTF so...
+		if (!gameLocal.mpGame.IsGametypeCoopBased()) { //Avoid crash for clients in coop (and in rare cases for server), ROE did the same in CTF so...
 			assert( 0 );
 		}
 

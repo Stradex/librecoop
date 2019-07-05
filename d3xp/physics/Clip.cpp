@@ -546,7 +546,10 @@ idClipModel::Link
 */
 void idClipModel::Link( idClip &clp ) {
 
-	assert( idClipModel::entity );
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) { //avoid very strange and uncommon crash in coop
+		assert( idClipModel::entity );
+	}
+
 	if ( !idClipModel::entity ) {
 		return;
 	}
@@ -970,7 +973,7 @@ ID_INLINE bool TestHugeTranslation( trace_t &results, const idClipModel *mdl, co
 		// in the PVS of a player that has a flag that is spawning the idMoveableItem
 		// "nuggets".  The error seems benign and the assert was getting in the way
 		// of testing.
-		if (!gameLocal.mpGame.IsGametypeCoopBased() || gameLocal.isServer) { //Avoid crash for clients in coop, ROE did the same in CTF so...
+		if (!gameLocal.mpGame.IsGametypeCoopBased()) {  //Avoid crash for clients in coop (and in rare cases for server), ROE did the same in CTF so...
 			assert( 0 );
 		}
 #endif

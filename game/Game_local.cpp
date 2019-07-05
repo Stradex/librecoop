@@ -185,10 +185,13 @@ void idGameLocal::Clear( void ) {
 	memset( entities, 0, sizeof( entities ) );
 	memset(coopentities, 0, sizeof(coopentities)); //added for coop
 	memset( spawnIds, -1, sizeof( spawnIds ) );
+	memset( coopIds, -1, sizeof( coopIds ) );
 	firstFreeIndex = 0;
+	firstFreeCoopIndex = 0;  //added for coop
 	num_entities = 0;
 	num_coopentities=0;  //added for coop
 	spawnedEntities.Clear();
+	coopSyncEntities.Clear(); //added for coop
 	activeEntities.Clear();
 	numEntitiesToDeactivate = 0;
 	sortPushers = false;
@@ -218,7 +221,9 @@ void idGameLocal::Clear( void ) {
 	mapFileName.Clear();
 	mapFile = NULL;
 	spawnCount = INITIAL_SPAWN_COUNT;
+	coopCount = INITIAL_SPAWN_COUNT; //added by Stradex
 	mapSpawnCount = 0;
+	mapCoopCount = 0;  //added by Stradex
 	camera = NULL;
 	aasList.Clear();
 	aasNames.Clear();
@@ -877,8 +882,11 @@ void idGameLocal::LoadMap( const char *mapName, int randseed ) {
 	memset( entities, 0, sizeof( entities ) );
 	memset( usercmds, 0, sizeof( usercmds ) );
 	memset( spawnIds, -1, sizeof( spawnIds ) );
+	memset( coopIds, -1, sizeof( coopIds ) );
 	spawnCount = INITIAL_SPAWN_COUNT;
+	coopCount =  INITIAL_SPAWN_COUNT; //added for Coop by Stradex
 
+	coopSyncEntities.Clear(); //added for Coop by Stradex
 	spawnedEntities.Clear();
 	activeEntities.Clear();
 	numEntitiesToDeactivate = 0;
@@ -895,7 +903,9 @@ void idGameLocal::LoadMap( const char *mapName, int randseed ) {
 	// even if they aren't all used, so numbers inside that
 	// range are NEVER anything but clients
 	num_entities	= MAX_CLIENTS;
+	num_coopentities = MAX_CLIENTS;
 	firstFreeIndex	= MAX_CLIENTS;
+	firstFreeCoopIndex = MAX_CLIENTS; //added for Coop
 
 	// reset the random number generator.
 	random.SetSeed( isMultiplayer ? randseed : 0 );
@@ -957,7 +967,7 @@ idGameLocal::LocalMapRestart
 ===================
 */
 void idGameLocal::LocalMapRestart( ) {
-	int i, latchSpawnCount;
+	int i, latchSpawnCount, latchCoopCount;
 
 	Printf( "----- Game Map Restart -----\n" );
 
@@ -967,6 +977,7 @@ void idGameLocal::LocalMapRestart( ) {
 		if ( entities[ i ] && entities[ i ]->IsType( idPlayer::Type ) ) {
 			static_cast< idPlayer * >( entities[ i ] )->PrepareForRestart();
 		}
+		coopentities[i] = entities[ i ]; //fix?
 	}
 
 	eventQueue.Shutdown();
@@ -987,6 +998,9 @@ void idGameLocal::LocalMapRestart( ) {
 	latchSpawnCount = spawnCount;
 	spawnCount = INITIAL_SPAWN_COUNT;
 
+	latchCoopCount = coopCount; //added by Stradex for coop
+	coopCount = INITIAL_SPAWN_COUNT; //added by Stradex for coop
+
 	gamestate = GAMESTATE_STARTUP;
 
 	program.Restart();
@@ -995,18 +1009,21 @@ void idGameLocal::LocalMapRestart( ) {
 
 	firstClientToSpawn = true; //added by Stradex for coop
 	coopMapScriptLoad = false; //added by Stradex for coop
+	num_coopentities = 0; //for coop
 
 	MapPopulate();
 
 	// once the map is populated, set the spawnCount back to where it was so we don't risk any collision
 	// (note that if there are no players in the game, we could just leave it at it's current value)
 	spawnCount = latchSpawnCount;
+	coopCount = latchCoopCount; //added by Stradex for coop
 
 	// setup the client entities again
 	for ( i = 0; i < MAX_CLIENTS; i++ ) {
 		if ( entities[ i ] && entities[ i ]->IsType( idPlayer::Type ) ) {
 			static_cast< idPlayer * >( entities[ i ] )->Restart();
 		}
+		coopentities[i] = entities[ i ]; //fix?
 	}
 
 	gamestate = GAMESTATE_ACTIVE;
@@ -1172,18 +1189,7 @@ void idGameLocal::MapPopulate( void ) {
 	// mapSpawnCount is used as the max index of map entities, it's the first index of non-map entities
 	mapSpawnCount = MAX_CLIENTS + spawnCount - 1;
 
-	
-	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-		int i;
-		num_coopentities = 0;
-		for (i=0; i < MAX_GENTITIES; i++) {
-			if (entities[ i ] && entities[ i ]->fl.networkSync) { //coop entity
-				entities[i]->entityCoopNumber = num_coopentities;
-				coopentities[num_coopentities++] = entities[ i ];
-				//common->Printf("[COOP] Entity %s saved as coop entity...\n", entities[ i ]->GetName());
-			}
-		}
-	}
+	mapCoopCount = MAX_CLIENTS + coopCount - 1; //added for Coop
 
 	// execute pending events before the very first game frame
 	// this makes sure the map script main() function is called
@@ -1220,6 +1226,8 @@ void idGameLocal::InitFromNewMap( const char *mapName, idRenderWorld *renderWorl
 
 	firstClientToSpawn = false; //added by Stradex for coop
 	coopMapScriptLoad = false; //added by Stradex for coop
+
+	num_coopentities = 0; //for coop
 
 	MapPopulate();
 
@@ -1461,11 +1469,16 @@ void idGameLocal::MapClear( bool clearClients ) {
 	int i;
 
 	for( i = ( clearClients ? 0 : MAX_CLIENTS ); i < MAX_GENTITIES; i++ ) {
+		if (entities[i])
+		{
+			coopIds[ entities[i]->entityCoopNumber ] = -1;
+		}
 		delete entities[ i ];
 		// ~idEntity is in charge of setting the pointer to NULL
 		// it will also clear pending events for this entity
 		assert( !entities[ i ] );
 		spawnIds[ i ] = -1;
+
 	}
 
 	entityHash.Clear( 1024, MAX_GENTITIES );
@@ -1868,6 +1881,8 @@ void idGameLocal::SpawnPlayer( int clientNum ) {
 	Printf( "SpawnPlayer: %i\n", clientNum );
 
 	args.SetInt( "spawn_entnum", clientNum );
+	args.SetInt( "coop_entnum", clientNum ); //added for coop new netcode sync
+
 	args.Set( "name", va( "player%d", clientNum + 1 ) );
 	//args.Set( "classname", isMultiplayer ? "player_doommarine_mp" : "player_doommarine" );
 	
@@ -1878,7 +1893,7 @@ void idGameLocal::SpawnPlayer( int clientNum ) {
 	else
 		args.Set( "classname", "player_doommarine" );
 
-	if ( !SpawnEntityDef( args, &ent ) || !entities[ clientNum ] ) {
+	if ( !SpawnEntityDef( args, &ent ) || !entities[ clientNum ] || !coopentities[ clientNum ] ) {
 		Error( "Failed to spawn player as '%s'", args.GetString( "classname" ) );
 	}
 
@@ -3017,6 +3032,35 @@ bool idGameLocal::CheatsOk( bool requirePlayer ) {
 idGameLocal::RegisterEntity
 ===================
 */
+void idGameLocal::RegisterCoopEntity( idEntity *ent ) {
+	int coop_entnum;
+
+	if ( !spawnArgs.GetInt( "coop_entnum", "0", coop_entnum ) ) {
+		while( coopentities[firstFreeCoopIndex] && firstFreeCoopIndex < ENTITYNUM_MAX_NORMAL ) {
+			firstFreeCoopIndex++;
+		}
+		if ( firstFreeCoopIndex >= ENTITYNUM_MAX_NORMAL ) {
+			Error( "no free coop entities" );
+		}
+		coop_entnum = firstFreeCoopIndex++;
+	}
+
+	coopentities[coop_entnum] = ent; //added for coop
+	coopIds[coop_entnum] = coopCount++;
+	ent->entityCoopNumber = coop_entnum;
+	ent->coopNode.AddToEnd(coopSyncEntities); //added for coop
+
+	if ( coop_entnum >= num_coopentities ) {
+		num_coopentities++;
+	}
+
+}
+
+/*
+===================
+idGameLocal::RegisterEntity
+===================
+*/
 void idGameLocal::RegisterEntity( idEntity *ent ) {
 	int spawn_entnum;
 
@@ -3034,8 +3078,11 @@ void idGameLocal::RegisterEntity( idEntity *ent ) {
 		spawn_entnum = firstFreeIndex++;
 	}
 
-	if (ent->fl.networkSync) {
-		coopentities[num_coopentities++] = ent; //added for coop
+	if (ent->fl.networkSync || spawnArgs.GetInt( "coop_entnum", "0")) {
+		if (ent->IsType(idWeapon::Type)) {
+			common->Printf("Registering weapon....\n");
+		}
+		RegisterCoopEntity(ent); //for coop only
 	}
 
 	entities[ spawn_entnum ] = ent;
@@ -3063,13 +3110,24 @@ void idGameLocal::UnregisterEntity( idEntity *ent ) {
 
 	if ( ( ent->entityNumber != ENTITYNUM_NONE ) && ( entities[ ent->entityNumber ] == ent ) ) {
 		ent->spawnNode.Remove();
-		coopentities[ ent->entityCoopNumber ] = NULL; //TEST
 		entities[ ent->entityNumber ] = NULL;
 		spawnIds[ ent->entityNumber ] = -1;
 		if ( ent->entityNumber >= MAX_CLIENTS && ent->entityNumber < firstFreeIndex ) {
 			firstFreeIndex = ent->entityNumber;
 		}
 		ent->entityNumber = ENTITYNUM_NONE;
+
+		if (ent->coopNode.InList()) { //probably a coop entity then
+			//added by Stradex for coop
+			ent->coopNode.Remove();
+			coopentities[ ent->entityCoopNumber ] = NULL;
+			coopIds[ ent->entityCoopNumber ] = -1;
+			if ( ent->entityCoopNumber >= MAX_CLIENTS && ent->entityCoopNumber < firstFreeCoopIndex ) {
+				firstFreeCoopIndex = ent->entityCoopNumber;
+			}
+			ent->entityCoopNumber = ENTITYNUM_NONE;
+		}
+
 	}
 }
 
@@ -4392,6 +4450,16 @@ idGameLocal::GetSpawnId
 int idGameLocal::GetSpawnId( const idEntity* ent ) const {
 	return ( gameLocal.spawnIds[ ent->entityNumber ] << GENTITYNUM_BITS ) | ent->entityNumber;
 }
+
+/*
+================
+idGameLocal::GetCoopId
+================
+*/
+int idGameLocal::GetCoopId( const idEntity* ent ) const {
+	return ( gameLocal.coopIds[ ent->entityCoopNumber ] << GENTITYNUM_BITS ) | ent->entityCoopNumber;
+}
+
 
 /*
 ================
