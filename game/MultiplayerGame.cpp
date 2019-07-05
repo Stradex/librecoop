@@ -39,6 +39,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "WorldSpawn.h" //Added for COOP by Stradex
 #include "Player.h"
 #include "Game_local.h"
+#include "Target.h"
 
 #include "MultiplayerGame.h"
 
@@ -1265,7 +1266,26 @@ void idMultiplayerGame::ExecuteVote( void ) {
 			}
 			break;
 		case VOTE_NEXTMAP:
-			cmdSystem->BufferCommandText( CMD_EXEC_APPEND, "serverNextMap\n" );
+			if (gameLocal.mpGame.IsGametypeCoopBased()) {
+				idEntity* ent;
+				idStr nextMap = "";
+				for (int i = 0; i < gameLocal.num_entities; i++) {
+					ent = gameLocal.entities[i];
+					if (ent && ent->IsType(idTarget_EndLevel::Type)) {
+						nextMap = ent->spawnArgs.GetString("nextMap", "");
+					}
+				}
+				if (nextMap != "") {
+					gameLocal.Printf("Loading next map ", nextMap);
+					si_map.SetString(nextMap);
+					gameLocal.MapRestart();
+				} else {
+					gameLocal.Warning("Failed to find next map from target_endLevel");
+					cmdSystem->BufferCommandText(CMD_EXEC_APPEND, "serverNextMap\n");
+				}
+			} else {
+				cmdSystem->BufferCommandText(CMD_EXEC_APPEND, "serverNextMap\n");
+			}
 			break;
 	}
 }
