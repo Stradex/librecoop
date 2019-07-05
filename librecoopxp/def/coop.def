@@ -1,0 +1,28 @@
+entityDef info_player_coop {
+	"editor_color"			"0.9 0.28 0.93"
+	"editor_mins"			"-16 -16 0"
+	"editor_maxs"			"16 16 64"
+	"editor_showangle"		"1"
+
+	"editor_usage"			"Potential spawning position for deathmatch games.  The first time a player enters the game, they will be at an 'initial' spot."
+	"editor_var target"		"targets to fire when someone spawns in."
+	"editor_var initial"	"this is an initial spawn spot"
+
+	"spawnclass"			"idPlayerStart"
+}
+
+entityDef player_doommarine_coop {
+	"inherit"							"player_base_d3xp_mp"
+	"model"								"model_d3xp_mp_marine"
+	"bleed"								"1"
+	"gib"								"1"
+
+	"weapon"							"weapon_fists,weapon_pistol,weapon_flashlight,weapon_handgrenade,weapon_plasmagun,weapon_machinegun,weapon_shotgun,weapon_grabber"
+	"current_weapon"					"1"
+	"ammo_grenades"						"2"
+	"ammo_shells"						"18"
+	"ammo_bullets"						"48"
+	"ammo_rockets"						"5"
+	"ammo_cells"						"40"
+	"ammo_clip"							"60"
+}
