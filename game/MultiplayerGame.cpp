@@ -675,6 +675,10 @@ idPlayer *idMultiplayerGame::FragLimitHit() {
 	int fragLimit = gameLocal.serverInfo.GetInt( "si_fragLimit" );
 	idPlayer *leader;
 
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		return NULL;
+	}
+
 	leader = FragLeader();
 	if ( !leader ) {
 		return NULL;
