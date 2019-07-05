@@ -623,8 +623,14 @@ void idMultiplayerGame::UpdateScoreboard( idUserInterface *scoreBoard, idPlayer 
 		timeinfo = va("%s", common->GetLanguageDict()->GetString( "#str_07209" ));
 	}
 	scoreBoard->SetStateString( "gameinfo", gameinfo );
-	scoreBoard->SetStateString( "livesinfo", livesinfo );
-	scoreBoard->SetStateString( "timeinfo", timeinfo );
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		scoreBoard->SetStateString("livesinfo", "");
+		scoreBoard->SetStateString("timeinfo", "");
+	}
+	else {
+		scoreBoard->SetStateString("livesinfo", livesinfo);
+		scoreBoard->SetStateString("timeinfo", timeinfo);
+	}
 
 	scoreBoard->Redraw( gameLocal.time );
 }
