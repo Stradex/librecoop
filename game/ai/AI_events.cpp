@@ -335,6 +335,7 @@ void idAI::Event_FindEnemy( int useFOV ) {
 
 			dist = TravelDistance(this->GetPhysics()->GetOrigin(), player->GetPhysics()->GetOrigin());
 
+
 			if (dist < shortestDist) {
 				shortestDist = dist;
 				closestPlayer = player;
@@ -345,6 +346,7 @@ void idAI::Event_FindEnemy( int useFOV ) {
 				return;
 			}
 		}
+
 	} else {
 		int			i;
 		idEntity	*ent;
@@ -518,15 +520,28 @@ idAI::Event_HeardSound
 void idAI::Event_HeardSound( int ignore_team ) {
 	// check if we heard any sounds in the last frame
 	idActor	*actor = gameLocal.GetAlertEntity();
-	if ( actor && ( !ignore_team || ( ReactionTo( actor ) & ATTACK_ON_SIGHT ) ) && gameLocal.InPlayerPVS( this ) ) {
-		idVec3 pos = actor->GetPhysics()->GetOrigin();
-		idVec3 org = physicsObj.GetOrigin();
-		float dist = ( pos - org ).LengthSqr();
-		if ( dist < Square( AI_HEARING_RANGE ) ) {
-			idThread::ReturnEntity( actor );
-			return;
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		if ( actor && ( !ignore_team || ( ReactionTo( actor ) & ATTACK_ON_SIGHT ) ) && gameLocal.InCoopPlayersPVS( this ) ) {
+			idVec3 pos = actor->GetPhysics()->GetOrigin();
+			idVec3 org = physicsObj.GetOrigin();
+			float dist = ( pos - org ).LengthSqr();
+			if ( dist < Square( AI_HEARING_RANGE ) ) {
+				idThread::ReturnEntity( actor );
+				return;
+			}
+		}
+	} else {
+		if ( actor && ( !ignore_team || ( ReactionTo( actor ) & ATTACK_ON_SIGHT ) ) && gameLocal.InPlayerPVS( this ) ) {
+			idVec3 pos = actor->GetPhysics()->GetOrigin();
+			idVec3 org = physicsObj.GetOrigin();
+			float dist = ( pos - org ).LengthSqr();
+			if ( dist < Square( AI_HEARING_RANGE ) ) {
+				idThread::ReturnEntity( actor );
+				return;
+			}
 		}
 	}
+
 
 	idThread::ReturnEntity( NULL );
 }

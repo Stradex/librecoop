@@ -478,6 +478,7 @@ public:
 	void					AlertAI( idEntity *ent );
 	idActor *				GetAlertEntity( void );
 
+	bool					InCoopPlayersPVS( idEntity *ent ) const; //added by Stradex for coop
 	bool					InPlayerPVS( idEntity *ent ) const;
 	bool					InPlayerConnectedArea( idEntity *ent ) const;
 #ifdef _D3XP
