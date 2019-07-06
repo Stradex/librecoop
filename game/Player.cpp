@@ -5492,7 +5492,12 @@ void idPlayer::Spectate( bool spectate ) {
 	// track invisible player bug
 	// all hiding and showing should be performed through Spectate calls
 	// except for the private camera view, which is used for teleports
-	assert( ( teleportEntity.GetEntity() != NULL ) || ( IsHidden() == spectating ) );
+
+	//Ignore this assert for clients in coop cause the new netcode hide playeers outside the pvs area
+	if (gameLocal.isServer || !gameLocal.mpGame.IsGametypeCoopBased()) {
+		assert( ( teleportEntity.GetEntity() != NULL ) || ( IsHidden() == spectating ) );
+	}
+	
 
 	if ( spectating == spectate ) {
 		return;
