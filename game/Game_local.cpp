@@ -2110,6 +2110,44 @@ bool idGameLocal::InPlayerConnectedArea( idEntity *ent ) const {
 
 /*
 ================
+idGameLocal::InCoopPlayersPVS
+
+  should only be called during entity thinking and event handling
+  COOP Only
+================
+*/
+bool idGameLocal::InCoopPlayersPVS( idEntity *ent ) const { //Experimental, maybe can be a bit CPU performance killer with many players
+	if (isClient) {
+		common->Warning("[COOP] Client tried to use idGameLocal::InCoopPlayersPVS...\n");
+		return false; //clients should never reach this point
+	}
+
+	//based in idGameLocal::ServerWriteSnapshot code
+	pvsHandle_t pvsHandle;
+	int numSourceAreas, sourceAreas[ idEntity::MAX_PVS_AREAS ];
+
+	for (int i=0; i < gameLocal.numClients; i++) {
+		idPlayer *player;
+		player = static_cast<idPlayer *>( entities[ i ] );
+		if (!player || player->spectating) {
+			continue; //ignore this player
+		}
+
+		numSourceAreas = gameRenderWorld->BoundsInAreas( player->GetPlayerPhysics()->GetAbsBounds(), sourceAreas, idEntity::MAX_PVS_AREAS );
+		pvsHandle = gameLocal.pvs.SetupCurrentPVS( sourceAreas, numSourceAreas, PVS_NORMAL );
+
+		if (ent->PhysicsTeamInPVS( pvsHandle )) {
+			pvs.FreeCurrentPVS( pvsHandle );
+			return true; //entity is present in atleast one player PVS
+		}
+		pvs.FreeCurrentPVS( pvsHandle );
+	}
+
+	return false;
+}
+
+/*
+================
 idGameLocal::UpdateGravity
 ================
 */

@@ -828,7 +828,7 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 	LittleRevBytes( clientInPVS, sizeof( int ), sizeof( clientInPVS ) / sizeof ( int ) );
 
 	//just for coop debug (May a cvar for test would be cool)
-	common->Printf("Sending %d entities to client number: %d\n", serverSendEntitiesCount, clientNum);
+	//common->Printf("Sending %d entities to client number: %d\n", serverSendEntitiesCount, clientNum);
 }
 
 /*
