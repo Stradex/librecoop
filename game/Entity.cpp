@@ -439,6 +439,7 @@ idEntity::idEntity() {
 	mpGUIState = -1;
 	spawnedByServer = false; //added by Stradex for Coop
 	clientSideEntity = false; //added by Stradex for Coop
+	forceNetworkSync = false; //added by Stradex for Coop
 
 	for (int i=0; i < MAX_CLIENTS; i++) {
 		firstTimeInClientPVS[i] = true; //added by Stradex for Coop netcode optimization
@@ -971,6 +972,12 @@ void idEntity::BecomeActive( int flags ) {
 	if ( thinkFlags ) {
 		if ( !IsActive() ) {
 			activeNode.AddToEnd( gameLocal.activeEntities );
+
+			//addded for Coop
+			for (int i=0; i < MAX_CLIENTS; i++) {
+				firstTimeInClientPVS[i] = true; //reset this so players who weren't present while this entity was active are forced to receive the changes.
+			}
+			
 		} else if ( !oldFlags ) {
 			// we became inactive this frame, so we have to decrease the count of entities to deactivate
 			gameLocal.numEntitiesToDeactivate--;
@@ -5250,7 +5257,7 @@ void idAnimatedEntity::AddDamageEffect( const trace_t &collision, const idVec3 &
 	dir = velocity;
 	dir.Normalize();
 
-	axis = renderEntity.joints[jointNum].ToMat3() * renderEntity.axis;
+	axis = renderEntity.joints[jointNum].ToMat3() * renderEntity.axis; //crash in coop for some random reason
 	origin = renderEntity.origin + renderEntity.joints[jointNum].ToVec3() * renderEntity.axis;
 
 	localOrigin = ( collision.c.point - origin ) * axis.Transpose();

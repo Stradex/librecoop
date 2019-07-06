@@ -1100,6 +1100,7 @@ idPlayer::idPlayer() {
 	smoothedAngles			= ang_zero;
 
 	fl.networkSync			= true;
+	forceNetworkSync = false; //added by Stradex for Coop
 
 	latchedTeam				= -1;
 	doingDeathSkin			= false;
@@ -8116,6 +8117,7 @@ void idPlayer::WriteToSnapshot( idBitMsgDelta &msg ) const {
 
 	//extra added for coop
 	msg.WriteBits( noclip, 1 );
+	msg.WriteBits( fl.hidden, 1);
 }
 
 /*
@@ -8160,7 +8162,17 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	isChatting = msg.ReadBits( 1 ) != 0;
 
 	//extra added for coop
+	bool shouldHide=false;
+
 	noclip = msg.ReadBits( 1 ) != 0;
+	shouldHide = msg.ReadBits( 1 ) != 0;
+	if ( entityNumber != gameLocal.localClientNum ) {
+		if (shouldHide && !fl.hidden) {
+			Hide();
+		} else if (!shouldHide && fl.hidden) {
+			Show();
+		}
+	}
 
 	// no msg reading below this
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {

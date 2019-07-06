@@ -149,6 +149,7 @@ public:
 	bool					spawnedByServer;		// When entity is spawned by the server, added by stradex for COOP
 	bool					clientSideEntity;		// FIXME: I think there's no need of this but well... for COOP
 	bool					firstTimeInClientPVS[MAX_CLIENTS]; //added for Netcode optimization for COOP (Stradex)
+	bool					forceNetworkSync;		//FIXME: I think there's no need of this. Just duct tape to fix the new netcode 
 
 	struct entityFlags_s {
 		bool				notarget			:1;	// if true never attack or target this entity

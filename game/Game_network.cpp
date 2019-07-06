@@ -684,7 +684,7 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 		
 		
 		//Coop stuff
-		if (!ent->IsActive() && !ent->IsMasterActive() && !ent->firstTimeInClientPVS[clientNum]) { //ignore inactive entities that the player already saw before
+		if (!ent->IsActive() && !ent->IsMasterActive() && !ent->firstTimeInClientPVS[clientNum] && !ent->forceNetworkSync) { //ignore inactive entities that the player already saw before
 			continue;
 		}
 
@@ -2016,12 +2016,40 @@ gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const userc
 			continue;
 		}
 
-		ent->clientSideEntity = true; //this entity is now clientside
+		if (ent->forceNetworkSync) {
+			continue; //don't touch these entities here
+		}
+
+		if (!ent->fl.networkSync) {
+			ent->clientSideEntity = true; //this entity is now clientside
+		}
 		ent->thinkFlags |= TH_PHYSICS;
 		ent->ClientPredictionThink();
 	}
 
+	//FIXME: AVOID UGLY COOP IN BUG START
+	for( ent = coopSyncEntities.Next(); ent != NULL; ent = ent->coopNode.Next() ) {
+		if (!ent->forceNetworkSync || (ent->entityCoopNumber == clientPlayer->entityCoopNumber)) {
+			continue;
+		}
 
+		if (!ent->fl.hidden && !isSnapshotEntity(ent)) { //probably outside pvs area and not beign sended by Snapshot
+			ent->Hide();
+			//common->Printf("[COOP] Hiding: %s\n", ent->GetName());
+		}
+	}
+	//players
+	for (int i=0; i < MAX_CLIENTS; i++) {
+		if (!coopentities[i] || (coopentities[i]->entityCoopNumber == clientPlayer->entityCoopNumber)) {
+			continue;
+		}
+
+		if (!coopentities[i]->fl.hidden && !isSnapshotEntity(coopentities[i])) {  //probably outside pvs area and not beign sended by Snapshot
+			coopentities[i]->Hide();
+			//common->Printf("[COOP] Hiding: %s\n", coopentities[i]->GetName());
+		}
+	}
+	//AVOID UGLY COOP IN BUG END
 
 	// remove any entities that have stopped thinking
 	if ( numEntitiesToDeactivate ) {
