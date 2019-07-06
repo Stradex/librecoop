@@ -1,0 +1,26 @@
+[
+    {
+        "game_title": "librecoop for Doom 3",
+        "mod_title": "librecoop",
+        "is_pk4": true,
+        "sources": ["librecoop"],
+        "base_path": null,
+        "game": "librecoop",
+        "zip_name": "librecoop",
+        "pk4_name": "pak000",
+        "should_deploy": false,
+        "should_install": true
+    },
+    {
+        "game_title": "librecoop for Doom 3: Resurrection of Evil",
+        "mod_title": "librecoopxp",
+        "is_pk4": true,
+        "sources": [ "librecoopxp" ],
+        "base_path": null,
+        "game": "librecoopxp",
+        "zip_name": "librecoopxp",
+        "pk4_name": "pak000",
+        "should_deploy": false,
+        "should_install": true
+    }
+]
