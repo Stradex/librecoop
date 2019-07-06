@@ -2082,8 +2082,14 @@ Coop stuff
 ================
 */
 bool idEntity::IsMasterActive( void ) const {
-	if ( !bindMaster || !bindMaster->IsActive() ) {
+	if ( !bindMaster ) {
 		return false;
+	}
+	if (bindMaster->entityNumber == this->entityNumber) { //this shouldn't never happen but weird shit can happen in this Coop tech demo
+		return IsActive();
+	}
+	if (!bindMaster->IsActive()) {
+		return bindMaster->IsMasterActive(); //may the master of our master is active... or the master of the master of the master of the master .... :P
 	}
 	return true;
 }
