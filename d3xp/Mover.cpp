@@ -159,6 +159,8 @@ idMover::idMover( void ) {
 	damage = 0.0f;
 	areaPortal = 0;
 	fl.networkSync = true;
+	//added for coop
+	snapshotPriority = 2;
 }
 
 /*
@@ -3420,6 +3422,10 @@ COOP STUFF ONLY
 ================
 */
 void idDoor::ClientPredictionThink( void ) {
+	idEntity::Think();
+
+	 //not good with the new netcode
+	/*
 	Think(); //test
 
 	if (this->clientSideEntity) { //FIXME: This is like ductape to fix clientside only doors not closing. 
@@ -3434,6 +3440,7 @@ void idDoor::ClientPredictionThink( void ) {
 			}
 		}
 	}
+	*/
 }
 
 /*

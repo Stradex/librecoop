@@ -458,6 +458,16 @@ idEntity::idEntity() {
 	spawnedByServer = false; //added by Stradex for Coop
 	clientSideEntity = false; //added by Stradex for Coop
 
+	forceNetworkSync = false; //added by Stradex for Coop
+	readByServer = false; //added by Stradex for Coop netcode optimization
+	snapshotPriority = DEFAULT_SNAPSHOT_PRIORITY;
+
+	for (int i=0; i < MAX_CLIENTS; i++) {
+		firstTimeInClientPVS[i] = true; //added by Stradex for Coop netcode optimization
+		inSnapshotQueue[i] = false; //added by Stradex for Coop netcode optimization
+		snapshotMissingCount[i] = 0;  //added by Stradex for Coop netcode optimization
+	}
+
 #ifdef _D3XP
 	memset( &xrayEntity, 0, sizeof( xrayEntity ) );
 
@@ -1035,6 +1045,11 @@ void idEntity::BecomeActive( int flags ) {
 	if ( thinkFlags ) {
 		if ( !IsActive() ) {
 			activeNode.AddToEnd( gameLocal.activeEntities );
+			//addded for Coop
+			for (int i=0; i < MAX_CLIENTS; i++) {
+				firstTimeInClientPVS[i] = true; //reset this so players who weren't present while this entity was active are forced to receive the changes.
+			}
+
 		} else if ( !oldFlags ) {
 			// we became inactive this frame, so we have to decrease the count of entities to deactivate
 			gameLocal.numEntitiesToDeactivate--;
@@ -2159,6 +2174,25 @@ bool idEntity::IsBound( void ) const {
 		return true;
 	}
 	return false;
+}
+
+/*
+================
+idEntity::IsMasterActive
+Coop stuff
+================
+*/
+bool idEntity::IsMasterActive( void ) const {
+	if ( !bindMaster ) {
+		return false;
+	}
+	if (bindMaster->entityNumber == this->entityNumber) { //this shouldn't never happen but weird shit can happen in this Coop tech demo
+		return IsActive();
+	}
+	if (!bindMaster->IsActive()) {
+		return bindMaster->IsMasterActive(); //may the master of our master is active... or the master of the master of the master of the master .... :P
+	}
+	return true;
 }
 
 /*

@@ -85,6 +85,10 @@ private:
 	bool					pulse;
 	bool					canPickUp;
 
+	//specific coop stuff
+	bool					clientPickedItem[MAX_CLIENTS]; //added by Stradex for when si_onePickupPerPlayer is enabled
+	bool					firstTimePicked; //to avoid activate targets multiple times
+
 	// for item pulse effect
 	int						itemShellHandle;
 	const idMaterial *		shellMaterial;

@@ -446,6 +446,7 @@ protected:
 	netActionType_t			currentNetAction;
 	idStr					currentVoiceSND;
 	idStr					currentDamageSND;
+	bool					haveModelDeath; //FIXME: I only exists to avoid a crash
 
 
 #ifdef _D3XP
@@ -515,6 +516,7 @@ protected:
 
 	//client-side movement for Coop
 	void					CSAnimMove( void );
+	void					CSKilled( void );
 
 	// damage
 	virtual bool			Pain( idEntity *inflictor, idEntity *attacker, int damage, const idVec3 &dir, int location );

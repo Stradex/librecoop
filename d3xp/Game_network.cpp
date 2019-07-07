@@ -39,6 +39,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "Mover.h" //FIXME, I need to solve the duplicated entities problem at clientreadsnapshot and serverwritesnapshot
 #include "Misc.h"  //FIXME, I need to solve the duplicated entities problem at clientreadsnapshot and serverwritesnapshot
 #include "Trigger.h"  //FIXME, I need to solve the duplicated entities problem at clientreadsnapshot and serverwritesnapshot
+#include "gamesys/SysCvar.h" //added for netcode optimization stuff
 
 #include "Game_local.h"
 
@@ -610,7 +611,7 @@ idGameLocal::ServerWriteSnapshot
 ================
 */
 void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &msg, byte *clientInPVS, int numPVSClients ) {
-	int i, msgSize, msgWriteBit;
+	int i, j, msgSize, msgWriteBit;
 	idPlayer *player, *spectated = NULL;
 	idEntity *ent;
 	pvsHandle_t pvsHandle;
@@ -618,6 +619,11 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 	snapshot_t *snapshot;
 	entityState_t *base, *newBase;
 	int numSourceAreas, sourceAreas[ idEntity::MAX_PVS_AREAS ];
+
+	//Used by stradex for netcode optimization
+	int serverSendEntitiesCount=0;
+	int serverEntitiesLimit = net_serverSnapshotLimit.GetInteger();
+
 
 	if (mpGame.IsGametypeCoopBased()) {
 		player = static_cast<idPlayer *>( coopentities[ clientNum ] );
@@ -670,14 +676,71 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 	msg.WriteInt( tagRandom.GetSeed() );
 #endif
 
+	//Added by Stradex for netcode optimization (SORT LIST)
+
+	//Clear the list first
+	for (j=0; j < MAX_GENTITIES; j++) {
+		sortsnapshotentities[j] = NULL;
+	}
+
+	int sortSnapCount=1;
+	sortsnapshotentities[0] = coopentities[ clientNum ]; //ensure to always send info about our own player
+
+	for( ent = coopSyncEntities.Next(); ent != NULL; ent = ent->coopNode.Next() ) {
+		ent->readByServer = false;
+
+		if ( !ent->PhysicsTeamInPVS( pvsHandle ) && (((ent->entityNumber != clientNum) && !mpGame.IsGametypeCoopBased()) || ((ent->entityCoopNumber != clientNum) && mpGame.IsGametypeCoopBased()))  ) {
+			continue;
+		}
+		if (!ent->IsActive() && !ent->IsMasterActive() && !ent->firstTimeInClientPVS[clientNum] && !ent->forceNetworkSync && !ent->inSnapshotQueue[clientNum]) { //ignore inactive entities that the player already saw before
+			continue;
+		}
+		// if that entity is not marked for network synchronization
+		if ( !ent->fl.networkSync ) {
+			continue;
+		}
+		//Since sorting it's a pretty expensive stuff, let's try to have this list the less filled with entities possible
+		sortsnapshotentities[sortSnapCount++] = ent;
+	}
+
+	//Poor CPU: FIXME: fluff, may you know a better way to sort a list. Most fast and efficient way (stradex)
+	int iterationsDebug=0;
+	idEntity *tmpEnt;
+	for (j=1; j < (sortSnapCount-1); j++) {
+		bool needSort=false;
+
+		if (sortsnapshotentities[j+1]->inSnapshotQueue[clientNum] && !sortsnapshotentities[j]->inSnapshotQueue[clientNum]) {
+			needSort = true;
+		} else if ((sortsnapshotentities[j+1]->inSnapshotQueue[clientNum] == sortsnapshotentities[j]->inSnapshotQueue[clientNum])
+				&& (sortsnapshotentities[j+1]->snapshotPriority < sortsnapshotentities[j]->snapshotPriority)) { //This is a bit confusing: snapshotPriority's priority is like Priority 0 = MAX priority
+			needSort = true;
+		} else if ((sortsnapshotentities[j+1]->inSnapshotQueue[clientNum] == sortsnapshotentities[j]->inSnapshotQueue[clientNum])
+				&& (sortsnapshotentities[j+1]->snapshotPriority == sortsnapshotentities[j]->snapshotPriority)
+				&& (sortsnapshotentities[j+1]->firstTimeInClientPVS[clientNum] && !sortsnapshotentities[j]->firstTimeInClientPVS[clientNum])) {
+			needSort = true;
+		}
+
+		if (needSort) {
+			tmpEnt = sortsnapshotentities[j];
+			sortsnapshotentities[j] = sortsnapshotentities[j+1];
+			sortsnapshotentities[j+1] = tmpEnt;
+			j=0;
+		}
+		iterationsDebug++;
+	}
+	//END by Stradex for netcode optimization (SORT LIST)
+
 	// create the snapshot
 	//for( ent = spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next() ) {
-	for( ent = coopSyncEntities.Next(); ent != NULL; ent = ent->coopNode.Next() ) { //Test for coop
+	//for( ent = coopSyncEntities.Next(); ent != NULL; ent = ent->coopNode.Next() ) { //Test for coop
+	for (j=0, ent = sortsnapshotentities[j]; ent != NULL; ent = sortsnapshotentities[++j]) {
 
+		/*
 		// if the entity is not in the player PVS
 		if ( !ent->PhysicsTeamInPVS( pvsHandle ) && (((ent->entityNumber != clientNum) && !mpGame.IsGametypeCoopBased()) || ((ent->entityCoopNumber != clientNum) && mpGame.IsGametypeCoopBased()))  ) {
 			continue;
 		}
+		*/
 
 		//In coop let's ignore static snapshots and ton of other shitty stuff
 		//TryingSomething
@@ -686,16 +749,28 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 			snapshot->pvs[ ent->entityNumber >> 5 ] |= 1 << ( ent->entityNumber & 31 ); //NON-Coop keeps the original order
 		}
 		
-
+		/*
 		// if that entity is not marked for network synchronization
 		if ( !ent->fl.networkSync ) {
 			continue;
 		}
+		*/
+
+		if (serverSendEntitiesCount >= serverEntitiesLimit) {
+			ent->inSnapshotQueue[clientNum] = true;
+			continue;
+		}
+
+		ent->inSnapshotQueue[clientNum] = false;
+		serverSendEntitiesCount++;
+
 
 		if (mpGame.IsGametypeCoopBased()) {
 			// add the entity to the snapshot pvs
 			snapshot->pvs[ ent->entityNumber >> 5 ] |= 1 << ( ent->entityNumber & 31 ); //COOP add entities to the snapshot pvs only to netsync entities STRADEX
 		}
+
+		ent->firstTimeInClientPVS[clientNum] = false; //Let the server know that this client already saw this entity for atleast one time
 
 		// save the write state to which we can revert when the entity didn't change at all
 		msg.SaveWriteState( msgSize, msgWriteBit );
@@ -797,6 +872,19 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 	// copy the client PVS string
 	memcpy( clientInPVS, snapshot->pvs, ( numPVSClients + 7 ) >> 3 );
 	LittleRevBytes( clientInPVS, sizeof( int ), sizeof( clientInPVS ) / sizeof ( int ) );
+
+	//just for coop debug (May a cvar for test would be cool)
+	//common->Printf("Sending %d entities to client number: %d\n", serverSendEntitiesCount, clientNum);
+
+	/*
+	//It was just for DEBUG, it's common and nothing bad with it
+	if (serverSendEntitiesCount >= serverEntitiesLimit) {
+		common->Warning("[COOP] Snapshot overflow... using snapshot queue\n");
+	}
+	*/
+	if (iterationsDebug > 4000) {
+		common->Warning("[COOP] iterations for sort count: %d\n", iterationsDebug);
+	}
 }
 
 /*
@@ -1221,6 +1309,8 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 				common->Warning( "ClientReadSnapshot: recycling client entity %d\n", i );
 			}
 
+			delete ent;
+
 			if (mpGame.IsGametypeCoopBased()) {
 				coopCount = coopId;
 			} else {
@@ -1276,12 +1366,17 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 			ent->spawnedByServer = true; //Added  by Stradex for Coop
 		}
 
+		ent->snapshotMissingCount[clientNum] = 0;  //Added  by Stradex for Coop
+
 		// add the entity to the snapshot list
 		ent->snapshotNode.AddToEnd( snapshotEntities );
 
+		/*
+		//Common with the new netcode... nothing bad with it... I THINK
 		if (ent->snapshotSequence == sequence) { //DEBUG for coop
 			common->Printf("Bad shit... duplicated snapshot read...\n");
 		}
+		*/
 
 		ent->snapshotSequence = sequence;
 
@@ -1477,6 +1572,13 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 
 	// process entity events
 	ClientProcessEntityNetworkEventQueue();
+	
+	//extra by stradex for coop optimization
+	for( ent = coopSyncEntities.Next(); ent != NULL; ent = ent->coopNode.Next() ) { //test for coop
+		if (!ent->snapshotNode.InList()) {
+			ent->snapshotMissingCount[clientNum]++; //you're not part of the snapshot so let the magic begin
+		}
+	}
 }
 
 /*
@@ -1977,10 +2079,42 @@ gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const userc
 			continue;
 		}
 
-		ent->clientSideEntity = true; //this entity is now clientside
+		if (ent->forceNetworkSync && (ent->snapshotMissingCount[gameLocal.localClientNum] >= MAX_MISSING_SNAPSHOTS)) {
+			ent->snapshotMissingCount[gameLocal.localClientNum] = MAX_MISSING_SNAPSHOTS;
+			continue; //don't touch these entities here
+		}
+
+		if (!ent->fl.networkSync) {
+			ent->clientSideEntity = true; //this entity is now clientside
+		}
+
 		ent->thinkFlags |= TH_PHYSICS;
 		ent->ClientPredictionThink();
 	}
+
+	//FIXME: AVOID UGLY BUG IN COOP START
+	for( ent = coopSyncEntities.Next(); ent != NULL; ent = ent->coopNode.Next() ) {
+		if (!ent->forceNetworkSync || (ent->entityCoopNumber == clientPlayer->entityCoopNumber)) {
+			continue;
+		}
+
+		if (!ent->fl.hidden && !isSnapshotEntity(ent) && (ent->snapshotMissingCount[gameLocal.localClientNum] >= MAX_MISSING_SNAPSHOTS)) { //probably outside pvs area and not beign sended by Snapshot
+			ent->Hide();
+			//common->Printf("[COOP] Hiding: %s\n", ent->GetName());
+		}
+	}
+	//players
+	for (int i=0; i < MAX_CLIENTS; i++) {
+		if (!coopentities[i] || (coopentities[i]->entityCoopNumber == clientPlayer->entityCoopNumber)) {
+			continue;
+		}
+
+		if (!coopentities[i]->fl.hidden && !isSnapshotEntity(coopentities[i]) &&  (coopentities[i]->snapshotMissingCount[gameLocal.localClientNum] >= MAX_MISSING_SNAPSHOTS)) {  //probably outside pvs area and not beign sended by Snapshot
+			coopentities[i]->Hide();
+			//common->Printf("[COOP] Hiding: %s\n", coopentities[i]->GetName());
+		}
+	}
+	//AVOID UGLY COOP IN BUG END
 
 	// remove any entities that have stopped thinking
 	if ( numEntitiesToDeactivate ) {
@@ -2008,14 +2142,7 @@ idGameLocal::isSnapshotEntity
 */
 
 bool idGameLocal::isSnapshotEntity(idEntity* ent){
-	idEntity* snapEnt;
-
-	for( snapEnt = snapshotEntities.Next(); snapEnt != NULL; snapEnt = snapEnt->snapshotNode.Next() ) {
-		if (snapEnt->entityCoopNumber == ent->entityCoopNumber) {
-			return true;
-		}
-	}
-	return false;
+	return ent->snapshotNode.InList();
 }
 
 idEntity* idGameLocal::getEntityBySpawnId(int spawnId){

@@ -2360,6 +2360,7 @@ bool idGameLocal::InPlayerConnectedArea( idEntity *ent ) const {
 	return pvs.InCurrentPVS( playerConnectedAreas, ent->GetPVSAreas(), ent->GetNumPVSAreas() );
 }
 
+
 /*
 ================
 idGameLocal::UpdateGravity
@@ -3568,7 +3569,13 @@ idGameLocal::FindEntityDef
 const idDeclEntityDef *idGameLocal::FindEntityDef( const char *name, bool makeDefault ) const {
 	const idDecl *decl = NULL;
 	if ( isMultiplayer ) {
-		decl = declManager->FindType( DECL_ENTITYDEF, va( "%s_mp", name ), false );
+		//stradex start
+		if (mpGame.IsGametypeCoopBased()) { //specific coop stuff
+			decl = declManager->FindType( DECL_ENTITYDEF, va( "%s_coop", name ), false ); //cause maybe some modders want specific coop entityDefs...
+		} else {
+		//stradex end
+			decl = declManager->FindType( DECL_ENTITYDEF, va( "%s_mp", name ), false );
+		}
 	}
 	if ( !decl ) {
 		decl = declManager->FindType( DECL_ENTITYDEF, name, makeDefault );

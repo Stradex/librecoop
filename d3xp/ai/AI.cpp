@@ -402,6 +402,8 @@ idAI::idAI() {
 	currentTorsoAnim = 0;
 	currentLegsAnim = 0;
 	currentNetAction = NETACTION_NONE;
+	forceNetworkSync = true; //added by Stradex for Coop
+	snapshotPriority = 2; //added by Stradex for coop. High priority for this
 }
 
 /*
@@ -837,6 +839,14 @@ void idAI::Spawn( void ) {
 	enemy				= NULL;
 	allowMove			= true;
 	allowHiddenMovement = false;
+
+	//FIXME: I only exist to avoid a crash when killing an AI with a model_death (ex: lost soul) in coop
+	haveModelDeath = false;
+	const char* modelDeath;
+	if (spawnArgs.GetString( "model_death", "", &modelDeath )) {
+		haveModelDeath = true;
+	}
+	//end FIXME
 
 	animator.RemoveOriginOffset( true );
 
@@ -3476,20 +3486,12 @@ void idAI::Killed( idEntity *inflictor, idEntity *attacker, int damage, const id
 	Unbind();
 
 	if ( StartRagdoll() ) {
-		if (gameLocal.mpGame.IsGametypeCoopBased()) {
-			StartSound( "snd_death", SND_CHANNEL_VOICE, 0, true, NULL ); //broadcast coop
-		} else {
-			StartSound( "snd_death", SND_CHANNEL_VOICE, 0, false, NULL );
-		}
+		StartSound( "snd_death", SND_CHANNEL_VOICE, 0, false, NULL ); //now in coop this is handled clientside
 	}
 
 	if ( spawnArgs.GetString( "model_death", "", &modelDeath ) ) {
 		// lost soul is only case that does not use a ragdoll and has a model_death so get the death sound in here
-		if (gameLocal.mpGame.IsGametypeCoopBased()) {
-			StartSound( "snd_death", SND_CHANNEL_VOICE, 0, true, NULL ); //broadcast coop
-		} else {
-			StartSound( "snd_death", SND_CHANNEL_VOICE, 0, false, NULL );
-		}
+		StartSound( "snd_death", SND_CHANNEL_VOICE, 0, false, NULL ); //now in coop this is handled clientside
 		renderEntity.shaderParms[ SHADERPARM_TIMEOFFSET ] = -MS2SEC( gameLocal.time );
 		SetModel( modelDeath );
 		physicsObj.SetLinearVelocity( vec3_zero );
@@ -5240,45 +5242,27 @@ void idAI::ClientPredictionThink( void ) {
 			switch( move.moveType ) {
 			case MOVETYPE_DEAD :
 				// dead monsters
-				//UpdateAIScript();
 				DeadMove();
 				break;
 
 			case MOVETYPE_FLY :
 				// flying monsters
-				//UpdateEnemyPosition();
-				//UpdateAIScript();
 				FlyMove();
-				//PlayChatter();
-				//CheckBlink();
 				break;
 
 			case MOVETYPE_STATIC :
 				// static monsters
-				//UpdateEnemyPosition();
-				//UpdateAIScript();
 				StaticMove();
-				//PlayChatter();
-				//CheckBlink();
 				break;
 
 			case MOVETYPE_ANIM :
 				// animation based movement
-				//UpdateEnemyPosition();
-				//UpdateAIScript();
-				//AnimMove();
 				CSAnimMove();
-				//PlayChatter();
-				//CheckBlink();
 				break;
 
 			case MOVETYPE_SLIDE :
 				// velocity based movement
-				//UpdateEnemyPosition();
-				//UpdateAIScript();
 				SlideMove();
-				//PlayChatter();
-				//CheckBlink();
 				break;
 			}
 		}
@@ -5355,6 +5339,8 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteFloat(lastVisibleEnemyPos.x);
 	msg.WriteFloat(lastVisibleEnemyPos.y);
 	msg.WriteFloat(lastVisibleEnemyPos.z);
+
+	msg.WriteBits( fl.hidden, 1);
 }
 
 /*
@@ -5405,6 +5391,15 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	lastVisibleEnemyPos.y = msg.ReadFloat();
 	lastVisibleEnemyPos.z = msg.ReadFloat();
 
+	bool isInvisible=false;
+	isInvisible = msg.ReadBits( 1 ) != 0;
+	if (isInvisible && !fl.hidden) {
+		Hide();
+	} else if (!isInvisible && fl.hidden) {
+		Show();
+	}
+
+
 	if (torsoAnimId != currentTorsoAnim ) {
 		animator.CycleAnim(ANIMCHANNEL_TORSO, torsoAnimId, gameLocal.time, 2);
 	}
@@ -5416,13 +5411,7 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 
 	if ( oldHealth > 0 && health <= 0 ) {
-		// die
-		AI_DEAD = true;
-		
-		SetWaitState( "" );
-		animator.ClearAllJoints();
-
-		StartRagdoll();
+		CSKilled();
 	} else if ( health < oldHealth && health > 0 ) {
 		//pain
 		//AI_PAIN = Pain( NULL, NULL, oldHealth - health, lastDamageDir, lastDamageLocation ); //causing crash.
@@ -5455,9 +5444,38 @@ idAI::ClientReceiveEvent
 */
 bool  idAI::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 
+	int damageDefIndex;
+	int materialIndex;
+	jointHandle_t jointNum;
+	idVec3 localOrigin, localNormal, localDir;
+
+	switch( event ) {
+		case EVENT_ADD_DAMAGE_EFFECT: {
+			jointNum = (jointHandle_t) msg.ReadShort();
+			localOrigin[0] = msg.ReadFloat();
+			localOrigin[1] = msg.ReadFloat();
+			localOrigin[2] = msg.ReadFloat();
+			localNormal = msg.ReadDir( 24 );
+			localDir = msg.ReadDir( 24 );
+			damageDefIndex = gameLocal.ClientRemapDecl( DECL_ENTITYDEF, msg.ReadInt() );
+			materialIndex = gameLocal.ClientRemapDecl( DECL_MATERIAL, msg.ReadInt() );
+
+			//AI_DEAD && haveModelDeath is important cause avoid crash while trying to send a damage effect to an already dead AI with a model_death (lost soul)
+			if ((damageDefIndex == -1 || materialIndex  == -1 || (AI_DEAD && haveModelDeath)) && gameLocal.mpGame.IsGametypeCoopBased()){ //ugly avoid crash in coop
+				return true;
+			}
+
+			const idDeclEntityDef *damageDef = static_cast<const idDeclEntityDef *>( declManager->DeclByIndex( DECL_ENTITYDEF, damageDefIndex ) );
+			const idMaterial *collisionMaterial = static_cast<const idMaterial *>( declManager->DeclByIndex( DECL_MATERIAL, materialIndex ) );
+			AddLocalDamageEffect( jointNum, localOrigin, localNormal, localDir, damageDef, collisionMaterial );
+			return true;
+		}
+		default:
+			break;
+	}
+
 	return idActor::ClientReceiveEvent( event, time, msg );
 }
-
 /*
 ================
 idAI::ClientProcessNetAction
@@ -5629,6 +5647,65 @@ void idAI::CSAnimMove( void ) {
 	}
 	
 }
+
+/*
+=====================
+idAI::CSKilled
+COOP: Behaviour when killed clientside
+=====================
+*/
+void idAI::CSKilled( void ) {
+
+	forceNetworkSync = false;
+
+	idAngles ang;
+	const char *modelDeath;
+
+	// stop all voice sounds
+	StopSound( SND_CHANNEL_VOICE, false );
+	if ( head.GetEntity() ) {
+		head.GetEntity()->StopSound( SND_CHANNEL_VOICE, false );
+		head.GetEntity()->GetAnimator()->ClearAllAnims( gameLocal.time, 100 );
+	}
+
+	disableGravity = false;
+	move.moveType = MOVETYPE_DEAD;
+	af_push_moveables = false;
+
+	physicsObj.UseFlyMove( false );
+	physicsObj.ForceDeltaMove( false );
+
+	// end our looping ambient sound
+	StopSound( SND_CHANNEL_AMBIENT, false );
+
+	StopMove( MOVE_STATUS_DONE );
+
+	AI_DEAD = true;
+	// make monster nonsolid
+	physicsObj.SetContents( 0 );
+	physicsObj.GetClipModel()->Unlink();
+
+	Unbind();
+
+	if ( StartRagdoll() ) {
+			StartSound( "snd_death", SND_CHANNEL_VOICE, 0, false, NULL );
+	}
+
+	if ( spawnArgs.GetString( "model_death", "", &modelDeath ) ) {
+		StartSound( "snd_death", SND_CHANNEL_VOICE, 0, false, NULL );
+		renderEntity.shaderParms[ SHADERPARM_TIMEOFFSET ] = -MS2SEC( gameLocal.time );
+		SetModel( modelDeath );
+		physicsObj.SetLinearVelocity( vec3_zero );
+		physicsObj.PutToRest();
+		physicsObj.DisableImpact();
+	}
+
+	restartParticles = false;
+
+	SetWaitState( "" );
+	animator.ClearAllJoints(); //should this happen?
+}
+
 
 
 /***********************************************************************

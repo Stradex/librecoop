@@ -292,6 +292,7 @@ public:
 	//BY stradex for coop netcode
 	int						firstFreeCoopIndex;			// first free index in the entities array for coop
 	idEntity *				coopentities[MAX_GENTITIES];	//For coop netcode only by Stradex
+	idEntity *				sortsnapshotentities[MAX_GENTITIES]; //for coop only to sort the priority of snapshot
 	int						coopIds[MAX_GENTITIES];			// for use in idEntityPtr in coop
 	int						num_coopentities;				//for coop netcode only by stradex 
 	idLinkList<idEntity>	coopSyncEntities;				// all net-synced (used by Coop only)

@@ -634,6 +634,7 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 	entityState_t *base, *newBase;
 	int numSourceAreas, sourceAreas[ idEntity::MAX_PVS_AREAS ];
 
+	//REMINDER TO STRADEX: DELETE EVERYTHING RELATED TO serverPriorityNode. IT'S NOT USED FOR ANYTHING
 	//Used by stradex for netcode optimization
 	int serverSendEntitiesCount=0;
 	int serverEntitiesLimit = net_serverSnapshotLimit.GetInteger();

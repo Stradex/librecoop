@@ -280,8 +280,11 @@ extern idCVar	si_gameType;
 extern idCVar	si_map;
 extern idCVar	si_spectators;
 
-extern idCVar	si_shootDoors;
+//fluff start (Thanks fluff :3)
+extern idCVar	si_shootDoors; 
 extern idCVar	si_itemRespawn; // added for coop
+//fluff end
+
 
 #ifdef CTF
 extern idCVar si_flagDropTimeLimit;
@@ -299,9 +302,14 @@ extern idCVar g_CTFArrows;
 
 #endif
 
+//stradex start
+extern idCVar	si_onePickupPerPlayer;
+extern idCVar	net_clientCoopDebug; //added for debug stuff only
+extern idCVar	net_serverSnapshotLimit; //how many entities are we able to send per snapshot as server (avoid snapshot overflow, something common in big coop maps)
+//stradex end
+
 extern idCVar	net_clientSelfSmoothing;
 extern idCVar	net_clientLagOMeter;
-extern idCVar	net_clientCoopDebug; //added for coop debug stuff only
 
 extern const char *si_gameTypeArgs[];
 

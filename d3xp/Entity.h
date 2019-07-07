@@ -48,6 +48,8 @@ If you have questions concerning this license or the applicable additional terms
 */
 
 static const int DELAY_DORMANT_TIME = 3000;
+static const int DEFAULT_SNAPSHOT_PRIORITY = 5; //COOP: All snapshotPriority values behind are top priority
+static const int MAX_MISSING_SNAPSHOTS = 10; //COOP by stradex
 
 extern const idEventDef EV_PostSpawn;
 extern const idEventDef EV_FindTargets;
@@ -147,6 +149,12 @@ public:
 
 	bool					spawnedByServer;		// When entity is spawned by the server, added by stradex for COOP
 	bool					clientSideEntity;		// FIXME: I think there's no need of this but well... for COOP
+	bool					firstTimeInClientPVS[MAX_CLIENTS]; //added for Netcode optimization for COOP (Stradex)
+	bool					forceNetworkSync;		//FIXME: I think there's no need of this. Just duct tape to fix the new netcode 
+	bool					inSnapshotQueue[MAX_CLIENTS];		//IF there's a snapshot overflow (see net_serverSnapshotLimit) we're going to need a snapshotqueue
+	bool					readByServer;			//if the entity was already tried to be sent in the snapshot
+	int						snapshotPriority;		//The priority of this entity (useful when snapshot overflow
+	int						snapshotMissingCount[MAX_CLIENTS];	//Missing snapshots count for coop
 
 	struct entityFlags_s {
 		bool				notarget			:1;	// if true never attack or target this entity
@@ -278,6 +286,8 @@ public:
 	idVec3					GetWorldCoordinates( const idVec3 &vec ) const;
 	bool					GetMasterPosition( idVec3 &masterOrigin, idMat3 &masterAxis ) const;
 	void					GetWorldVelocities( idVec3 &linearVelocity, idVec3 &angularVelocity ) const;
+
+	bool					IsMasterActive ( void ) const; //added for coop netcode
 
 	// physics
 							// set a new physics object to be used by this entity
