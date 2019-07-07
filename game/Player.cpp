@@ -1139,6 +1139,9 @@ idPlayer::idPlayer() {
 	isChatting				= false;
 
 	selfSmooth				= false;
+
+	//adde for COOP by stradex
+	snapshotPriority		= 1;
 }
 
 /*

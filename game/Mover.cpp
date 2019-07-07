@@ -157,6 +157,8 @@ idMover::idMover( void ) {
 	damage = 0.0f;
 	areaPortal = 0;
 	fl.networkSync = true;
+	//added for coop
+	snapshotPriority = 2;
 }
 
 /*

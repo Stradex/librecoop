@@ -79,9 +79,16 @@ idCVar si_pure(						"si_pure",					"1",			CVAR_GAME | CVAR_SERVERINFO | CVAR_BO
 idCVar si_spectators(				"si_spectators",			"1",			CVAR_GAME | CVAR_SERVERINFO | CVAR_ARCHIVE | CVAR_BOOL, "allow spectators or require all clients to play" );
 idCVar si_serverURL(				"si_serverURL",				"",				CVAR_GAME | CVAR_SERVERINFO | CVAR_ARCHIVE, "where to reach the server admins and get information about the server" );
 
+//fluff start (Thanks fluff :3)
 // coop
 idCVar si_shootDoors(				"si_shootDoors",			"0",			CVAR_GAME | CVAR_SERVERINFO | CVAR_ARCHIVE | CVAR_BOOL, "all doors can be opened by shooting them, even if they're locked");
 idCVar si_itemRespawn(				"si_itemRespawn",			"0",			CVAR_GAME | CVAR_SERVERINFO | CVAR_ARCHIVE | CVAR_BOOL, "items will respawn in coop modes");
+//fluff end
+
+//stradex start
+idCVar si_onePickupPerPlayer(		"si_onePickupPerPlayer",	"1",			CVAR_GAME | CVAR_SERVERINFO | CVAR_ARCHIVE | CVAR_BOOL | CVAR_NETWORKSYNC, "Items pickups are indivual for each player in server");
+idCVar net_serverSnapshotLimit(		"net_serverSnapshotLimit",	"120",			CVAR_GAME | CVAR_ARCHIVE | CVAR_INTEGER, "How many snapshots can we send in total as limit (per client)", 20, 500);
+//stradex end
 
 // user info
 idCVar ui_name(						"ui_name",					"Player",		CVAR_GAME | CVAR_USERINFO | CVAR_ARCHIVE, "player name" );

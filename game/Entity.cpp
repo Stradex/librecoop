@@ -440,9 +440,13 @@ idEntity::idEntity() {
 	spawnedByServer = false; //added by Stradex for Coop
 	clientSideEntity = false; //added by Stradex for Coop
 	forceNetworkSync = false; //added by Stradex for Coop
+	readByServer = false; //added by Stradex for Coop netcode optimization
+	snapshotPriority = DEFAULT_SNAPSHOT_PRIORITY;
 
 	for (int i=0; i < MAX_CLIENTS; i++) {
 		firstTimeInClientPVS[i] = true; //added by Stradex for Coop netcode optimization
+		inSnapshotQueue[i] = false; //added by Stradex for Coop netcode optimization
+		snapshotMissingCount[i] = 0;  //added by Stradex for Coop netcode optimization
 	}
 }
 

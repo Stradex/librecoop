@@ -48,6 +48,8 @@ If you have questions concerning this license or the applicable additional terms
 */
 
 static const int DELAY_DORMANT_TIME = 3000;
+static const int DEFAULT_SNAPSHOT_PRIORITY = 5; //COOP: All snapshotPriority values behind are top priority
+static const int MAX_MISSING_SNAPSHOTS = 10; //COOP by stradex
 
 extern const idEventDef EV_PostSpawn;
 extern const idEventDef EV_FindTargets;
@@ -126,6 +128,7 @@ public:
 	idLinkList<idEntity>	spawnNode;				// for being linked into spawnedEntities list
 	idLinkList<idEntity>	activeNode;				// for being linked into activeEntities list
 	idLinkList<idEntity>	coopNode;				// for being linked into coopSyncEntities list by Stradex for Coop
+	idLinkList<idEntity>	serverPriorityNode;		// for being linked into serverPriorityEntities list by Stradex for Coop netcode optimization
 
 	idLinkList<idEntity>	snapshotNode;			// for being linked into snapshotEntities list
 	int						snapshotSequence;		// last snapshot this entity was in
@@ -150,6 +153,10 @@ public:
 	bool					clientSideEntity;		// FIXME: I think there's no need of this but well... for COOP
 	bool					firstTimeInClientPVS[MAX_CLIENTS]; //added for Netcode optimization for COOP (Stradex)
 	bool					forceNetworkSync;		//FIXME: I think there's no need of this. Just duct tape to fix the new netcode 
+	bool					inSnapshotQueue[MAX_CLIENTS];		//IF there's a snapshot overflow (see net_serverSnapshotLimit) we're going to need a snapshotqueue
+	bool					readByServer;			//if the entity was already tried to be sent in the snapshot
+	int						snapshotPriority;		//The priority of this entity (useful when snapshot overflow
+	int						snapshotMissingCount[MAX_CLIENTS];	//Missing snapshots count for coop
 
 	struct entityFlags_s {
 		bool				notarget			:1;	// if true never attack or target this entity

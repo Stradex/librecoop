@@ -396,6 +396,7 @@ idAI::idAI() {
 	currentLegsAnim = 0;
 	currentNetAction = NETACTION_NONE;
 	forceNetworkSync = true; //added by Stradex for Coop
+	snapshotPriority = 2; //added by Stradex for coop. High priority for this
 }
 
 /*
@@ -5422,6 +5423,7 @@ COOP: Behaviour when killed clientside
 */
 void idAI::CSKilled( void ) {
 
+	forceNetworkSync = false;
 	
 	idAngles ang;
 	const char *modelDeath;
