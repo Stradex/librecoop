@@ -596,7 +596,7 @@ bool idProjectile::Collide( const trace_t &collision, const idVec3 &velocity ) {
 	}
 
 	// MP: projectiles open doors
-	if ((!gameLocal.mpGame.IsGametypeCoopBased() || cvarSystem->GetCVarBool("si_shootDoors")) && gameLocal.isMultiplayer && ent->IsType( idDoor::Type ) && !static_cast< idDoor * >(ent)->IsOpen() && !ent->spawnArgs.GetBool( "no_touch" ) ) {
+	if ((!gameLocal.mpGame.IsGametypeCoopBased() || si_shootDoors.GetBool()) && gameLocal.isMultiplayer && ent->IsType( idDoor::Type ) && !static_cast< idDoor * >(ent)->IsOpen() && !ent->spawnArgs.GetBool( "no_touch" ) ) {
 		ent->ProcessEvent( &EV_Activate , this );
 	}
 
