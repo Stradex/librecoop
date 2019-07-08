@@ -51,6 +51,8 @@ If you have questions concerning this license or the applicable additional terms
 #define protected	public
 #endif
 
+const int MAX_SORT_ITERATIONS	= 7500; //added by stradex for coop. Iterations per player by the server
+
 /*
 ===============================================================================
 

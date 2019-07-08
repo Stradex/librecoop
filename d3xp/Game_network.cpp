@@ -706,7 +706,12 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 	//Poor CPU: FIXME: fluff, may you know a better way to sort a list. Most fast and efficient way (stradex)
 	int iterationsDebug=0;
 	idEntity *tmpEnt;
-	for (j=1; j < (sortSnapCount-1); j++) {
+	for (j=1; j < (sortSnapCount-1); j++, iterationsDebug++) {
+
+		if (iterationsDebug >= MAX_SORT_ITERATIONS) {
+			break; //let's avoid the CPU to get on fire
+		}
+
 		bool needSort=false;
 
 		if (sortsnapshotentities[j+1]->inSnapshotQueue[clientNum] && !sortsnapshotentities[j]->inSnapshotQueue[clientNum]) {
@@ -724,9 +729,13 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 			tmpEnt = sortsnapshotentities[j];
 			sortsnapshotentities[j] = sortsnapshotentities[j+1];
 			sortsnapshotentities[j+1] = tmpEnt;
-			j=0;
+			//j=0;
+			j -= 2;
+			if (j<0) {
+				j=0;
+			}
 		}
-		iterationsDebug++;
+		
 	}
 	//END by Stradex for netcode optimization (SORT LIST)
 
@@ -882,8 +891,8 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 		common->Warning("[COOP] Snapshot overflow... using snapshot queue\n");
 	}
 	*/
-	if (iterationsDebug > 4000) {
-		common->Warning("[COOP] iterations for sort count: %d\n", iterationsDebug);
+	if (iterationsDebug >= MAX_SORT_ITERATIONS) {
+		common->Warning("[COOP] iterations overflow while sorting list!: %d\n", iterationsDebug);
 	}
 }
 
