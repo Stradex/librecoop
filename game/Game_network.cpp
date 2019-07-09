@@ -452,6 +452,12 @@ void idGameLocal::ServerWriteInitialReliableMessages( int clientNum ) {
 
 	// send all saved events
 	for ( event = savedEventQueue.Start(); event; event = event->next ) {
+
+		if ((serverEventsCount >= MAX_SERVER_EVENTS_PER_FRAME) && gameLocal.mpGame.IsGametypeCoopBased()) {
+			addToServerEventOverFlowList(event, clientNum); //Avoid serverSendEvent overflow in coop
+			continue;
+		}
+
 		outMsg.Init( msgBuf, sizeof( msgBuf ) );
 		outMsg.BeginWriting();
 		outMsg.WriteByte( GAME_RELIABLE_MESSAGE_EVENT );
@@ -470,6 +476,8 @@ void idGameLocal::ServerWriteInitialReliableMessages( int clientNum ) {
 		}
 
 		networkSystem->ServerSendReliableMessage( clientNum, outMsg );
+
+		serverEventsCount++; //added for coop to avoid server Reliable Message overflow
 	}
 
 	// update portals for opened doors
@@ -2901,5 +2909,157 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 	*/
 	if (iterationsDebug >= MAX_SORT_ITERATIONS) {
 		common->Warning("[COOP] iterations overflow while sorting list!: %d\n", iterationsDebug);
+	}
+}
+
+/*
+===============
+idGameLocal::addToServerEventOverFlowList
+===============
+*/
+void idGameLocal::addToServerEventOverFlowList(entityNetEvent_t* event, int clientNum)
+{
+
+	for (int i=0; i < SERVER_EVENTS_QUEUE_SIZE; i++) {
+		if (serverOverflowEvents[i].eventId == SERVER_EVENT_NONE) {
+			serverOverflowEvents[i].event = event;
+			serverOverflowEvents[i].eventId = event->event;
+			serverOverflowEvents[i].isEventType = true;
+			serverOverflowEvents[i].excludeClient = clientNum; //FIXME Wrong var name: THIS IS NOT excludeClient when the entity is from saved queue
+			return;
+		}
+	}
+
+	common->Warning("[COOP] No free slot for serverOverflowEvents\n");
+}
+
+
+/*
+===============
+idGameLocal::addToServerEventOverFlowList
+===============
+*/
+void idGameLocal::addToServerEventOverFlowList(int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient, int eventTime, idEntity* ent)
+{
+
+	for (int i=0; i < SERVER_EVENTS_QUEUE_SIZE; i++) {
+		if (serverOverflowEvents[i].eventId == SERVER_EVENT_NONE) {
+			serverOverflowEvents[i].eventEnt = ent;
+			serverOverflowEvents[i].eventId = eventId;
+			serverOverflowEvents[i].msg = *msg;
+			serverOverflowEvents[i].saveEvent = saveEvent;
+			serverOverflowEvents[i].excludeClient = excludeClient;
+			serverOverflowEvents[i].eventTime = eventTime;
+			serverOverflowEvents[i].isEventType = false;
+			return;
+		}
+	}
+
+	common->Warning("[COOP] No free slot for serverOverflowEvents\n");
+}
+
+/*
+===============
+idGameLocal::sendServerOverflowEvents
+===============
+*/
+void idGameLocal::sendServerOverflowEvents( void )
+{
+	serverEventsCount=0;
+
+	if (overflowEventCountdown > 0) overflowEventCountdown--;
+
+	for (int i=0; i < SERVER_EVENTS_QUEUE_SIZE; i++) {
+		if (serverOverflowEvents[i].eventId == SERVER_EVENT_NONE) {
+			continue;
+		}
+		if (!serverOverflowEvents[i].eventEnt && !serverOverflowEvents[i].isEventType) {
+			serverOverflowEvents[i].eventId = SERVER_EVENT_NONE;
+			serverOverflowEvents[i].isEventType = false;
+			continue;
+		}
+		if (serverOverflowEvents[i].isEventType && !getEntityBySpawnId(serverOverflowEvents[i].event->spawnId)) {
+			serverOverflowEvents[i].eventId = SERVER_EVENT_NONE;
+			serverOverflowEvents[i].isEventType = false;
+			continue;
+		}
+		if ((serverEventsCount > MAX_SERVER_EVENTS_PER_FRAME) || (overflowEventCountdown > 0)) {
+			continue; //don't return, continue just in case it's necessary to clean the serverOverflowEvents array
+		}
+
+		idBitMsg	outMsg;
+		byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
+
+		//event send
+
+		if (serverOverflowEvents[i].isEventType) { //client joins and read savedqueue events
+
+		outMsg.Init( msgBuf, sizeof( msgBuf ) );
+		outMsg.BeginWriting();
+		outMsg.WriteByte( GAME_RELIABLE_MESSAGE_EVENT );
+		if (mpGame.IsGametypeCoopBased()) {
+			outMsg.WriteBits( serverOverflowEvents[i].event->coopId, 32 ); //testing coop netsync
+			outMsg.WriteBits( serverOverflowEvents[i].event->spawnId, 32 ); //added for coop
+		} else {
+			outMsg.WriteBits( serverOverflowEvents[i].event->spawnId, 32 );
+		}
+		
+		outMsg.WriteByte( serverOverflowEvents[i].event->event );
+		outMsg.WriteInt( serverOverflowEvents[i].event->time );
+		outMsg.WriteBits( serverOverflowEvents[i].event->paramsSize, idMath::BitsForInteger( MAX_EVENT_PARAM_SIZE ) );
+		if ( serverOverflowEvents[i].event->paramsSize ) {
+			outMsg.WriteData( serverOverflowEvents[i].event->paramsBuf, serverOverflowEvents[i].event->paramsSize );
+		}
+
+		networkSystem->ServerSendReliableMessage( serverOverflowEvents[i].excludeClient, outMsg ); //FIXME: Here excludeClient == clientNum
+
+
+		} else { //from Entity method: ServerSendEvent
+
+		outMsg.Init( msgBuf, sizeof( msgBuf ) );
+		outMsg.BeginWriting();
+		outMsg.WriteByte( GAME_RELIABLE_MESSAGE_EVENT );
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			outMsg.WriteBits( gameLocal.GetCoopId( serverOverflowEvents[i].eventEnt ), 32 );
+			outMsg.WriteBits( gameLocal.GetSpawnId( serverOverflowEvents[i].eventEnt ), 32 ); //added for coop
+		} else {
+			outMsg.WriteBits( gameLocal.GetSpawnId( serverOverflowEvents[i].eventEnt ), 32 );
+		}
+	
+		outMsg.WriteByte( serverOverflowEvents[i].eventId );
+		outMsg.WriteInt( gameLocal.time );
+		if ( &serverOverflowEvents[i].msg ) {
+			outMsg.WriteBits( (&serverOverflowEvents[i].msg)->GetSize(), idMath::BitsForInteger( MAX_EVENT_PARAM_SIZE ) );
+			outMsg.WriteData( (&serverOverflowEvents[i].msg)->GetData(), (&serverOverflowEvents[i].msg)->GetSize() );
+		} else {
+			outMsg.WriteBits( 0, idMath::BitsForInteger( MAX_EVENT_PARAM_SIZE ) );
+		}
+
+		if ( serverOverflowEvents[i].excludeClient != -1 ) {
+			networkSystem->ServerSendReliableMessageExcluding( serverOverflowEvents[i].excludeClient, outMsg );
+		} else {
+			networkSystem->ServerSendReliableMessage( -1, outMsg );
+		}
+
+		if ( serverOverflowEvents[i].saveEvent ) {
+			gameLocal.SaveEntityNetworkEvent( serverOverflowEvents[i].eventEnt, serverOverflowEvents[i].eventId, &serverOverflowEvents[i].msg );
+		}
+
+		}
+
+		//Remove event from the overflow queue list
+		serverOverflowEvents[i].eventId = SERVER_EVENT_NONE;
+		serverOverflowEvents[i].eventEnt = NULL;
+		serverOverflowEvents[i].event = NULL;
+		serverOverflowEvents[i].isEventType = false;
+
+		serverEventsCount++;
+	}
+	if (serverEventsCount) { //not zero
+		common->Warning("[COOP] Server Events overflow!, using serverOverflowEvents queue list to avoid the crash for clients\n");
+		overflowEventCountdown=SERVER_EVENT_OVERFLOW_WAIT;
+	}
+	if (overflowEventCountdown > 0) {
+		serverEventsCount=MAX_SERVER_EVENTS_PER_FRAME; //FIXME: Ugly way for doing this.  Not pretty
 	}
 }

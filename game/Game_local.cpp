@@ -257,6 +257,13 @@ void idGameLocal::Clear( void ) {
 	coopMapScriptLoad = false;
 	serverEventsCount=0;
 	clientEventsCount=0;
+	for (int i=0; i < SERVER_EVENTS_QUEUE_SIZE; i++) {
+		serverOverflowEvents[i].eventEnt = NULL;
+		serverOverflowEvents[i].eventId = SERVER_EVENT_NONE;
+		serverOverflowEvents[i].isEventType = false;
+		serverOverflowEvents[i].event = NULL;
+	}
+	overflowEventCountdown=0;
 	//end for coop
 
 	memset( clientEntityStates, 0, sizeof( clientEntityStates ) );
@@ -984,6 +991,13 @@ void idGameLocal::LocalMapRestart( ) {
 
 	eventQueue.Shutdown();
 	savedEventQueue.Shutdown();
+
+	for (int i=0; i < SERVER_EVENTS_QUEUE_SIZE; i++) {
+		serverOverflowEvents[i].eventEnt = NULL;
+		serverOverflowEvents[i].eventId = SERVER_EVENT_NONE;
+		serverOverflowEvents[i].isEventType = false;
+		serverOverflowEvents[i].event = NULL;
+	}
 
 	MapClear( false );
 
@@ -2291,7 +2305,10 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 		realClientTime = time;
 		
 		//COOP DEBUG
-		serverEventsCount=0;
+		//serverEventsCount=0;
+		if (mpGame.IsGametypeCoopBased()) {
+			sendServerOverflowEvents();
+		}
 		//END COOP DEBUG
 
 #ifdef GAME_DLL
@@ -2463,12 +2480,6 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 		soundSystem->SetMute( false );
 		skipCinematic = false;
 	}
-
-	//COOP DEBUG
-	if (serverEventsCount > 10) {
-		common->Printf("Server sending events: %d\n", serverEventsCount);
-	}
-	//END COOP DEBUG
 
 	// show any debug info for this frame
 	RunDebugInfo();

@@ -115,7 +115,6 @@ public:
 	idList<signal_t> signal[ NUM_SIGNALS ];
 };
 
-
 class idEntity : public idClass {
 public:
 	static const int		MAX_PVS_AREAS = 4;
@@ -377,7 +376,7 @@ public:
 	void					WriteGUIToSnapshot( idBitMsgDelta &msg ) const;
 	void					ReadGUIFromSnapshot( const idBitMsgDelta &msg );
 
-	void					ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient ) const;
+	void					ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient ); //COOP: was const
 	void					ClientSendEvent( int eventId, const idBitMsg *msg ) const;
 
 protected:

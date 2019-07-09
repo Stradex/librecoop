@@ -4866,7 +4866,7 @@ idEntity::ServerSendEvent
    always receive the events nomatter what time they join the game.
 ================
 */
-void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient ) const {
+void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient ) {
 	idBitMsg	outMsg;
 	byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
 
@@ -4876,6 +4876,11 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 
 	// prevent dupe events caused by frame re-runs
 	if ( !gameLocal.isNewFrame ) {
+		return;
+	}
+
+	if ((gameLocal.serverEventsCount >= MAX_SERVER_EVENTS_PER_FRAME) && gameLocal.mpGame.IsGametypeCoopBased()) {
+		gameLocal.addToServerEventOverFlowList(eventId, msg, saveEvent, excludeClient, gameLocal.time, this); //Avoid serverSendEvent overflow in coop
 		return;
 	}
 
