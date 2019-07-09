@@ -266,6 +266,8 @@ public:
 	int						num_coopentities;				//for coop netcode only by stradex 
 	idLinkList<idEntity>	coopSyncEntities;				// all net-synced (used by Coop only)
 	idLinkList<idEntity>	serverPriorityEntities;			// coopSyncEnities but sort by snapshotPriority (used by Coop only)
+	int						serverEventsCount;				//just to debug delete later
+	int						clientEventsCount;				//just to debug, delete later
 
 	// can be used to automatically effect every material in the world that references globalParms
 	float					globalShaderParms[ MAX_GLOBAL_SHADER_PARMS ];
@@ -367,6 +369,8 @@ public:
 
 	//Added by Stradex for Coop
 	virtual gameReturn_t	RunClientSideFrame(idPlayer	*clientPlayer, const usercmd_t *clientCmds );
+	virtual void			ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg &msg, byte *clientInPVS, int numPVSClients );
+	virtual void			ClientReadSnapshotCoop( int clientNum, int sequence, const int gameFrame, const int gameTime, const int dupeUsercmds, const int aheadOfServer, const idBitMsg &msg );
 
 	// ---------------------- Public idGameLocal Interface -------------------
 

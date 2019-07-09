@@ -391,7 +391,8 @@ idAI::idAI() {
 	lastDamageDef			= 0;
 	lastDamageDir			= vec3_zero;
 	lastDamageLocation		= 0;
-	fl.networkSync		= true;
+	//fl.networkSync		= true;
+	fl.coopNetworkSync		= true;
 	currentTorsoAnim = 0;
 	currentLegsAnim = 0;
 	currentNetAction = NETACTION_NONE;
@@ -3473,7 +3474,11 @@ void idAI::PlayCinematic( void ) {
 			Hide();
 		}
 		current_cinematic = 0;
-		//ActivateTargets( gameLocal.GetLocalPlayer() ); //Disable in coop
+
+		if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+			ActivateTargets( gameLocal.GetLocalPlayer() ); //Disable in coop
+		}
+
 		fl.neverDormant = false;
 		return;
 	}
@@ -4609,7 +4614,7 @@ idAI::Hide
 */
 void idAI::Hide( void ) {
 
-	if (gameLocal.isServer) {
+	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
 		currentNetAction = NETACTION_HIDE; //added by Stradex for COOP
 	}
 
@@ -4631,7 +4636,7 @@ idAI::Show
 ================
 */
 void idAI::Show( void ) {
-	if (gameLocal.isServer) {
+	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
 		currentNetAction = NETACTION_SHOW; //added by Stradex for COOP
 	}
 
@@ -4986,6 +4991,10 @@ idAI::ClientPredictionThink
 ================
 */
 void idAI::ClientPredictionThink( void ) {
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+		return idEntity::ClientPredictionThink(); //original non-coop
+	}
+
 	//this->Think();
 
 	if ( thinkFlags & TH_PHYSICS ) { //edited
@@ -5059,6 +5068,10 @@ void idAI::ClientPredictionThink( void ) {
 */
 void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+		return idEntity::WriteToSnapshot(msg); //original non-coop 
+	}
+
 	idVec3 moveDirVec = vec3_zero;
 	idVec3 normalizedLastDamageDir = vec3_zero;
 
@@ -5117,6 +5130,11 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 ================
 */
 void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
+
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+		return idEntity::ReadFromSnapshot(msg); //original non-coop 
+	}
+
 	int		i, oldHealth, enemySpawnId, torsoAnimId, legsAnimId;
 	bool	newHitToggle, stateHitch, hasEnemy;
 	netActionType_t newNetAction;
@@ -5209,6 +5227,10 @@ idAI::ClientReceiveEvent
 ================
 */
 bool  idAI::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
+
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+		return idActor::ClientReceiveEvent( event, time, msg ); //original non-coop
+	}
 
 	int damageDefIndex;
 	int materialIndex;

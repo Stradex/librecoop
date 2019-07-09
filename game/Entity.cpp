@@ -474,13 +474,19 @@ void idEntity::Spawn( void ) {
 	const char			*temp;
 	idVec3				origin;
 	idMat3				axis;
-	const idKeyValue	*networkSync;
+	const idKeyValue	*networkSync, *coopNetworkSync;
 	const char			*classname;
 	const char			*scriptObjectName;
 
 	networkSync = spawnArgs.FindKey( "networkSync" );
 	if ( networkSync ) {
 		fl.networkSync = ( atoi( networkSync->GetValue() ) != 0 );
+		fl.coopNetworkSync = ( atoi( networkSync->GetValue() ) != 0 ); //FIXME LATER: not good idea, we should read the coopNetworkSync key
+	}
+
+	coopNetworkSync = spawnArgs.FindKey( "coopNetworkSync" ); //new KEY for specific coop entities
+	if ( coopNetworkSync ) {
+		fl.coopNetworkSync = ( atoi( networkSync->GetValue() ) != 0 );
 	}
 
 	gameLocal.RegisterEntity( this ); //afer networkSync so coopentities can get updated correctly..
@@ -592,7 +598,7 @@ idEntity::~idEntity
 */
 idEntity::~idEntity( void ) {
 
-	if ( gameLocal.GameState() != GAMESTATE_SHUTDOWN && !gameLocal.isClient && fl.networkSync && entityNumber >= MAX_CLIENTS ) {
+	if ( gameLocal.GameState() != GAMESTATE_SHUTDOWN && !gameLocal.isClient && ((fl.networkSync && !gameLocal.mpGame.IsGametypeCoopBased()) || (fl.coopNetworkSync && gameLocal.mpGame.IsGametypeCoopBased()))  && entityNumber >= MAX_CLIENTS ) {
 		idBitMsg	msg;
 		byte		msgBuf[ MAX_GAME_MESSAGE_SIZE ];
 
@@ -4902,6 +4908,8 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 	if ( saveEvent ) {
 		gameLocal.SaveEntityNetworkEvent( this, eventId, msg );
 	}
+
+	gameLocal.serverEventsCount++; //COOP DEEBUG ONLY
 }
 
 /*
@@ -4944,6 +4952,8 @@ void idEntity::ClientSendEvent( int eventId, const idBitMsg *msg ) const {
 	}
 
 	networkSystem->ClientSendReliableMessage( outMsg );
+
+	gameLocal.clientEventsCount++; //COOP DEBUG ONLY
 }
 
 /*

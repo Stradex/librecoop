@@ -1100,6 +1100,7 @@ idPlayer::idPlayer() {
 	smoothedAngles			= ang_zero;
 
 	fl.networkSync			= true;
+	fl.coopNetworkSync		= true;
 	forceNetworkSync = false; //added by Stradex for Coop
 
 	latchedTeam				= -1;
@@ -2496,35 +2497,10 @@ void idPlayer::UpdateHudAmmo( idUserInterface *_hud ) {
 	int inclip;
 	int ammoamount;
 
-	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-		assert( weapon.GetCoopEntity() );
-	} else {
-		assert( weapon.GetEntity() );
-	}
-	
+	assert( weapon.GetEntity() );
+
+
 	assert( _hud );
-
-	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-
-	inclip		= weapon.GetCoopEntity()->AmmoInClip();
-	ammoamount	= weapon.GetCoopEntity()->AmmoAvailable();
-	if ( ammoamount < 0 || !weapon.GetEntity()->IsReady() ) {
-		// show infinite ammo
-		_hud->SetStateString( "player_ammo", "" );
-		_hud->SetStateString( "player_totalammo", "" );
-	} else {
-		// show remaining ammo
-		_hud->SetStateString( "player_totalammo", va( "%i", ammoamount - inclip ) );
-		_hud->SetStateString( "player_ammo", weapon.GetCoopEntity()->ClipSize() ? va( "%i", inclip ) : "--" );		// how much in the current clip
-		_hud->SetStateString( "player_clips", weapon.GetCoopEntity()->ClipSize() ? va( "%i", ammoamount / weapon.GetCoopEntity()->ClipSize() ) : "--" );
-		_hud->SetStateString( "player_allammo", va( "%i/%i", inclip, ammoamount - inclip ) );
-	}
-
-	_hud->SetStateBool( "player_ammo_empty", ( ammoamount == 0 ) );
-	_hud->SetStateBool( "player_clip_empty", ( weapon.GetCoopEntity()->ClipSize() ? inclip == 0 : false ) );
-	_hud->SetStateBool( "player_clip_low", ( weapon.GetCoopEntity()->ClipSize() ? inclip <= weapon.GetEntity()->LowAmmo() : false ) );
-
-	} else {
 
 	inclip		= weapon.GetEntity()->AmmoInClip();
 	ammoamount	= weapon.GetEntity()->AmmoAvailable();
@@ -2543,12 +2519,6 @@ void idPlayer::UpdateHudAmmo( idUserInterface *_hud ) {
 	_hud->SetStateBool( "player_ammo_empty", ( ammoamount == 0 ) );
 	_hud->SetStateBool( "player_clip_empty", ( weapon.GetEntity()->ClipSize() ? inclip == 0 : false ) );
 	_hud->SetStateBool( "player_clip_low", ( weapon.GetEntity()->ClipSize() ? inclip <= weapon.GetEntity()->LowAmmo() : false ) );
-
-	}
-
-
-
-
 
 	_hud->HandleNamedEvent( "updateAmmo" );
 }
@@ -2660,7 +2630,7 @@ idPlayer::DrawHUD
 */
 void idPlayer::DrawHUD( idUserInterface *_hud ) {
 
-	if ( (!weapon.GetEntity() && !gameLocal.mpGame.IsGametypeCoopBased()) || (!weapon.GetCoopEntity() && gameLocal.mpGame.IsGametypeCoopBased()) || influenceActive != INFLUENCE_NONE || privateCameraView || gameLocal.GetCamera() || !_hud || !g_showHud.GetBool() ) {
+	if ( !weapon.GetEntity() || influenceActive != INFLUENCE_NONE || privateCameraView || gameLocal.GetCamera() || !_hud || !g_showHud.GetBool() ) {
 		return;
 	}
 
@@ -7932,7 +7902,7 @@ void idPlayer::ClientPredictionThink( void ) {
 		// don't allow client to move when lagged
 		Move();
 
-		if ( !noclip && !spectating && ( health > 0 ) && !IsHidden() && gameLocal.isNewFrame ) { //Touch triggers 
+		if ( !noclip && !spectating && ( health > 0 ) && !IsHidden() && gameLocal.isNewFrame && gameLocal.mpGame.IsGametypeCoopBased() ) { //Touch triggers COOP
 			ClientTouchTriggers(); //specific client-side triggers
 		}
 	}
@@ -8124,8 +8094,10 @@ void idPlayer::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteBits( isChatting, 1 );
 
 	//extra added for coop
-	msg.WriteBits( noclip, 1 );
-	msg.WriteBits( fl.hidden, 1);
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		msg.WriteBits( noclip, 1 );
+		msg.WriteBits( fl.hidden, 1);
+	}
 }
 
 /*
@@ -8170,6 +8142,8 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	isChatting = msg.ReadBits( 1 ) != 0;
 
 	//extra added for coop
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+
 	bool shouldHide=false;
 
 	noclip = msg.ReadBits( 1 ) != 0;
@@ -8180,6 +8154,8 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		} else if (!shouldHide && fl.hidden) {
 			Show();
 		}
+	}
+
 	}
 
 	// no msg reading below this

@@ -88,6 +88,7 @@ idProjectile::idProjectile( void ) {
 
 	// note: for net_instanthit projectiles, we will force this back to false at spawn time
 	fl.networkSync		= true;
+	fl.coopNetworkSync = true;
 
 	netSyncPhysics		= false;
 }
@@ -655,7 +656,7 @@ void idProjectile::AddDefaultDamageEffect( const trace_t &collision, const idVec
 
 	DefaultDamageEffect( this, spawnArgs, collision, velocity );
 
-	if ( gameLocal.isServer && fl.networkSync ) {
+	if ( gameLocal.isServer && ((fl.networkSync && !gameLocal.mpGame.IsGametypeCoopBased()) || (fl.coopNetworkSync && gameLocal.mpGame.IsGametypeCoopBased())) ) {
 		idBitMsg	msg;
 		byte		msgBuf[MAX_EVENT_PARAM_SIZE];
 		int			excludeClient;
