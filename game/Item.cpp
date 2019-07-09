@@ -75,7 +75,8 @@ idItem::idItem() {
 	shellMaterial = NULL;
 	orgOrigin.Zero();
 	canPickUp = true;
-	//fl.networkSync = true;
+	fl.networkSync = true;
+	fl.coopNetworkSync = false; //don't sync items in coop
 
 	//coop
 	for (int i=0; i < MAX_CLIENTS; i++) {
@@ -425,7 +426,7 @@ bool idItem::Pickup( idPlayer *player ) {
 	
 	//server-side - Singleplayer pickup
 
-	if (player && si_onePickupPerPlayer.GetBool() && clientPickedItem[player->entityNumber]) { //COOP
+	if (player && si_onePickupPerPlayer.GetBool() && clientPickedItem[player->entityNumber] && gameLocal.mpGame.IsGametypeCoopBased()) { //COOP
 		return false; //this player already picked this item
 	}
 
@@ -442,12 +443,12 @@ bool idItem::Pickup( idPlayer *player ) {
 	StartSound( "snd_acquire", SND_CHANNEL_ITEM, 0, false, NULL );
 
 	// trigger our targets
-	if (firstTimePicked || !si_onePickupPerPlayer.GetBool()) {
+	if (firstTimePicked || !si_onePickupPerPlayer.GetBool() || !gameLocal.mpGame.IsGametypeCoopBased()) {
 		firstTimePicked = false; //COOP: used only when si_onePickupPerPlayer enabled
 		ActivateTargets( player );
 	}
 
-	if (!si_onePickupPerPlayer.GetBool()) { //COOP: enable multiple pickups with si_onePickupPerPlayer enabled
+	if (!si_onePickupPerPlayer.GetBool() || !gameLocal.mpGame.IsGametypeCoopBased()) { //COOP: enable multiple pickups with si_onePickupPerPlayer enabled
 		// clear our contents so the object isn't picked up twice
 		GetPhysics()->SetContents( 0 );
 	}
@@ -455,7 +456,7 @@ bool idItem::Pickup( idPlayer *player ) {
 	// hide the model
 
 	//COOP: if si_onePickupPerPlayer enabled, then only hide the model when the local player pick it.
-	if (!si_onePickupPerPlayer.GetBool() || (player->entityNumber == gameLocal.localClientNum)) 
+	if (!si_onePickupPerPlayer.GetBool() || (player->entityNumber == gameLocal.localClientNum) || !gameLocal.mpGame.IsGametypeCoopBased()) 
 	{
 
 	Hide();

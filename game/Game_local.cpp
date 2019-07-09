@@ -255,6 +255,8 @@ void idGameLocal::Clear( void ) {
 	//added for coop
 	firstClientToSpawn = false;
 	coopMapScriptLoad = false;
+	serverEventsCount=0;
+	clientEventsCount=0;
 	//end for coop
 
 	memset( clientEntityStates, 0, sizeof( clientEntityStates ) );
@@ -2287,6 +2289,10 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 		previousTime = time;
 		time += msec;
 		realClientTime = time;
+		
+		//COOP DEBUG
+		serverEventsCount=0;
+		//END COOP DEBUG
 
 #ifdef GAME_DLL
 		// allow changing SIMD usage on the fly
@@ -2457,6 +2463,12 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 		soundSystem->SetMute( false );
 		skipCinematic = false;
 	}
+
+	//COOP DEBUG
+	if (serverEventsCount > 10) {
+		common->Printf("Server sending events: %d\n", serverEventsCount);
+	}
+	//END COOP DEBUG
 
 	// show any debug info for this frame
 	RunDebugInfo();
@@ -3116,7 +3128,7 @@ void idGameLocal::RegisterEntity( idEntity *ent ) {
 		spawn_entnum = firstFreeIndex++;
 	}
 
-	if (ent->fl.networkSync || spawnArgs.GetInt( "coop_entnum", "0")) {
+	if (ent->fl.coopNetworkSync || spawnArgs.GetInt( "coop_entnum", "0")) {
 		if (ent->IsType(idWeapon::Type)) {
 			common->Printf("Registering weapon....\n");
 		}
