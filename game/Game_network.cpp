@@ -2058,7 +2058,7 @@ gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const userc
 			//common->Printf("[COOP] Hiding: %s\n", ent->GetName());
 		}
 	}
-	//players
+	//players: Now that players are forceNetworkSync = true this could be deleted I think
 	for (int i=0; i < MAX_CLIENTS; i++) {
 		if (!coopentities[i] || (coopentities[i]->entityCoopNumber == clientPlayer->entityCoopNumber)) {
 			continue;
@@ -2498,6 +2498,9 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 	//for( ent = spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next() ) {
 	for( ent = coopSyncEntities.Next(); ent != NULL; ent = ent->coopNode.Next() ) { //test for coop
 		// if the entity is already in the snapshot
+		if (!ent->forceNetworkSync) { //avoid crash related to idEntity::FindTargets coop entities
+			continue; //is this really necessary for coop?
+		}
 		if ( ent->snapshotSequence == sequence ) {
 			continue;
 		}
@@ -2506,6 +2509,8 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 		}
 
 		// if the entity is not in the snapshot PVS
+		//is this really necessary?
+		
 		if ( !( snapshot->pvs[ent->entityNumber >> 5] & ( 1 << ( ent->entityNumber & 31 ) ) ) ) {
 			if ( ent->PhysicsTeamInPVS( pvsHandle ) ) { //causing a fatal crash in COOP
 				if ( ent->entityNumber >= MAX_CLIENTS && ent->entityNumber < mapSpawnCount ) {
@@ -2522,6 +2527,7 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 			}
 			continue;
 		}
+		
 
 		// add the entity to the snapshot list
 		ent->snapshotNode.AddToEnd( snapshotEntities );

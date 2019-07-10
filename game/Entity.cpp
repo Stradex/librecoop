@@ -1284,7 +1284,7 @@ void idEntity::UpdatePVSAreas( void ) {
 	int i;
 
 	modelAbsBounds.FromTransformedBounds( renderEntity.bounds, renderEntity.origin, renderEntity.axis );
-	localNumPVSAreas = gameLocal.pvs.GetPVSAreas( modelAbsBounds, localPVSAreas, sizeof( localPVSAreas ) / sizeof( localPVSAreas[0] ) );
+	localNumPVSAreas = gameLocal.pvs.GetPVSAreas( modelAbsBounds, localPVSAreas, sizeof( localPVSAreas ) / sizeof( localPVSAreas[0] ) ); //causing crash in coop
 
 	// FIXME: some particle systems may have huge bounds and end up in many PVS areas
 	// the first MAX_PVS_AREAS may not be visible to a network client and as a result the particle system may not show up when it should
@@ -3599,10 +3599,14 @@ void idEntity::FindTargets( void ) {
 		}
 		//extra for coop: FIXME Search for a clientside workaround for this better
 		if (gameLocal.mpGame.IsGametypeCoopBased() && targets[ i ].GetEntity() && !targets[ i ].GetEntity()->fl.coopNetworkSync && (targets[ i ].GetEntity()->IsType(idAnimated::Type) || targets[ i ].GetEntity()->IsType(idFuncEmitter::Type) )){
+			//causing pvs areas crash
+			
+			targets[ i ].GetEntity()->forceNetworkSync = false;
 			targets[ i ].GetEntity()->fl.coopNetworkSync = true;
 			gameLocal.RegisterCoopEntity(targets[ i ].GetEntity()); //just lol
 			targets[ i ].SetCoopId(gameLocal.GetCoopId(targets[ i ].GetEntity())); //Dirty dirty hack
 			common->Printf("[COOP] Adding %s to the coopentities array\n", targets[ i ].GetEntity()->GetName());
+			
 		}
 	}
 }

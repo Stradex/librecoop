@@ -1101,7 +1101,7 @@ idPlayer::idPlayer() {
 
 	fl.networkSync			= true;
 	fl.coopNetworkSync		= true;
-	forceNetworkSync = false; //added by Stradex for Coop
+	forceNetworkSync = true; //added by Stradex for Coop
 
 	latchedTeam				= -1;
 	doingDeathSkin			= false;
