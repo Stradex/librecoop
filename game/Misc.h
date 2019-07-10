@@ -275,9 +275,16 @@ public:
 	bool					StartRagdoll( void );
 	virtual bool			GetPhysicsToSoundTransform( idVec3 &origin, idMat3 &axis );
 
+	virtual void			WriteToSnapshot( idBitMsgDelta &msg ) const; //added for COOP
+	virtual void			ReadFromSnapshot( const idBitMsgDelta &msg ); //added for COOP
+	virtual void			ClientPredictionThink( void ); //added for COOP
+	virtual void			Think( void ); //added for COOP
+
+
 private:
 	int						num_anims;
 	int						current_anim_index;
+	int						currentAnimPlaying; //for coop
 	int						anim;
 	int						blendFrames;
 	jointHandle_t			soundJoint;
