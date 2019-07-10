@@ -75,6 +75,8 @@ idMoveable::idMoveable( void ) {
 	unbindOnDeath		= false;
 	allowStep			= false;
 	canDamage			= false;
+	fl.networkSync		= false;
+	fl.coopNetworkSync	= true; //just to test something in coop
 }
 
 /*

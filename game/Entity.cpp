@@ -43,6 +43,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "Mover.h"
 #include "WorldSpawn.h"
 #include "SmokeParticles.h"
+#include "Misc.h"//added for coop
 
 #include "Entity.h"
 
@@ -493,6 +494,7 @@ void idEntity::Spawn( void ) {
 
 	spawnArgs.GetString( "classname", NULL, &classname );
 	const idDeclEntityDef *def = gameLocal.FindEntityDef( classname, false );
+
 	if ( def ) {
 		entityDefNumber = def->Index();
 	}
@@ -3594,6 +3596,13 @@ void idEntity::FindTargets( void ) {
 	for( i = 0; i < targets.Num(); i++ ) {
 		if ( targets[ i ].GetEntity() == this ) {
 			gameLocal.Error( "Entity '%s' is targeting itself", name.c_str() );
+		}
+		//extra for coop: FIXME Search for a clientside workaround for this better
+		if (gameLocal.mpGame.IsGametypeCoopBased() && targets[ i ].GetEntity() && !targets[ i ].GetEntity()->fl.coopNetworkSync && (targets[ i ].GetEntity()->IsType(idAnimatedEntity::Type) || targets[ i ].GetEntity()->IsType(idFuncEmitter::Type) )){
+			targets[ i ].GetEntity()->fl.coopNetworkSync = true;
+			gameLocal.RegisterCoopEntity(targets[ i ].GetEntity()); //just lol
+			targets[ i ].SetCoopId(gameLocal.GetCoopId(targets[ i ].GetEntity())); //Dirty dirty hack
+			//common->Printf("[COOP] Adding %s to the coopentities array\n", targets[ i ].GetEntity()->GetName());
 		}
 	}
 }
