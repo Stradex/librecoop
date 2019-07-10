@@ -1221,7 +1221,21 @@ bool idProjectile::ClientReceiveEvent( int event, int time, const idBitMsg &msg 
 			collision.c.point[2] = msg.ReadFloat();
 			collision.c.normal = msg.ReadDir( 24 );
 			int index = gameLocal.ClientRemapDecl( DECL_MATERIAL, msg.ReadInt() );
-			collision.c.material = ( index != -1 ) ? static_cast<const idMaterial *>( declManager->DeclByIndex( DECL_MATERIAL, index ) ) : NULL;
+			//start avoid crash in coop
+			//!(index < 0 || index >= linearLists[ typeIndex ].Num())
+			if (index != -1) {
+				int declTypeCount = declManager->GetNumDecls(DECL_MATERIAL);
+				if (index < 0 || index >= declTypeCount) {
+					collision.c.material = NULL;
+					common->Warning("[COOP] index declType out of range at idProjectile::ClientReceiveEvent\n");
+				} else {
+					collision.c.material = static_cast<const idMaterial *>( declManager->DeclByIndex( DECL_MATERIAL, index ) );
+				}
+			} else {
+				collision.c.material = NULL;
+			}
+			//end avoid crash in coop
+			//collision.c.material = ( index != -1 ) ? static_cast<const idMaterial *>( declManager->DeclByIndex( DECL_MATERIAL, index ) ) : NULL; //causing crash in coop
 			velocity[0] = msg.ReadFloat( 5, 10 );
 			velocity[1] = msg.ReadFloat( 5, 10 );
 			velocity[2] = msg.ReadFloat( 5, 10 );

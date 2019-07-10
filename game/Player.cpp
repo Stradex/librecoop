@@ -8219,8 +8219,18 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		if ( stateHitch ) {
 			lastDmgTime = gameLocal.time;
 		} else {
-			// damage feedback
-			const idDeclEntityDef *def = static_cast<const idDeclEntityDef *>( declManager->DeclByIndex( DECL_ENTITYDEF, lastDamageDef, false ) );
+
+			const idDeclEntityDef *def;
+			//ugly avoid crash in coop
+			int declTypeCount = declManager->GetNumDecls(DECL_ENTITYDEF);
+			if (lastDamageDef < 0 || lastDamageDef >= declTypeCount) {
+				def = NULL;
+			} else {
+				// damage feedback
+				def = static_cast<const idDeclEntityDef *>( declManager->DeclByIndex( DECL_ENTITYDEF, lastDamageDef, false ) );
+			}
+			//avoid crash in coop
+			
 			if ( def ) {
 				playerView.DamageImpulse( lastDamageDir * viewAxis.Transpose(), &def->dict );
 				AI_PAIN = Pain( NULL, NULL, oldHealth - health, lastDamageDir, lastDamageLocation );
