@@ -210,7 +210,7 @@ void idMultiplayerGame::SpawnPlayer( int clientNum ) {
 		p->spawnedTime = gameLocal.time;
 		if ( gameLocal.gameType == GAME_TDM ) {
 			SwitchToTeam( clientNum, -1, p->team );
-		} else if (gameLocal.gameType == GAME_COOP) {
+		} else if (IsGametypeCoopBased()) {
 			//SwitchToTeam( clientNum, -1, 0 ); //Always team 0 in Coop
 			p->team = 0;//Always team 0 in Coop
 		}
@@ -221,7 +221,7 @@ void idMultiplayerGame::SpawnPlayer( int clientNum ) {
 		playerState[ clientNum ].ingame = ingame;
 
 		//added for coop
-		if ( gameLocal.gameType == GAME_COOP ) {
+		if ( IsGametypeCoopBased() ) {
 			playerCheckpoints[clientNum] = p->GetLocalCoordinates( p->GetPhysics()->GetOrigin() ); //get spawn position as initial checkpoint
 			common->Printf("Saving player %d checkpoint\n", clientNum);
 		}
@@ -2393,7 +2393,8 @@ void idMultiplayerGame::CheckRespawns( idPlayer *spectator ) {
 			} else {
 				if ( gameLocal.gameType == GAME_DM ||
 					gameLocal.gameType == GAME_TDM ||
-					gameLocal.gameType == GAME_COOP) {  //added by Stradex for COOP
+					gameLocal.gameType == GAME_COOP ||  //added by Stradex for COOP
+					gameLocal.gameType == GAME_SURVIVAL) {  //added by Stradex for COOP
 					if ( gameState == WARMUP || gameState == COUNTDOWN || gameState == GAMEON ) {
 						p->ServerSpectate( false );
 					}
@@ -3493,6 +3494,7 @@ bool idMultiplayerGame::IsGametypeCoopBased( void ) const  {
 		return false;
 
 	case GAME_COOP:
+	case GAME_SURVIVAL:
 		return true;
 
 	default:

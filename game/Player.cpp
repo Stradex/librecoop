@@ -1594,7 +1594,7 @@ void idPlayer::Spawn( void ) {
 	inventory.pdaOpened = false;
 	inventory.selPDA = 0;
 
-	if ( !gameLocal.isMultiplayer ) {
+	if ( !gameLocal.isMultiplayer || gameLocal.mpGame.IsGametypeCoopBased() ) {
 		if ( g_skill.GetInteger() < 2 ) {
 			if ( health < 25 ) {
 				health = 25;
@@ -3367,12 +3367,13 @@ void idPlayer::GivePDA( const char *pdaName, idDict *item )
 	if ( gameLocal.isMultiplayer && spectating ) {
 		return;
 	}
-	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-		return; //No PDAs in Coop yet
-	}
 
 	if ( item ) {
 		inventory.pdaSecurity.AddUnique( item->GetString( "inv_name" ) );
+	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		return; //No PDAs in Coop yet
 	}
 
 	if ( pdaName == NULL || *pdaName == 0 ) {
@@ -4379,7 +4380,7 @@ void idPlayer::UpdateFocus( void ) {
 
 	// only update the focus character when attack button isn't pressed so players
 	// can still chainsaw NPC's
-	if ( gameLocal.isMultiplayer || ( !focusCharacter && ( usercmd.buttons & BUTTON_ATTACK ) ) ) {
+	if ( gameLocal.isMultiplayer || ( !focusCharacter && ( usercmd.buttons & BUTTON_ATTACK ) ) ) { //Here to enable Coop players to talk with npcs probably
 		allowFocus = false;
 	} else {
 		allowFocus = true;
@@ -4679,7 +4680,7 @@ void idPlayer::CrashLand( const idVec3 &oldOrigin, const idVec3 &oldVelocity ) {
 	}
 
 	// allow falling a bit further for multiplayer
-	if ( gameLocal.isMultiplayer ) {
+	if ( gameLocal.isMultiplayer && !gameLocal.mpGame.IsGametypeCoopBased() ) {
 		fatalDelta	= 75.0f;
 		hardDelta	= 50.0f;
 	} else {
@@ -5611,7 +5612,7 @@ void idPlayer::PerformImpulse( int impulse ) {
 		case IMPULSE_19: {
 			// when we're not in single player, IMPULSE_19 is used for showScores
 			// otherwise it opens the pda
-			if ( !gameLocal.isMultiplayer ) {
+			if ( !gameLocal.isMultiplayer ) { //work here probably to enabled PDA for COOP
 				if ( objectiveSystemOpen ) {
 					TogglePDA();
 				} else if ( weapon_pda >= 0 ) {
@@ -5720,7 +5721,7 @@ void idPlayer::AdjustSpeed( void ) {
 		speed = pm_noclipspeed.GetFloat();
 		bobFrac = 0.0f;
 	} else if ( !physicsObj.OnLadder() && ( usercmd.buttons & BUTTON_RUN ) && ( usercmd.forwardmove || usercmd.rightmove ) && ( usercmd.upmove >= 0 ) ) {
-		if ( !gameLocal.isMultiplayer && !physicsObj.IsCrouching() && !PowerUpActive( ADRENALINE ) ) {
+		if ( !gameLocal.isMultiplayer && !physicsObj.IsCrouching() && !PowerUpActive( ADRENALINE ) ) { //Here to enable / disabled infinite stamine in COOP
 			stamina -= MS2SEC( gameLocal.msec );
 		}
 		if ( stamina < 0 ) {
@@ -6307,7 +6308,7 @@ void idPlayer::Think( void ) {
 		}
 
 		// not done on clients for various reasons. don't do it on server and save the sound channel for other things
-		if ( !gameLocal.isMultiplayer ) {
+		if ( !gameLocal.isMultiplayer || gameLocal.mpGame.IsGametypeCoopBased() ) {
 			SetCurrentHeartRate();
 			float scale = g_damageScale.GetFloat();
 			if ( g_useDynamicProtection.GetBool() && scale < 1.0f && gameLocal.time - lastDmgTime > 500 ) {
@@ -6627,7 +6628,7 @@ void idPlayer::CalcDamagePoints( idEntity *inflictor, idEntity *attacker, const 
 	damage = GetDamageForLocation( damage, location );
 
 	idPlayer *player = attacker->IsType( idPlayer::Type ) ? static_cast<idPlayer*>(attacker) : NULL;
-	if ( !gameLocal.isMultiplayer ) {
+	if ( !gameLocal.isMultiplayer || gameLocal.mpGame.IsGametypeCoopBased() ) {
 		if ( inflictor != gameLocal.world ) {
 			switch ( g_skill.GetInteger() ) {
 				case 0:
@@ -6652,7 +6653,7 @@ void idPlayer::CalcDamagePoints( idEntity *inflictor, idEntity *attacker, const 
 
 	// always give half damage if hurting self
 	if ( attacker == this ) {
-		if ( gameLocal.isMultiplayer ) {
+		if ( gameLocal.isMultiplayer && !gameLocal.mpGame.IsGametypeCoopBased() ) {
 			// only do this in mp so single player plasma and rocket splash is very dangerous in close quarters
 			damage *= damageDef->GetFloat( "selfDamageScale", "0.5" );
 		} else {
@@ -6675,7 +6676,7 @@ void idPlayer::CalcDamagePoints( idEntity *inflictor, idEntity *attacker, const 
 	if ( !damageDef->GetBool( "noArmor" ) ) {
 		float armor_protection;
 
-		armor_protection = ( gameLocal.isMultiplayer ) ? g_armorProtectionMP.GetFloat() : g_armorProtection.GetFloat();
+		armor_protection = ( gameLocal.isMultiplayer && !gameLocal.mpGame.IsGametypeCoopBased() ) ? g_armorProtectionMP.GetFloat() : g_armorProtection.GetFloat();
 
 		armorSave = ceil( damage * armor_protection );
 		if ( armorSave >= inventory.armor ) {
@@ -6830,7 +6831,7 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 	// do the damage
 	if ( damage > 0 ) {
 
-		if ( !gameLocal.isMultiplayer ) {
+		if ( !gameLocal.isMultiplayer || gameLocal.mpGame.IsGametypeCoopBased() ) {
 			float scale = g_damageScale.GetFloat();
 			if ( g_useDynamicProtection.GetBool() && g_skill.GetInteger() < 2 ) {
 				if ( gameLocal.time > lastDmgTime + 500 && scale > 0.25f ) {

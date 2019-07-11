@@ -1902,9 +1902,9 @@ void idGameLocal::SpawnPlayer( int clientNum ) {
 	args.Set( "name", va( "player%d", clientNum + 1 ) );
 	//args.Set( "classname", isMultiplayer ? "player_doommarine_mp" : "player_doommarine" );
 	
-	if ( isMultiplayer && gameType != GAME_COOP )
+	if ( isMultiplayer && !mpGame.IsGametypeCoopBased() )
 		args.Set( "classname", "player_doommarine_mp" );
-	else if ( isMultiplayer && gameType == GAME_COOP )
+	else if ( isMultiplayer && mpGame.IsGametypeCoopBased() )
 		args.Set( "classname", "player_doommarine_coop" ); //Added for COOP by Stradex
 	else
 		args.Set( "classname", "player_doommarine" );
@@ -3353,7 +3353,7 @@ bool idGameLocal::InhibitEntitySpawn( idDict &spawnArgs ) {
 
 	bool result = false;
 
-	if ( isMultiplayer ) {
+	if ( isMultiplayer && !gameLocal.mpGame.IsGametypeCoopBased() ) {
 		spawnArgs.GetBool( "not_multiplayer", "0", result );
 	} else if ( g_skill.GetInteger() == 0 ) {
 		spawnArgs.GetBool( "not_easy", "0", result );
@@ -3371,7 +3371,7 @@ bool idGameLocal::InhibitEntitySpawn( idDict &spawnArgs ) {
 		}
 	}
 
-	if ( gameLocal.isMultiplayer ) {
+	if ( gameLocal.isMultiplayer && !gameLocal.mpGame.IsGametypeCoopBased() ) {
 		name = spawnArgs.GetString( "classname" );
 		if ( idStr::Icmp( name, "weapon_bfg" ) == 0 || idStr::Icmp( name, "weapon_soulcube" ) == 0 ) {
 			result = true;
@@ -4477,6 +4477,8 @@ void idGameLocal::UpdateServerInfoFlags() {
 		gameType = GAME_LASTMAN;
 	} else if ( ( idStr::Icmp( serverInfo.GetString( "si_gameType" ), "Coop" ) == 0 ) ) { //added by Stradex for COOP
 		gameType = GAME_COOP;
+	} else if ( ( idStr::Icmp( serverInfo.GetString( "si_gameType" ), "Survival" ) == 0 ) ) { //added by Stradex for SURVIVAL COOP
+		gameType = GAME_SURVIVAL;
 	}
 	if ( gameType == GAME_LASTMAN ) {
 		if ( !serverInfo.GetInt( "si_warmup" ) ) {

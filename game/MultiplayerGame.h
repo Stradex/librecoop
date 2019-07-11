@@ -51,7 +51,8 @@ typedef enum {
 	GAME_TOURNEY,
 	GAME_TDM,
 	GAME_LASTMAN,
-	GAME_COOP //added by Stradex for Coop
+	GAME_COOP, //added by Stradex for Coop
+	GAME_SURVIVAL //added by Stradex for Coop
 } gameType_t;
 
 typedef enum {
