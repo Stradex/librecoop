@@ -186,6 +186,7 @@ idWeapon::idWeapon() {
 	Clear();
 
 	fl.networkSync = true;
+	fl.coopNetworkSync = true;
 }
 
 /*
@@ -209,6 +210,7 @@ void idWeapon::Spawn( void ) {
 		// setup the world model
 		worldModel = static_cast< idAnimatedEntity * >( gameLocal.SpawnEntityType( idAnimatedEntity::Type, NULL ) );
 		worldModel.GetEntity()->fl.networkSync = true;
+		worldModel.GetEntity()->fl.coopNetworkSync = true;
 		gameLocal.RegisterCoopEntity(worldModel.GetEntity()); //just lol
 		worldModel.SetCoopId(gameLocal.GetCoopId(worldModel.GetEntity())); //Dirty dirty hack
 	}
@@ -3450,6 +3452,7 @@ void idWeapon::Event_LaunchProjectiles( int num_projectiles, float spread, float
 			if ( projectileDict.GetBool( "net_instanthit" ) ) {
 				// don't synchronize this on top of the already predicted effect
 				ent->fl.networkSync = false;
+				ent->fl.coopNetworkSync = false;
 			}
 
 			proj = static_cast<idProjectile *>(ent);

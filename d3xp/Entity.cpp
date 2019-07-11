@@ -43,6 +43,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "Mover.h"
 #include "WorldSpawn.h"
 #include "SmokeParticles.h"
+#include "Misc.h"//added for coop
 
 #include "Entity.h"
 
@@ -503,13 +504,19 @@ void idEntity::Spawn( void ) {
 	const char			*temp;
 	idVec3				origin;
 	idMat3				axis;
-	const idKeyValue	*networkSync;
+	const idKeyValue	*networkSync, *coopNetworkSync;
 	const char			*classname;
 	const char			*scriptObjectName;
 
 	networkSync = spawnArgs.FindKey( "networkSync" );
 	if ( networkSync ) {
 		fl.networkSync = ( atoi( networkSync->GetValue() ) != 0 );
+		fl.coopNetworkSync = ( atoi( networkSync->GetValue() ) != 0 ); //FIXME LATER: not good idea, we should read the coopNetworkSync key
+	}
+
+	coopNetworkSync = spawnArgs.FindKey( "coopNetworkSync" ); //new KEY for specific coop entities
+	if ( coopNetworkSync ) {
+		fl.coopNetworkSync = ( atoi( networkSync->GetValue() ) != 0 );
 	}
 
 	gameLocal.RegisterEntity( this ); //afer networkSync so coopentities can get updated correctly..
@@ -638,7 +645,7 @@ idEntity::~idEntity
 */
 idEntity::~idEntity( void ) {
 
-	if ( gameLocal.GameState() != GAMESTATE_SHUTDOWN && !gameLocal.isClient && fl.networkSync && entityNumber >= MAX_CLIENTS ) {
+	if ( gameLocal.GameState() != GAMESTATE_SHUTDOWN && !gameLocal.isClient && ((fl.networkSync && !gameLocal.mpGame.IsGametypeCoopBased()) || (fl.coopNetworkSync && gameLocal.mpGame.IsGametypeCoopBased()))  && entityNumber >= MAX_CLIENTS ) {
 		idBitMsg	msg;
 		byte		msgBuf[ MAX_GAME_MESSAGE_SIZE ];
 
@@ -3692,6 +3699,17 @@ void idEntity::FindTargets( void ) {
 		if ( targets[ i ].GetEntity() == this ) {
 			gameLocal.Error( "Entity '%s' is targeting itself", name.c_str() );
 		}
+		//extra for coop: FIXME Search for a clientside workaround for this better
+		if (gameLocal.mpGame.IsGametypeCoopBased() && targets[ i ].GetEntity() && !targets[ i ].GetEntity()->fl.coopNetworkSync && (targets[ i ].GetEntity()->IsType(idAnimated::Type) || targets[ i ].GetEntity()->IsType(idFuncEmitter::Type) )){
+			//causing pvs areas crash
+
+			targets[ i ].GetEntity()->forceNetworkSync = false;
+			targets[ i ].GetEntity()->fl.coopNetworkSync = true;
+			gameLocal.RegisterCoopEntity(targets[ i ].GetEntity()); //just lol
+			targets[ i ].SetCoopId(gameLocal.GetCoopId(targets[ i ].GetEntity())); //Dirty dirty hack
+			common->Printf("[COOP] Adding %s to the coopentities array\n", targets[ i ].GetEntity()->GetName());
+
+		}
 	}
 }
 
@@ -5033,7 +5051,7 @@ idEntity::ServerSendEvent
    always receive the events nomatter what time they join the game.
 ================
 */
-void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient ) const {
+void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient ) {
 	idBitMsg	outMsg;
 	byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
 
@@ -5043,6 +5061,11 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 
 	// prevent dupe events caused by frame re-runs
 	if ( !gameLocal.isNewFrame ) {
+		return;
+	}
+
+	if ((gameLocal.serverEventsCount >= MAX_SERVER_EVENTS_PER_FRAME) && gameLocal.mpGame.IsGametypeCoopBased()) {
+		gameLocal.addToServerEventOverFlowList(eventId, msg, saveEvent, excludeClient, gameLocal.time, this); //Avoid serverSendEvent overflow in coop
 		return;
 	}
 
@@ -5076,6 +5099,8 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 	if ( saveEvent ) {
 		gameLocal.SaveEntityNetworkEvent( this, eventId, msg );
 	}
+
+	gameLocal.serverEventsCount++;
 }
 
 /*
@@ -5116,6 +5141,8 @@ void idEntity::ClientSendEvent( int eventId, const idBitMsg *msg ) const {
 	}
 
 	networkSystem->ClientSendReliableMessage( outMsg );
+
+	gameLocal.clientEventsCount++; //COOP DEBUG ONLY
 }
 
 /*

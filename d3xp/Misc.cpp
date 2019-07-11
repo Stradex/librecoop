@@ -946,6 +946,7 @@ idAnimated::idAnimated
 */
 idAnimated::idAnimated() {
 	anim = 0;
+	currentAnimPlaying = 0; //FOR COOP
 	blendFrames = 0;
 	soundJoint = INVALID_JOINT;
 	activated = false;
@@ -1064,6 +1065,8 @@ void idAnimated::Spawn( void ) {
 	}
 
 	spawnArgs.GetFloat( "wait", "-1", wait );
+
+	currentAnimPlaying = animator.CurrentAnim( ANIMCHANNEL_ALL )->AnimNum(); //for coop
 
 	if ( wait >= 0 ) {
 		PostEventSec( &EV_Activate, wait, this );
@@ -1398,6 +1401,98 @@ void idAnimated::Event_GetAnimationLength() {
 	idThread::ReturnFloat(length);
 }
 #endif
+
+//STRADEX COOP METHODS START
+
+/*
+=====================
+idAnimated::Think
+=====================
+*/
+void idAnimated::Think( void ) {
+	idAFEntity_Gibbable::Think();
+
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+		return;
+	}
+	//coop stuff
+	currentAnimPlaying = animator.CurrentAnim( ANIMCHANNEL_ALL )->AnimNum();
+}
+
+/*
+=====================
+idAnimated::ClientPredictionThink
+=====================
+*/
+void idAnimated::ClientPredictionThink( void ) {
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+		idAFEntity_Gibbable::ClientPredictionThink();
+		return;
+	}
+	//coop stuff
+	UpdateAnimation();
+	UpdateVisuals();
+	Present();
+	//UpdateDamageEffects();
+	//LinkCombat();
+}
+
+/*
+=====================
+idAnimated::WriteToSnapshot
+=====================
+*/
+void idAnimated::WriteToSnapshot( idBitMsgDelta &msg ) const {
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+		idAFEntity_Gibbable::WriteBindToSnapshot(msg);
+		return;
+	}
+
+	//common->Warning("[COOP] sending snapshot for %s\n", this->GetName());
+	//FIXME: Snapshot being sended every single f*cking frame
+	//coop stuff
+	WriteBindToSnapshot( msg );
+	msg.WriteShort(currentAnimPlaying);
+	msg.WriteBits(activated, 1);
+}
+
+/*
+=====================
+idAnimated::WriteToSnapshot
+=====================
+*/
+void idAnimated::ReadFromSnapshot( const idBitMsgDelta &msg ) {
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+		idAFEntity_Gibbable::ReadFromSnapshot(msg);
+		return;
+	}
+	int newAnim, newActivated;
+	//coop stuff
+	ReadBindFromSnapshot( msg );
+	newAnim = msg.ReadShort();
+	newActivated = msg.ReadBits( 1 ) != 0;
+
+	//common->Warning("[COOP] reading snapshot for %s\n", this->GetName());
+
+	if ((newAnim != this->currentAnimPlaying) || (newActivated != this->activated)) {
+		this->activated = newActivated;
+		this->currentAnimPlaying = newAnim;
+		int cycle;
+		Show();
+		spawnArgs.GetInt( "cycle", "1", cycle );
+		animator.CycleAnim( ANIMCHANNEL_ALL, this->currentAnimPlaying, gameLocal.time, FRAME2MS( blendFrames ) );
+		animator.CurrentAnim( ANIMCHANNEL_ALL )->SetCycleCount( cycle );
+		renderEntity.shaderParms[ SHADERPARM_TIMEOFFSET ] = -MS2SEC( gameLocal.time );
+		animator.ForceUpdate();
+		//common->Warning("[COOP] New animation for %s\n", this->GetName());
+	}
+	if ( msg.HasChanged() ) {
+		UpdateVisuals();
+	}
+}
+
+//STRADEX COOP METHODS END
+
 
 /*
 ===============================================================================

@@ -77,6 +77,8 @@ idMoveable::idMoveable( void ) {
 	unbindOnDeath		= false;
 	allowStep			= false;
 	canDamage			= false;
+	fl.networkSync		= false;
+	fl.coopNetworkSync	= true; //just to test something in coop
 #ifdef _D3XP
 	attacker			= NULL;
 #endif
@@ -646,6 +648,7 @@ idBarrel::idBarrel() {
 	additionalRotation = 0.0f;
 	additionalAxis.Identity();
 	fl.networkSync = true;
+	fl.coopNetworkSync = true;
 }
 
 /*

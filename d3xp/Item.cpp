@@ -76,7 +76,8 @@ idItem::idItem() {
 	orgOrigin.Zero();
 	canPickUp = true;
 	//Commented for coop
-	//fl.networkSync = true;
+	fl.networkSync = true;
+	fl.coopNetworkSync = false; //don't sync items in coop
 
 	//coop
 	for (int i=0; i < MAX_CLIENTS; i++) {

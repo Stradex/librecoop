@@ -292,6 +292,15 @@ void idGameLocal::Clear( void ) {
 	//added for coop
 	firstClientToSpawn = false;
 	coopMapScriptLoad = false;
+	serverEventsCount=0;
+	clientEventsCount=0;
+	for (int i=0; i < SERVER_EVENTS_QUEUE_SIZE; i++) {
+		serverOverflowEvents[i].eventEnt = NULL;
+		serverOverflowEvents[i].eventId = SERVER_EVENT_NONE;
+		serverOverflowEvents[i].isEventType = false;
+		serverOverflowEvents[i].event = NULL;
+	}
+	overflowEventCountdown=0;
 	//end for coop
 
 	memset( clientEntityStates, 0, sizeof( clientEntityStates ) );
@@ -1087,6 +1096,15 @@ void idGameLocal::LocalMapRestart( ) {
 
 	eventQueue.Shutdown();
 	savedEventQueue.Shutdown();
+
+	//coop start
+	for (int i=0; i < SERVER_EVENTS_QUEUE_SIZE; i++) {
+		serverOverflowEvents[i].eventEnt = NULL;
+		serverOverflowEvents[i].eventId = SERVER_EVENT_NONE;
+		serverOverflowEvents[i].isEventType = false;
+		serverOverflowEvents[i].event = NULL;
+	}
+	//coop end
 
 	MapClear( false );
 
@@ -2067,6 +2085,7 @@ void idGameLocal::SpawnPlayer( int clientNum ) {
 			case GAME_CTF:
 				args.Set( "classname", "player_doommarine_ctf" );
 			break;
+			case GAME_SURVIVAL:
 			case GAME_COOP:
 				args.Set( "classname", "player_doommarine_coop" ); //Added for COOP by Stradex
 			break;
@@ -2539,6 +2558,12 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 #ifdef _D3XP
 		slow.Set( time, previousTime, msec, framenum, realClientTime );
 #endif
+
+		//COOP START
+		if (mpGame.IsGametypeCoopBased()) {
+			sendServerOverflowEvents();
+		}
+		//COOP ENDS
 
 #ifdef GAME_DLL
 		// allow changing SIMD usage on the fly
@@ -3348,7 +3373,7 @@ void idGameLocal::RegisterEntity( idEntity *ent ) {
 		spawn_entnum = firstFreeIndex++;
 	}
 
-	if (ent->fl.networkSync || spawnArgs.GetInt( "coop_entnum", "0")) {
+	if (ent->fl.coopNetworkSync || spawnArgs.GetInt( "coop_entnum", "0")) {
 		if (ent->IsType(idWeapon::Type)) {
 			common->Printf("Registering weapon....\n");
 		}
@@ -3602,7 +3627,7 @@ bool idGameLocal::InhibitEntitySpawn( idDict &spawnArgs ) {
 
 	bool result = false;
 
-	if ( isMultiplayer ) {
+	if ( isMultiplayer && !gameLocal.mpGame.IsGametypeCoopBased() ) {
 		spawnArgs.GetBool( "not_multiplayer", "0", result );
 	} else if ( g_skill.GetInteger() == 0 ) {
 		spawnArgs.GetBool( "not_easy", "0", result );
@@ -3629,7 +3654,7 @@ bool idGameLocal::InhibitEntitySpawn( idDict &spawnArgs ) {
 		}
 	}
 
-	if ( gameLocal.isMultiplayer ) {
+	if ( gameLocal.isMultiplayer && !gameLocal.mpGame.IsGametypeCoopBased() ) {
 		name = spawnArgs.GetString( "classname" );
 		if ( idStr::Icmp( name, "weapon_bfg" ) == 0 || idStr::Icmp( name, "weapon_soulcube" ) == 0 ) {
 			result = true;
@@ -4901,6 +4926,8 @@ void idGameLocal::UpdateServerInfoFlags() {
 		gameType = GAME_LASTMAN;
 	}  else if ( ( idStr::Icmp( serverInfo.GetString( "si_gameType" ), "Coop" ) == 0 ) ) { //added by Stradex for COOP
 		gameType = GAME_COOP;
+	}  else if ( ( idStr::Icmp( serverInfo.GetString( "si_gameType" ), "Survival" ) == 0 ) ) { //added by Stradex for COOP
+		gameType = GAME_SURVIVAL;
 	}
 #ifdef CTF
 	else if ( ( idStr::Icmp( serverInfo.GetString( "si_gameType" ), "CTF" ) == 0 ) ) {

@@ -397,8 +397,10 @@ idAI::idAI() {
 	//Added by Stradex for Coop
 	lastDamageDef			= 0;
 	lastDamageDir			= vec3_zero;
+	turnTowardPos			= vec3_zero;
 	lastDamageLocation		= 0;
-	fl.networkSync		= true;
+	//fl.networkSync		= true;
+	fl.coopNetworkSync		= true;
 	currentTorsoAnim = 0;
 	currentLegsAnim = 0;
 	currentNetAction = NETACTION_NONE;
@@ -2771,16 +2773,20 @@ void idAI::AnimMove( void ) {
 
 	move.obstacle = NULL;
 	if ( ( move.moveCommand == MOVE_FACE_ENEMY ) && enemy.GetEntity() ) {
+		turnTowardPos = lastVisibleEnemyPos; //added for COOP
 		TurnToward( lastVisibleEnemyPos );
 		goalPos = oldorigin;
 	} else if ( ( move.moveCommand == MOVE_FACE_ENTITY ) && move.goalEntity.GetEntity() ) {
+		turnTowardPos = move.goalEntity.GetEntity()->GetPhysics()->GetOrigin(); //added for COOP
 		TurnToward( move.goalEntity.GetEntity()->GetPhysics()->GetOrigin() );
 		goalPos = oldorigin;
 	} else if ( GetMovePos( goalPos ) ) {
 		if ( move.moveCommand != MOVE_WANDER ) {
 			CheckObstacleAvoidance( goalPos, newDest );
+			turnTowardPos = newDest; //added for COOP
 			TurnToward( newDest );
 		} else {
+			turnTowardPos = goalPos; //added for COOP
 			TurnToward( goalPos );
 		}
 	}
@@ -2890,13 +2896,16 @@ void idAI::SlideMove( void ) {
 
 	move.obstacle = NULL;
 	if ( ( move.moveCommand == MOVE_FACE_ENEMY ) && enemy.GetEntity() ) {
+		turnTowardPos = lastVisibleEnemyPos; //added for COOP
 		TurnToward( lastVisibleEnemyPos );
 		goalPos = move.moveDest;
 	} else if ( ( move.moveCommand == MOVE_FACE_ENTITY ) && move.goalEntity.GetEntity() ) {
+		turnTowardPos = move.goalEntity.GetEntity()->GetPhysics()->GetOrigin(); //added for COOP
 		TurnToward( move.goalEntity.GetEntity()->GetPhysics()->GetOrigin() );
 		goalPos = move.moveDest;
 	} else if ( GetMovePos( goalPos ) ) {
 		CheckObstacleAvoidance( goalPos, newDest );
+		turnTowardPos = newDest; //added for COOP
 		TurnToward( newDest );
 		goalPos = newDest;
 	}
@@ -2935,11 +2944,14 @@ void idAI::SlideMove( void ) {
 	RunPhysics();
 
 	if ( ( move.moveCommand == MOVE_FACE_ENEMY ) && enemy.GetEntity() ) {
+		turnTowardPos = lastVisibleEnemyPos; //added for COOP
 		TurnToward( lastVisibleEnemyPos );
 	} else if ( ( move.moveCommand == MOVE_FACE_ENTITY ) && move.goalEntity.GetEntity() ) {
+		turnTowardPos = move.goalEntity.GetEntity()->GetPhysics()->GetOrigin(); //added for COOP
 		TurnToward( move.goalEntity.GetEntity()->GetPhysics()->GetOrigin() );
 	} else if ( move.moveCommand != MOVE_NONE ) {
 		if ( vel.ToVec2().LengthSqr() > 0.1f ) {
+			//FIXME: sync this to clients
 			TurnToward( vel.ToYaw() );
 		}
 	}
@@ -3130,8 +3142,10 @@ idAI::FlyTurn
 */
 void idAI::FlyTurn( void ) {
 	if ( move.moveCommand == MOVE_FACE_ENEMY ) {
+		turnTowardPos = lastVisibleEnemyPos; //added for COOP
 		TurnToward( lastVisibleEnemyPos );
 	} else if ( ( move.moveCommand == MOVE_FACE_ENTITY ) && move.goalEntity.GetEntity() ) {
+		turnTowardPos = move.goalEntity.GetEntity()->GetPhysics()->GetOrigin(); //added for COOP
 		TurnToward( move.goalEntity.GetEntity()->GetPhysics()->GetOrigin() );
 	} else if ( move.speed > 0.0f ) {
 		const idVec3 &vel = physicsObj.GetLinearVelocity();
@@ -3570,7 +3584,9 @@ void idAI::PlayCinematic( void ) {
 			Hide();
 		}
 		current_cinematic = 0;
-		//ActivateTargets( gameLocal.GetLocalPlayer() ); //Disable in coop
+		if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+			ActivateTargets( gameLocal.GetLocalPlayer() ); //Disable in coop
+		}
 		fl.neverDormant = false;
 		return;
 	}
@@ -4728,7 +4744,7 @@ idAI::Hide
 */
 void idAI::Hide( void ) {
 
-	if (gameLocal.isServer) {
+	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
 		currentNetAction = NETACTION_HIDE; //added by Stradex for COOP
 	}
 
@@ -4751,7 +4767,7 @@ idAI::Show
 */
 void idAI::Show( void ) {
 
-	if (gameLocal.isServer) {
+	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
 		currentNetAction = NETACTION_SHOW; //added by Stradex for COOP
 	}
 
@@ -5218,7 +5234,10 @@ idAI::ClientPredictionThink
 ================
 */
 void idAI::ClientPredictionThink( void ) {
-	//this->Think();
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+		return idEntity::ClientPredictionThink(); //original non-coop
+	}
+
 
 	if ( thinkFlags & TH_PHYSICS ) { //edited
 
@@ -5291,6 +5310,10 @@ void idAI::ClientPredictionThink( void ) {
 */
 void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+		return idEntity::WriteToSnapshot(msg); //original non-coop 
+	}
+
 	idVec3 moveDirVec = vec3_zero;
 	idVec3 normalizedLastDamageDir = vec3_zero;
 
@@ -5336,9 +5359,20 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteByte(currentNetAction);
 	
 	//lastVisibleEnemyPos
+	/*
 	msg.WriteFloat(lastVisibleEnemyPos.x);
 	msg.WriteFloat(lastVisibleEnemyPos.y);
 	msg.WriteFloat(lastVisibleEnemyPos.z);
+	*/
+	msg.WriteFloat(turnTowardPos.x);
+	msg.WriteFloat(turnTowardPos.y);
+	msg.WriteFloat(turnTowardPos.z);
+
+	int enemyEntityNum = enemy.GetEntity() ? enemy.GetEntity()->entityCoopNumber : -1;
+	int goalEntityNum = move.goalEntity.GetEntity() ? move.goalEntity.GetEntity()->entityCoopNumber : -1;
+
+	msg.WriteInt( enemyEntityNum );
+	msg.WriteInt( goalEntityNum );
 
 	msg.WriteBits( fl.hidden, 1);
 }
@@ -5349,7 +5383,12 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 ================
 */
 void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
-	int		i, oldHealth, enemySpawnId, torsoAnimId, legsAnimId;
+
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+		return idEntity::ReadFromSnapshot(msg); //original non-coop 
+	}
+
+	int		i, oldHealth, enemySpawnId, torsoAnimId, legsAnimId, enemyEntityId, goalEntityId;
 	bool	newHitToggle, stateHitch, hasEnemy;
 	netActionType_t newNetAction;
 
@@ -5387,12 +5426,32 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	newNetAction = static_cast<netActionType_t>(msg.ReadByte());
 
 	//lastVisibleEnemyPos
+	/*
 	lastVisibleEnemyPos.x = msg.ReadFloat();
 	lastVisibleEnemyPos.y = msg.ReadFloat();
 	lastVisibleEnemyPos.z = msg.ReadFloat();
+	*/
+	turnTowardPos.x= msg.ReadFloat();
+	turnTowardPos.y= msg.ReadFloat();
+	turnTowardPos.z= msg.ReadFloat();
+
+	lastVisibleEnemyPos = turnTowardPos; //DELETE ME LATER
+
+	enemyEntityId = msg.ReadInt();
+	goalEntityId =  msg.ReadInt();
+
+	if (enemyEntityId >= 0 && gameLocal.coopentities[enemyEntityId]) {
+		enemy.SetSpawnId(gameLocal.GetSpawnId(gameLocal.coopentities[enemyEntityId])); //should I use SetSpawnId or better SetCoopId?
+	}
+	if (goalEntityId >= 0 && gameLocal.coopentities[goalEntityId]) {
+		move.goalEntity.SetSpawnId(gameLocal.GetSpawnId(gameLocal.coopentities[goalEntityId])); //should I use SetSpawnId or better SetCoopId?
+	}
 
 	bool isInvisible=false;
 	isInvisible = msg.ReadBits( 1 ) != 0;
+
+	//No more msg read from here 
+
 	if (isInvisible && !fl.hidden) {
 		Hide();
 	} else if (!isInvisible && fl.hidden) {
@@ -5464,6 +5523,19 @@ bool  idAI::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			if ((damageDefIndex == -1 || materialIndex  == -1 || (AI_DEAD && haveModelDeath)) && gameLocal.mpGame.IsGametypeCoopBased()){ //ugly avoid crash in coop
 				return true;
 			}
+
+			//ugly avoid crash in coop
+			int declTypeCount = declManager->GetNumDecls(DECL_ENTITYDEF);
+			if (damageDefIndex < 0 || damageDefIndex >= declTypeCount) {
+				common->Warning("[COOP] index declType out of range at idAI::ClientReceiveEvent\n");
+				return true;
+			}
+			declTypeCount = declManager->GetNumDecls(DECL_MATERIAL);
+			if (materialIndex < 0 || materialIndex >= declTypeCount) {
+				common->Warning("[COOP] index declType out of range at idAI::ClientReceiveEvent\n");
+				return true;
+			}
+			//avoid crash in coop
 
 			const idDeclEntityDef *damageDef = static_cast<const idDeclEntityDef *>( declManager->DeclByIndex( DECL_ENTITYDEF, damageDefIndex ) );
 			const idMaterial *collisionMaterial = static_cast<const idMaterial *>( declManager->DeclByIndex( DECL_MATERIAL, materialIndex ) );
@@ -5568,18 +5640,18 @@ void idAI::CSAnimMove( void ) {
 	}
 
 	move.obstacle = NULL;
-	if ( move.moveCommand == MOVE_FACE_ENEMY ) {  //Clients don't know the enemy entity COOP
-		TurnToward( lastVisibleEnemyPos );
+	if ( (move.moveCommand == MOVE_FACE_ENEMY) && enemy.GetEntity()  ) { 
+		TurnToward( turnTowardPos );
 		goalPos = oldorigin;
-	} else if ( ( move.moveCommand == MOVE_FACE_ENTITY ) && move.goalEntity.GetEntity() ) {
-		TurnToward( move.goalEntity.GetEntity()->GetPhysics()->GetOrigin() );
+	} else if ( (move.moveCommand == MOVE_FACE_ENTITY) && move.goalEntity.GetEntity()) { //Clients don't know the enemy entity COOP
+		TurnToward( turnTowardPos );
 		goalPos = oldorigin;
 	} else if ( GetMovePos( goalPos ) ) {
 		if ( move.moveCommand != MOVE_WANDER ) {
 			CheckObstacleAvoidance( goalPos, newDest );
-			TurnToward( newDest );
+			TurnToward( turnTowardPos );
 		} else {
-			TurnToward( goalPos );
+			TurnToward( turnTowardPos );
 		}
 	}
 

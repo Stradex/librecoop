@@ -51,7 +51,11 @@ If you have questions concerning this license or the applicable additional terms
 #define protected	public
 #endif
 
-const int MAX_SORT_ITERATIONS	= 7500; //added by stradex for coop. Iterations per player by the server
+const int MAX_SORT_ITERATIONS	= 7500; //COOP: added by stradex. Iterations per player by the server
+const int MAX_SERVER_EVENTS_PER_FRAME = 15; //COOP: May the limit could be higher but shouldn't be necessary, I prefer a bit of desync over events overflow.
+const int SERVER_EVENTS_QUEUE_SIZE = 256; //Added to avoid events overflow by server
+const int SERVER_EVENT_NONE = -999; //Added to avoid events overflow by server
+const int SERVER_EVENT_OVERFLOW_WAIT = 7; //How many frames to wait in case of server event overflow
 
 /*
 ===============================================================================
@@ -125,6 +129,17 @@ typedef struct entityNetEvent_s {
 	struct entityNetEvent_s	*next;
 	struct entityNetEvent_s *prev;
 } entityNetEvent_t;
+
+typedef struct serverEvent_s { //added for coop to avoid events overflow 
+	int							eventId;
+	idBitMsg					msg;
+	bool						saveEvent;
+	int							excludeClient;
+	int							eventTime;
+	idEntity*					eventEnt;
+	bool						isEventType;
+	struct entityNetEvent_s		*event;
+}serverEvent_t;
 
 enum {
 	GAME_RELIABLE_MESSAGE_INIT_DECL_REMAP,
@@ -291,13 +306,21 @@ public:
 	bool					sortTeamMasters;		// true if active lists needs to be reordered to place physics team masters before their slaves
 	idDict					persistentLevelInfo;	// contains args that are kept around between levels
 
-	//BY stradex for coop netcode
+	//start stradex for coop netcode
 	int						firstFreeCoopIndex;			// first free index in the entities array for coop
 	idEntity *				coopentities[MAX_GENTITIES];	//For coop netcode only by Stradex
 	idEntity *				sortsnapshotentities[MAX_GENTITIES]; //for coop only to sort the priority of snapshot
 	int						coopIds[MAX_GENTITIES];			// for use in idEntityPtr in coop
 	int						num_coopentities;				//for coop netcode only by stradex 
 	idLinkList<idEntity>	coopSyncEntities;				// all net-synced (used by Coop only)
+	int						serverEventsCount;				//just to debug delete later
+	int						clientEventsCount;				//just to debug, delete later
+	serverEvent_t			serverOverflowEvents[SERVER_EVENTS_QUEUE_SIZE]; //To avoid server reliabe messages overflow
+	void					addToServerEventOverFlowList(int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient, int eventTime, idEntity* ent); //To avoid server reliabe messages overflow
+	void					addToServerEventOverFlowList(entityNetEvent_t* event, int clientNum); //To avoid server reliabe messages overflow
+	void					sendServerOverflowEvents( void ); //to send the overflow events that are in queue to avoid event overflow
+	int						overflowEventCountdown;			//FIXME: Not pretty way I think
+	//end stradex for coop netcode
 
 	// can be used to automatically effect every material in the world that references globalParms
 	float					globalShaderParms[ MAX_GLOBAL_SHADER_PARMS ];
@@ -430,6 +453,9 @@ public:
 
 	//Added by Stradex for Coop
 	virtual gameReturn_t	RunClientSideFrame(idPlayer	*clientPlayer, const usercmd_t *clientCmds );
+	virtual void			ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg &msg, byte *clientInPVS, int numPVSClients );
+	virtual void			ClientReadSnapshotCoop( int clientNum, int sequence, const int gameFrame, const int gameTime, const int dupeUsercmds, const int aheadOfServer, const idBitMsg &msg );
+	//end by Stradex for Coop
 
 	virtual void				GetMapLoadingGUI( char gui[ MAX_STRING_CHARS ] );
 

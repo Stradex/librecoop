@@ -1415,7 +1415,8 @@ idPlayer::idPlayer() {
 
 	//added for COOP by stradex
 	snapshotPriority		= 1;
-	forceNetworkSync = false;
+	fl.coopNetworkSync		= true;
+	forceNetworkSync = true; //added by Stradex for Coop
 }
 
 /*
@@ -1913,7 +1914,7 @@ void idPlayer::Spawn( void ) {
 	inventory.pdaOpened = false;
 	inventory.selPDA = 0;
 
-	if ( !gameLocal.isMultiplayer ) {
+	if ( !gameLocal.isMultiplayer || gameLocal.mpGame.IsGametypeCoopBased() ) {
 		if ( g_skill.GetInteger() < 2 ) {
 			if ( health < 25 ) {
 				health = 25;
@@ -4219,12 +4220,12 @@ void idPlayer::GivePDA( const char *pdaName, idDict *item )
 		return;
 	}
 
-	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-		return; //No PDAs in Coop yet
-	}
-
 	if ( item ) {
 		inventory.pdaSecurity.AddUnique( item->GetString( "inv_name" ) );
+	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		return; //No PDAs in Coop yet
 	}
 
 	if ( pdaName == NULL || *pdaName == 0 ) {
@@ -5660,7 +5661,7 @@ void idPlayer::CrashLand( const idVec3 &oldOrigin, const idVec3 &oldVelocity ) {
 	}
 
 	// allow falling a bit further for multiplayer
-	if ( gameLocal.isMultiplayer ) {
+	if ( gameLocal.isMultiplayer && !gameLocal.mpGame.IsGametypeCoopBased()  ) {
 		fatalDelta	= 75.0f;
 		hardDelta	= 50.0f;
 	} else {
@@ -6505,6 +6506,7 @@ void idPlayer::Spectate( bool spectate ) {
 	// track invisible player bug
 	// all hiding and showing should be performed through Spectate calls
 	// except for the private camera view, which is used for teleports
+
 	//Ignore this assert for clients in coop cause the new netcode hide playeers outside the pvs area
 	if (gameLocal.isServer || !gameLocal.mpGame.IsGametypeCoopBased()) {
 		assert( ( teleportEntity.GetEntity() != NULL ) || ( IsHidden() == spectating ) );
@@ -7413,7 +7415,7 @@ void idPlayer::Think( void ) {
 		}
 
 		// not done on clients for various reasons. don't do it on server and save the sound channel for other things
-		if ( !gameLocal.isMultiplayer ) {
+		if ( !gameLocal.isMultiplayer || gameLocal.mpGame.IsGametypeCoopBased() ) {
 			SetCurrentHeartRate();
 #ifdef _D3XP
 			float scale = new_g_damageScale;
@@ -7949,7 +7951,7 @@ void idPlayer::CalcDamagePoints( idEntity *inflictor, idEntity *attacker, const 
 	damage = GetDamageForLocation( damage, location );
 
 	idPlayer *player = attacker->IsType( idPlayer::Type ) ? static_cast<idPlayer*>(attacker) : NULL;
-	if ( !gameLocal.isMultiplayer ) {
+	if ( !gameLocal.isMultiplayer || gameLocal.mpGame.IsGametypeCoopBased() ) {
 		if ( inflictor != gameLocal.world ) {
 			switch ( g_skill.GetInteger() ) {
 				case 0:
@@ -7974,7 +7976,7 @@ void idPlayer::CalcDamagePoints( idEntity *inflictor, idEntity *attacker, const 
 
 	// always give half damage if hurting self
 	if ( attacker == this ) {
-		if ( gameLocal.isMultiplayer ) {
+		if ( gameLocal.isMultiplayer && !gameLocal.mpGame.IsGametypeCoopBased() ) {
 			// only do this in mp so single player plasma and rocket splash is very dangerous in close quarters
 			damage *= damageDef->GetFloat( "selfDamageScale", "0.5" );
 		} else {
@@ -8003,7 +8005,7 @@ void idPlayer::CalcDamagePoints( idEntity *inflictor, idEntity *attacker, const 
 	if ( !damageDef->GetBool( "noArmor" ) ) {
 		float armor_protection;
 
-		armor_protection = ( gameLocal.isMultiplayer ) ? g_armorProtectionMP.GetFloat() : g_armorProtection.GetFloat();
+		armor_protection = ( gameLocal.isMultiplayer && !gameLocal.mpGame.IsGametypeCoopBased() ) ? g_armorProtectionMP.GetFloat() : g_armorProtection.GetFloat();
 
 		armorSave = ceil( damage * armor_protection );
 		if ( armorSave >= inventory.armor ) {
@@ -8177,7 +8179,7 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 	// do the damage
 	if ( damage > 0 ) {
 
-		if ( !gameLocal.isMultiplayer ) {
+		if ( !gameLocal.isMultiplayer  || gameLocal.mpGame.IsGametypeCoopBased() ) {
 #ifdef _D3XP
 			float scale = new_g_damageScale;
 #else
@@ -9381,6 +9383,10 @@ void idPlayer::ClientPredictionThink( void ) {
 	if ( !isLagged ) {
 		// don't allow client to move when lagged
 		Move();
+
+		if ( !noclip && !spectating && ( health > 0 ) && !IsHidden() && gameLocal.isNewFrame && gameLocal.mpGame.IsGametypeCoopBased() ) { //Touch triggers COOP
+			ClientTouchTriggers(); //specific client-side triggers
+		}
 	}
 
 	// update GUIs, Items, and character interactions
@@ -9604,8 +9610,10 @@ void idPlayer::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteBits( enviroSuitLight.GetSpawnId(), 32 );
 #endif
 	//extra added for coop
-	msg.WriteBits( noclip, 1 );
-	msg.WriteBits( fl.hidden, 1);
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		msg.WriteBits( noclip, 1 );
+		msg.WriteBits( fl.hidden, 1);
+	}
 }
 
 /*
@@ -9657,12 +9665,12 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 #endif
 
 	//extra added for coop
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+
 	bool shouldHide=false;
 
 	noclip = msg.ReadBits( 1 ) != 0;
 	shouldHide = msg.ReadBits( 1 ) != 0;
-	// no msg reading below this
-
 	if ( entityNumber != gameLocal.localClientNum ) {
 		if (shouldHide && !fl.hidden) {
 			Hide();
@@ -9671,6 +9679,8 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		}
 	}
 
+	// no msg reading below this
+	}
 
 
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
@@ -9732,7 +9742,16 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 			lastDmgTime = gameLocal.time;
 		} else {
 			// damage feedback
-			const idDeclEntityDef *def = static_cast<const idDeclEntityDef *>( declManager->DeclByIndex( DECL_ENTITYDEF, lastDamageDef, false ) );
+			const idDeclEntityDef *def;
+			//ugly avoid crash in coop
+			int declTypeCount = declManager->GetNumDecls(DECL_ENTITYDEF);
+			if (lastDamageDef < 0 || lastDamageDef >= declTypeCount) {
+				def = NULL;
+			} else {
+				// damage feedback
+				def = static_cast<const idDeclEntityDef *>( declManager->DeclByIndex( DECL_ENTITYDEF, lastDamageDef, false ) );
+			}
+			//avoid crash in coop
 			if ( def ) {
 				playerView.DamageImpulse( lastDamageDir * viewAxis.Transpose(), &def->dict );
 				AI_PAIN = Pain( NULL, NULL, oldHealth - health, lastDamageDir, lastDamageLocation );

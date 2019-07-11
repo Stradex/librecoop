@@ -588,6 +588,7 @@ idEntityFx::idEntityFx() {
 	started = -1;
 	nextTriggerTime = -1;
 	fl.networkSync = true; //coop: Should this really be a networksync entity?
+	fl.coopNetworkSync = true; //coop: Should this really be a networksync entity?
 	snapshotPriority = 6; //coop: really low priority (in case of snapshot overflow)
 }
 

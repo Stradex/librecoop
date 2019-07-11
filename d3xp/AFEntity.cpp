@@ -1433,9 +1433,9 @@ idAFEntity_WithAttachedHead::Spawn
 ================
 */
 void idAFEntity_WithAttachedHead::Spawn( void ) {
-	if (!gameLocal.mpGame.IsGametypeCoopBased()) { //Not heads in coop
-		SetupHead();
-	}
+	//if (!gameLocal.mpGame.IsGametypeCoopBased()) { //Not heads in coop
+	//	SetupHead();
+	//}
 
 	LoadAF();
 

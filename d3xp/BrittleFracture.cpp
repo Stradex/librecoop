@@ -71,6 +71,7 @@ idBrittleFracture::idBrittleFracture( void ) {
 	changed = false;
 
 	fl.networkSync = true;
+	fl.coopNetworkSync = true;
 
 #ifdef _D3XP
 	isXraySurface = false;
