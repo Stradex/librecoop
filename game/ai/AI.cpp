@@ -390,6 +390,7 @@ idAI::idAI() {
 	//Added by Stradex for Coop
 	lastDamageDef			= 0;
 	lastDamageDir			= vec3_zero;
+	turnTowardPos			= vec3_zero;
 	lastDamageLocation		= 0;
 	//fl.networkSync		= true;
 	fl.coopNetworkSync		= true;
@@ -2689,16 +2690,20 @@ void idAI::AnimMove( void ) {
 
 	move.obstacle = NULL;
 	if ( ( move.moveCommand == MOVE_FACE_ENEMY ) && enemy.GetEntity() ) {
+		turnTowardPos = lastVisibleEnemyPos; //added for COOP
 		TurnToward( lastVisibleEnemyPos );
 		goalPos = oldorigin;
 	} else if ( ( move.moveCommand == MOVE_FACE_ENTITY ) && move.goalEntity.GetEntity() ) {
+		turnTowardPos = move.goalEntity.GetEntity()->GetPhysics()->GetOrigin(); //added for COOP
 		TurnToward( move.goalEntity.GetEntity()->GetPhysics()->GetOrigin() );
 		goalPos = oldorigin;
 	} else if ( GetMovePos( goalPos ) ) {
 		if ( move.moveCommand != MOVE_WANDER ) {
 			CheckObstacleAvoidance( goalPos, newDest );
+			turnTowardPos = newDest; //added for COOP
 			TurnToward( newDest );
 		} else {
+			turnTowardPos = goalPos; //added for COOP
 			TurnToward( goalPos );
 		}
 	}
@@ -2805,13 +2810,16 @@ void idAI::SlideMove( void ) {
 
 	move.obstacle = NULL;
 	if ( ( move.moveCommand == MOVE_FACE_ENEMY ) && enemy.GetEntity() ) {
+		turnTowardPos = lastVisibleEnemyPos; //added for COOP
 		TurnToward( lastVisibleEnemyPos );
 		goalPos = move.moveDest;
 	} else if ( ( move.moveCommand == MOVE_FACE_ENTITY ) && move.goalEntity.GetEntity() ) {
+		turnTowardPos = move.goalEntity.GetEntity()->GetPhysics()->GetOrigin(); //added for COOP
 		TurnToward( move.goalEntity.GetEntity()->GetPhysics()->GetOrigin() );
 		goalPos = move.moveDest;
 	} else if ( GetMovePos( goalPos ) ) {
 		CheckObstacleAvoidance( goalPos, newDest );
+		turnTowardPos = newDest; //added for COOP
 		TurnToward( newDest );
 		goalPos = newDest;
 	}
@@ -2850,11 +2858,14 @@ void idAI::SlideMove( void ) {
 	RunPhysics();
 
 	if ( ( move.moveCommand == MOVE_FACE_ENEMY ) && enemy.GetEntity() ) {
+		turnTowardPos = lastVisibleEnemyPos; //added for COOP
 		TurnToward( lastVisibleEnemyPos );
 	} else if ( ( move.moveCommand == MOVE_FACE_ENTITY ) && move.goalEntity.GetEntity() ) {
+		turnTowardPos = move.goalEntity.GetEntity()->GetPhysics()->GetOrigin(); //added for COOP
 		TurnToward( move.goalEntity.GetEntity()->GetPhysics()->GetOrigin() );
 	} else if ( move.moveCommand != MOVE_NONE ) {
 		if ( vel.ToVec2().LengthSqr() > 0.1f ) {
+			//FIXME: sync this to clients
 			TurnToward( vel.ToYaw() );
 		}
 	}
@@ -3045,8 +3056,10 @@ idAI::FlyTurn
 */
 void idAI::FlyTurn( void ) {
 	if ( move.moveCommand == MOVE_FACE_ENEMY ) {
+		turnTowardPos = lastVisibleEnemyPos; //added for COOP
 		TurnToward( lastVisibleEnemyPos );
 	} else if ( ( move.moveCommand == MOVE_FACE_ENTITY ) && move.goalEntity.GetEntity() ) {
+		turnTowardPos = move.goalEntity.GetEntity()->GetPhysics()->GetOrigin(); //added for COOP
 		TurnToward( move.goalEntity.GetEntity()->GetPhysics()->GetOrigin() );
 	} else if ( move.speed > 0.0f ) {
 		const idVec3 &vel = physicsObj.GetLinearVelocity();
@@ -5117,9 +5130,20 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteByte(currentNetAction);
 	
 	//lastVisibleEnemyPos
+	/*
 	msg.WriteFloat(lastVisibleEnemyPos.x);
 	msg.WriteFloat(lastVisibleEnemyPos.y);
 	msg.WriteFloat(lastVisibleEnemyPos.z);
+	*/
+	msg.WriteFloat(turnTowardPos.x);
+	msg.WriteFloat(turnTowardPos.y);
+	msg.WriteFloat(turnTowardPos.z);
+
+	int enemyEntityNum = enemy.GetEntity() ? enemy.GetEntity()->entityCoopNumber : -1;
+	int goalEntityNum = move.goalEntity.GetEntity() ? move.goalEntity.GetEntity()->entityCoopNumber : -1;
+
+	msg.WriteInt( enemyEntityNum );
+	msg.WriteInt( goalEntityNum );
 
 	msg.WriteBits( fl.hidden, 1);
 }
@@ -5135,7 +5159,7 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		return idEntity::ReadFromSnapshot(msg); //original non-coop 
 	}
 
-	int		i, oldHealth, enemySpawnId, torsoAnimId, legsAnimId;
+	int		i, oldHealth, enemySpawnId, torsoAnimId, legsAnimId, enemyEntityId, goalEntityId;
 	bool	newHitToggle, stateHitch, hasEnemy;
 	netActionType_t newNetAction;
 
@@ -5173,12 +5197,32 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	newNetAction = static_cast<netActionType_t>(msg.ReadByte());
 
 	//lastVisibleEnemyPos
+	/*
 	lastVisibleEnemyPos.x = msg.ReadFloat();
 	lastVisibleEnemyPos.y = msg.ReadFloat();
 	lastVisibleEnemyPos.z = msg.ReadFloat();
+	*/
+	turnTowardPos.x= msg.ReadFloat();
+	turnTowardPos.y= msg.ReadFloat();
+	turnTowardPos.z= msg.ReadFloat();
+
+	lastVisibleEnemyPos = turnTowardPos; //DELETE ME LATER
+
+	enemyEntityId = msg.ReadInt();
+	goalEntityId =  msg.ReadInt();
+
+	if (enemyEntityId >= 0 && gameLocal.coopentities[enemyEntityId]) {
+		enemy.SetSpawnId(gameLocal.GetSpawnId(gameLocal.coopentities[enemyEntityId])); //should I use SetSpawnId or better SetCoopId?
+	}
+	if (goalEntityId >= 0 && gameLocal.coopentities[goalEntityId]) {
+		move.goalEntity.SetSpawnId(gameLocal.GetSpawnId(gameLocal.coopentities[goalEntityId])); //should I use SetSpawnId or better SetCoopId?
+	}
 
 	bool isInvisible=false;
 	isInvisible = msg.ReadBits( 1 ) != 0;
+
+	//No more msg read from here 
+
 	if (isInvisible && !fl.hidden) {
 		Hide();
 	} else if (!isInvisible && fl.hidden) {
@@ -5370,18 +5414,18 @@ void idAI::CSAnimMove( void ) {
 	}
 
 	move.obstacle = NULL;
-	if ( move.moveCommand == MOVE_FACE_ENEMY ) {  //Clients don't know the enemy entity COOP
-		TurnToward( lastVisibleEnemyPos );
+	if ( (move.moveCommand == MOVE_FACE_ENEMY) && enemy.GetEntity()  ) {  //Clients don't know the enemy entity COOP
+		TurnToward( turnTowardPos );
 		goalPos = oldorigin;
-	} else if ( ( move.moveCommand == MOVE_FACE_ENTITY ) && move.goalEntity.GetEntity() ) {
-		TurnToward( move.goalEntity.GetEntity()->GetPhysics()->GetOrigin() );
+	} else if ( (move.moveCommand == MOVE_FACE_ENTITY) && move.goalEntity.GetEntity()) { //Clients don't know the enemy entity COOP
+		TurnToward( turnTowardPos );
 		goalPos = oldorigin;
 	} else if ( GetMovePos( goalPos ) ) {
 		if ( move.moveCommand != MOVE_WANDER ) {
 			CheckObstacleAvoidance( goalPos, newDest );
-			TurnToward( newDest );
+			TurnToward( turnTowardPos );
 		} else {
-			TurnToward( goalPos );
+			TurnToward( turnTowardPos );
 		}
 	}
 
