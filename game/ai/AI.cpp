@@ -880,9 +880,9 @@ void idAI::Spawn( void ) {
 		physicsObj.SetClipMask( MASK_MONSTERSOLID & ~CONTENTS_BODY );
 	} else {
 		if ( use_combat_bbox ) {
-			physicsObj.SetContents( CONTENTS_BODY|CONTENTS_SOLID );
+			physicsObj.SetContents( CONTENTS_BODY|CONTENTS_SOLID|CONTENTS_PLAYERCLIP ); //CONTENTS_PLAYERCLIP added for coop
 		} else {
-			physicsObj.SetContents( CONTENTS_BODY );
+			physicsObj.SetContents( CONTENTS_BODY|CONTENTS_PLAYERCLIP );//CONTENTS_PLAYERCLIP added for coop
 		}
 		physicsObj.SetClipMask( MASK_MONSTERSOLID );
 	}
@@ -1072,6 +1072,7 @@ idAI::Think
 =====================
 */
 void idAI::Think( void ) {
+
 	// if we are completely closed off from the player, don't do anything at all
 
 	currentTorsoAnim = animator.CurrentAnim( ANIMCHANNEL_TORSO )->AnimNum(); //added by Stradex
@@ -4657,9 +4658,9 @@ void idAI::Show( void ) {
 	if ( spawnArgs.GetBool( "big_monster" ) ) {
 		physicsObj.SetContents( 0 );
 	} else if ( use_combat_bbox ) {
-		physicsObj.SetContents( CONTENTS_BODY|CONTENTS_SOLID );
+		physicsObj.SetContents( CONTENTS_BODY|CONTENTS_SOLID|CONTENTS_PLAYERCLIP  ); //CONTENTS_PLAYERCLIP  added for coop
 	} else {
-		physicsObj.SetContents( CONTENTS_BODY );
+		physicsObj.SetContents( CONTENTS_BODY|CONTENTS_PLAYERCLIP  ); //CONTENTS_PLAYERCLIP  added for coop
 	}
 	physicsObj.GetClipModel()->Link( gameLocal.clip );
 	fl.takedamage = !spawnArgs.GetBool( "noDamage" );

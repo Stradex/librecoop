@@ -327,6 +327,8 @@ void idGameLocal::ServerClientConnect( int clientNum, const char *guid ) {
 
 	userInfo[ clientNum ].Clear();
 	mpGame.ServerClientConnect( clientNum );
+	//sync cvars here
+
 	Printf( "client %d connected.\n", clientNum );
 }
 

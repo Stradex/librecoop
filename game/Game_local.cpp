@@ -1192,6 +1192,8 @@ void idGameLocal::MapPopulate( void ) {
 	if ( isMultiplayer ) {
 		cvarSystem->SetCVarBool( "r_skipSpecular", false );
 	}
+	//Sync g_skill here
+
 	// parse the key/value pairs and spawn entities
 	SpawnMapEntities();
 
@@ -1244,6 +1246,8 @@ void idGameLocal::InitFromNewMap( const char *mapName, idRenderWorld *renderWorl
 	coopMapScriptLoad = false; //added by Stradex for coop
 
 	num_coopentities = 0; //for coop
+
+	//Sync g_skill here!
 
 	MapPopulate();
 
@@ -3150,7 +3154,7 @@ void idGameLocal::RegisterEntity( idEntity *ent ) {
 	spawnIds[ spawn_entnum ] = spawnCount++;
 	ent->entityNumber = spawn_entnum;
 	ent->spawnNode.AddToEnd( spawnedEntities );
-	ent->spawnArgs.TransferKeyValues( spawnArgs );
+	ent->spawnArgs.TransferKeyValues( spawnArgs ); //stradex: I love IDSoftware cause this
 
 	if ( spawn_entnum >= num_entities ) {
 		num_entities++;
@@ -3708,6 +3712,10 @@ void idGameLocal::KillBox( idEntity *ent, bool catch_teleport ) {
 			continue;
 		}
 
+		if (hit->IsType( idPlayer::Type ) && ent->IsType( idPlayer::Type ) && mpGame.IsGametypeCoopBased()) {
+			continue; //no telefrag in coop
+		}
+
 		// nail it
 		if ( hit->IsType( idPlayer::Type ) && static_cast< idPlayer * >( hit )->IsInTeleport() ) {
 			static_cast< idPlayer * >( hit )->TeleportDeath( ent->entityNumber );
@@ -4096,12 +4104,31 @@ void idGameLocal::SetCamera( idCamera *cam ) {
 	idAI *ai;
 
 	// this should fix going into a cinematic when dead.. rare but happens
-	if (mpGame.IsGametypeCoopBased()) { //No cinematics in COOP
+	if (gameLocal.isClient) { //Clients can't reach this point
 		return;
 	}
-	idPlayer *client = GetLocalPlayer();
-	if ( client->health <= 0 || client->AI_DEAD ) {
+	if (mpGame.IsGametypeCoopBased()) {
+		if (cam) {
+			for (i=0; gameLocal.numClients; i++) {
+				if (entities[i]) {
+					idPlayer* tClient = static_cast<idPlayer*>(entities[i]);
+					if ( !tClient || tClient->spectating) {
+						continue;
+					}
+					cam->ActivateTargets( entities[i] );
+					//break;
+					return;
+				}
+			}
+		}
 		return;
+	}
+	idPlayer *client;
+	if (!mpGame.IsGametypeCoopBased()) {
+		idPlayer *client = GetLocalPlayer();
+		if ( client->health <= 0 || client->AI_DEAD ) {
+			return;
+		}
 	}
 
 	camera = cam;
@@ -4122,6 +4149,8 @@ void idGameLocal::SetCamera( idCamera *cam ) {
 
 		// set r_znear so that transitioning into/out of the player's head doesn't clip through the view
 		cvarSystem->SetCVarFloat( "r_znear", 1.0f );
+
+		if (!mpGame.IsGametypeCoopBased()) {
 
 		// hide all the player models
 		for( i = 0; i < numClients; i++ ) {
@@ -4160,6 +4189,8 @@ void idGameLocal::SetCamera( idCamera *cam ) {
 			}
 		}
 
+		}
+
 	} else {
 		inCinematic = false;
 		cinematicStopTime = time + msec;
@@ -4167,12 +4198,16 @@ void idGameLocal::SetCamera( idCamera *cam ) {
 		// restore r_znear
 		cvarSystem->SetCVarFloat( "r_znear", 3.0f );
 
+		if (!mpGame.IsGametypeCoopBased()) {
+
 		// show all the player models
 		for( i = 0; i < numClients; i++ ) {
 			if ( entities[ i ] ) {
 				idPlayer *client = static_cast< idPlayer* >( entities[ i ] );
 				client->ExitCinematic();
 			}
+		}
+
 		}
 	}
 }

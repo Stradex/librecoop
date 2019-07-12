@@ -225,6 +225,7 @@ idItem::Think
 ================
 */
 void idItem::Think( void ) {
+
 	if ( thinkFlags & TH_THINK ) {
 		if ( spin ) {
 			idAngles	ang;

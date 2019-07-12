@@ -88,6 +88,7 @@ idCVar si_itemRespawn(				"si_itemRespawn",			"0",			CVAR_GAME | CVAR_SERVERINFO
 //stradex start
 idCVar si_onePickupPerPlayer(		"si_onePickupPerPlayer",	"1",			CVAR_GAME | CVAR_SERVERINFO | CVAR_ARCHIVE | CVAR_BOOL | CVAR_NETWORKSYNC, "Items pickups are indivual for each player in server");
 idCVar net_serverSnapshotLimit(		"net_serverSnapshotLimit",	"120",			CVAR_GAME | CVAR_ARCHIVE | CVAR_INTEGER, "How many snapshots can we send in total as limit (per client)", 20, 500);
+idCVar g_unblockPlayers(			"g_unblockPlayers",			"0",			CVAR_GAME | CVAR_BOOL | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "If player are solid between them or not" );
 //stradex end
 
 // user info
@@ -116,7 +117,7 @@ idCVar g_doubleVision(				"g_doubleVision",			"1",			CVAR_GAME | CVAR_ARCHIVE | 
 idCVar g_monsters(					"g_monsters",				"1",			CVAR_GAME | CVAR_BOOL, "" );
 idCVar g_decals(					"g_decals",					"1",			CVAR_GAME | CVAR_ARCHIVE | CVAR_BOOL, "show decals such as bullet holes" );
 idCVar g_knockback(					"g_knockback",				"1000",			CVAR_GAME | CVAR_INTEGER, "" );
-idCVar g_skill(						"g_skill",					"1",			CVAR_GAME | CVAR_INTEGER | CVAR_NETWORKSYNC, "" );
+idCVar g_skill(						"g_skill",					"1",			CVAR_GAME | CVAR_INTEGER | CVAR_NETWORKSYNC, "" ); //network sync for coop
 idCVar g_nightmare(					"g_nightmare",				"0",			CVAR_GAME | CVAR_ARCHIVE | CVAR_BOOL, "if nightmare mode is allowed" );
 idCVar g_gravity(					"g_gravity",		DEFAULT_GRAVITY_STRING, CVAR_GAME | CVAR_FLOAT, "" );
 idCVar g_skipFX(					"g_skipFX",					"0",			CVAR_GAME | CVAR_BOOL, "" );

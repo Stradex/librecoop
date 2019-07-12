@@ -303,7 +303,7 @@ idCameraAnim::Spawn
 */
 void idCameraAnim::Spawn( void ) {
 	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
-		//No cameras in coop
+		//No cameras in coop for clients
 		return;
 	}
 
@@ -476,12 +476,14 @@ void idCameraAnim::Start( void ) {
 
 	starttime = gameLocal.time;
 	gameLocal.SetCamera( this );
-	BecomeActive( TH_THINK );
 
 	// if the player has already created the renderview for this frame, have him update it again so that the camera starts this frame
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
 		return; //Disabled cinematics in COOP
 	}
+
+	BecomeActive( TH_THINK );
+
 	if ( gameLocal.GetLocalPlayer()->GetRenderView()->time == gameLocal.time ) {
 		gameLocal.GetLocalPlayer()->CalculateRenderView();
 	}
@@ -493,6 +495,7 @@ idCameraAnim::Stop
 =====================
 */
 void idCameraAnim::Stop( void ) {
+	common->Printf("Camera stopped\n");
 	if ( gameLocal.GetCamera() == this ) {
 		if ( g_debugCinematic.GetBool() ) {
 			gameLocal.Printf( "%d: '%s' stop\n", gameLocal.framenum, GetName() );

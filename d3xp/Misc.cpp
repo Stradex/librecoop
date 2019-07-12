@@ -220,6 +220,10 @@ void idPlayerStart::TeleportPlayer( idPlayer *player ) {
 			player->GetPhysics()->SetLinearVelocity( GetPhysics()->GetAxis()[0] * pushVel );
 		}
 	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) { //create a new global checkpoint at this position
+		gameLocal.mpGame.CreateNewCheckpoint(GetPhysics()->GetOrigin());
+	}
 }
 
 /*

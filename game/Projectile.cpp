@@ -1570,6 +1570,8 @@ void idSoulCubeMissile::KillTarget( const idVec3 &dir ) {
 		ownerEnt = owner.GetEntity();
 		if ( ( act->health > 0 ) && ownerEnt && ownerEnt->IsType( idPlayer::Type ) && ( ownerEnt->health > 0 ) && !act->spawnArgs.GetBool( "boss" ) ) {
 			static_cast<idPlayer *>( ownerEnt )->GiveHealthPool( act->health );
+		} else {
+			common->Printf("Unable to give to the healthpool...\n");
 		}
 		act->Damage( this, owner.GetEntity(), dir,  spawnArgs.GetString( "def_damage" ), 1.0f, INVALID_JOINT );
 		act->GetAFPhysics()->SetTimeScale( 0.25 );
