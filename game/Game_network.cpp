@@ -2957,6 +2957,11 @@ idGameLocal::addToServerEventOverFlowList
 void idGameLocal::addToServerEventOverFlowList(int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient, int eventTime, idEntity* ent)
 {
 
+	if (!msg || !ent) {
+		common->Warning("[COOP FATAL] Trying to add an event with a empty message or from an unknown entity\n");
+		return;
+	}
+
 	for (int i=0; i < SERVER_EVENTS_QUEUE_SIZE; i++) {
 		if (serverOverflowEvents[i].eventId == SERVER_EVENT_NONE) {
 			serverOverflowEvents[i].eventEnt = ent;

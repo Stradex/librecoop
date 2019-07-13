@@ -65,11 +65,11 @@ void idWorldspawn::Spawn( void ) {
 	}
 
 	//if (gameLocal.localClientNum < 0 && gameLocal.mpGame.IsGametypeCoopBased()) { // localClientNum bugged for some reason
-	/*
-	if (cvarSystem->GetCVarInteger( "net_serverDedicated" ) == 1 && gameLocal.mpGame.IsGametypeCoopBased()) { 
+	
+	if (cvarSystem->GetCVarInteger( "net_serverDedicated" ) == 1 && gameLocal.mpGame.IsGametypeCoopBased() && g_freezeUntilClientJoins.GetBool()) { 
 		common->Printf("[COOP] dedicated server don't start script map until a player joins...\n");
 		return ; //dedicated coop server can't start the script map until a player joins
-	}*/
+	}
 
 	InitializateMapScript(); //Added by Stradex
 }
