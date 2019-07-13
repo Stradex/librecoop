@@ -3367,12 +3367,29 @@ idPlayer::GivePDA
 */
 void idPlayer::GivePDA( const char *pdaName, idDict *item )
 {
-	if ( gameLocal.isMultiplayer && spectating ) {
+	if ( gameLocal.isMultiplayer && (spectating || gameLocal.isClient) ) {
 		return;
 	}
 
 	if ( item ) {
 		inventory.pdaSecurity.AddUnique( item->GetString( "inv_name" ) );
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			idPlayer* p;
+			cmdSystem->BufferCommandText( CMD_EXEC_NOW, va( "say '%s^0' picked up PDA: %s!\n", gameLocal.userInfo[ this->entityNumber ].GetString( "ui_name" ), item->GetString( "inv_name" ) ) );
+			for (int j=0; j < gameLocal.numClients; j++) {
+				if (!gameLocal.entities[j]) {
+					continue;
+				}
+
+				p = static_cast<idPlayer*>(gameLocal.entities[j]);
+
+				if (!p || p->spectating || (p->entityNumber = this->entityNumber)) {
+					continue;
+				}
+
+				p->inventory.pdaSecurity.AddUnique( item->GetString( "inv_name" ) );
+			}
+		}
 	}
 
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
