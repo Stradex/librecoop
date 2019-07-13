@@ -142,6 +142,10 @@ typedef struct serverEvent_s { //added for coop to avoid events overflow
 	struct entityNetEvent_s		*event;
 }serverEvent_t;
 
+struct quicksort_context {
+	int clientNum;
+};
+
 
 enum {
 	GAME_RELIABLE_MESSAGE_INIT_DECL_REMAP,
@@ -394,6 +398,11 @@ public:
 	virtual gameReturn_t	RunClientSideFrame(idPlayer	*clientPlayer, const usercmd_t *clientCmds );
 	virtual void			ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg &msg, byte *clientInPVS, int numPVSClients );
 	virtual void			ClientReadSnapshotCoop( int clientNum, int sequence, const int gameFrame, const int gameTime, const int dupeUsercmds, const int aheadOfServer, const idBitMsg &msg );
+
+	virtual void			snapshotsort_swap(idEntity* entities[], int lhs, int rhs);
+	virtual bool			snapshotsort_notInOrder(idEntity* lhs, idEntity* rhs, quicksort_context context);
+	virtual int				snapshotsort_partition(idEntity* entities[], int low, int high, quicksort_context context);
+	virtual void			snapshotsort(idEntity* entities[], int low, int high, quicksort_context context);
 
 	// ---------------------- Public idGameLocal Interface -------------------
 

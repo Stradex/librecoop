@@ -2243,6 +2243,7 @@ bool idGameLocal::duplicateEntity(idEntity* ent) {
 	return false;
 }
 
+
 /*
 ================
 idGameLocal::ClientReadSnapshotCoop
@@ -2616,6 +2617,50 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 
 }
 
+void idGameLocal::snapshotsort_swap(idEntity* entities[], int lhs, int rhs) {
+	idEntity* tmp;
+	tmp = entities[lhs];
+	entities[lhs] = entities[rhs];
+	entities[rhs] = tmp;
+};
+
+bool idGameLocal::snapshotsort_notInOrder(idEntity* lhs, idEntity* rhs, quicksort_context context) {
+	// elements in snapshot queue should be left
+	if (!lhs->inSnapshotQueue[context.clientNum] && rhs->inSnapshotQueue[context.clientNum]) {
+		return false;
+	}
+	// lower priority should be left
+	if (lhs->snapshotPriority > rhs->snapshotPriority) {
+		return false;
+	}
+	// first time in PVS should be left
+	if (!lhs->firstTimeInClientPVS[context.clientNum] && rhs->firstTimeInClientPVS[context.clientNum]) {
+		return false;
+	}
+	return true;
+}
+
+int idGameLocal::snapshotsort_partition(idEntity* entities[], int low, int high, quicksort_context context) {
+	idEntity* pivot = entities[high];
+	int i = low;
+	for (int j = low; j < high - 1; j++) {
+		if (snapshotsort_notInOrder(entities[j], pivot, context)) {
+			snapshotsort_swap(entities, i, j);
+			i++;
+		}
+	}
+	snapshotsort_swap(entities, i, high);
+	return i;
+};
+
+void idGameLocal::snapshotsort(idEntity* entities[], int low, int high, quicksort_context context) {
+	if (low < high) {
+		int p = snapshotsort_partition(entities, low, high, context);
+		snapshotsort(entities, low, p - 1, context);
+		snapshotsort(entities, p + 1, high, context);
+	}
+};
+
 /*
 ================
 idGameLocal::ServerWriteSnapshotCoop
@@ -2705,6 +2750,7 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 	}
 
 	//Poor CPU: FIXME: fluff, may you know a better way to sort a list. Most fast and efficient way (stradex)
+	/*
 	int iterationsDebug=0;
 	idEntity *tmpEnt;
 	for (j=1; j < (sortSnapCount-1); j++, iterationsDebug++) {
@@ -2737,7 +2783,12 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 			}
 		}
 	}
+	*/
 	//END by Stradex for netcode optimization (SORT LIST)
+
+	quicksort_context context;
+	context.clientNum = clientNum;
+	snapshotsort(sortsnapshotentities, 1, sortSnapCount - 1, context);
 
 	//bool readingQueue = true; 
 
@@ -2913,9 +2964,11 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 		common->Warning("[COOP] Snapshot overflow... using snapshot queue\n");
 	}
 	*/
+	/*
 	if (iterationsDebug >= MAX_SORT_ITERATIONS) {
 		common->Warning("[COOP] iterations overflow while sorting list!: %d\n", iterationsDebug);
 	}
+	*/
 }
 
 /*
