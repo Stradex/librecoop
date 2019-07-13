@@ -3383,7 +3383,7 @@ void idPlayer::GivePDA( const char *pdaName, idDict *item )
 
 				p = static_cast<idPlayer*>(gameLocal.entities[j]);
 
-				if (!p || p->spectating || (p->entityNumber = this->entityNumber)) {
+				if (!p || p->spectating || (p->entityNumber == this->entityNumber)) {
 					continue;
 				}
 
