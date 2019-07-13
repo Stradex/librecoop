@@ -5358,36 +5358,28 @@ idAI::GetClosestPlayerEnemy
 */
 
 idPlayer *idAI::GetClosestPlayerEnemy( void ) {
-	idActor *ent;
-	idPlayer *bestEnt;
-	float	bestDistSquared;
-	float	distSquared;
-	idVec3	delta;
-	int		areaNum;
-	int		enemyAreaNum;
-	aasPath_t path;
+	idPlayer* closestPlayer = NULL;
+	float shortestDist = idMath::INFINITY;
+	idPlayer *player;
+	float dist;
+	idVec3		delta;
+	for (int i = 0; i < gameLocal.numClients; i++) {
+		player = gameLocal.GetClientByNum(i);
 
-	const idVec3 &origin = physicsObj.GetOrigin();
-	areaNum = PointReachableAreaNum( origin );
-
-	bestDistSquared = idMath::INFINITY;
-	bestEnt = NULL;
-	for( ent = this->enemyList.Next(); ent != NULL; ent = ent->enemyNode.Next() ) {
-		if ( ent->fl.hidden || !ent->IsType( idPlayer::Type ) ) {
+		if (!player || player->spectating || player->health <= 0 || !(ReactionTo(player) & ATTACK_ON_SIGHT)) {
 			continue;
 		}
-		delta = ent->GetPhysics()->GetOrigin() - origin;
-		distSquared = delta.LengthSqr();
-		if ( distSquared < bestDistSquared ) {
-			const idVec3 &enemyPos = ent->GetPhysics()->GetOrigin();
-			enemyAreaNum = PointReachableAreaNum( enemyPos );
-			if ( ( areaNum != 0 ) && PathToGoal( path, areaNum, origin, enemyAreaNum, enemyPos ) ) {
-				bestEnt = static_cast<idPlayer*>(ent);
-				bestDistSquared = distSquared;
-			}
+
+		delta = physicsObj.GetOrigin() - player->GetPhysics()->GetOrigin();
+		dist = delta.LengthSqr();
+
+		if (dist < shortestDist) {
+			shortestDist = dist;
+			closestPlayer = player;
 		}
 	}
-	return bestEnt;
+
+	return closestPlayer;
 }
 
 /*

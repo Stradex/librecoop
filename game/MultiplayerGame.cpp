@@ -1377,12 +1377,14 @@ void idMultiplayerGame::Run() {
 
 	pureReady = true;
 
+	//REMOVE ME LATER (Stradex)
 	if (!gameLocal.coopMapScriptLoad && gameLocal.firstClientToSpawn && IsGametypeCoopBased() && gameLocal.localClientNum < 0) { //first player joined by the dedicated server
 		gameLocal.coopMapScriptLoad = true;
-		gameLocal.world->InitializateMapScript();
+		//gameLocal.world->InitializateMapScript();
 	} else if (!gameLocal.firstClientToSpawn && IsGametypeCoopBased() && gameLocal.localClientNum < 0) {
 		//return; //Freeze time until a player joins in a dedicated server in coop
 	}
+	//END REMOVE
 
 	if ( gameState == INACTIVE ) {
 		lastGameType = gameLocal.gameType;

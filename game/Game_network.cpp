@@ -398,6 +398,13 @@ void idGameLocal::ServerClientDisconnect( int clientNum ) {
 
 	// free entity states stored for this client
 	for ( i = 0; i < MAX_GENTITIES; i++ ) {
+
+		if (mpGame.IsGametypeCoopBased() && coopentities[i]) { //COOP: Reset entity snapshot priority info
+			coopentities[i]->firstTimeInClientPVS[clientNum] = true;
+			coopentities[i]->inSnapshotQueue[clientNum] = false;
+			coopentities[i]->snapshotMissingCount[clientNum] = 0; 
+		}
+
 		if ( clientEntityStates[ clientNum ][ i ] ) {
 			entityStateAllocator.Free( clientEntityStates[ clientNum ][ i ] );
 			clientEntityStates[ clientNum ][ i ] = NULL;

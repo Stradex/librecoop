@@ -1990,7 +1990,7 @@ void idWeapon::PresentWeapon( bool showViewModel ) {
 		gameRenderWorld->UpdateLightDef( worldMuzzleFlashHandle, &worldMuzzleFlash );
 
 		// wake up monsters with the flashlight
-		if ( !gameLocal.isMultiplayer && lightOn && !owner->fl.notarget ) {
+		if ( (!gameLocal.isMultiplayer || (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer)) && lightOn && !owner->fl.notarget ) {
 			AlertMonsters();
 		}
 	}

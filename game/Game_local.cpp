@@ -2022,8 +2022,17 @@ idPlayer *idGameLocal::GetLocalPlayer() const {
 
 	if ( !entities[ localClientNum ] || !entities[ localClientNum ]->IsType( idPlayer::Type ) ) {
 		// not fully in game yet
+
+		if (mpGame.IsGametypeCoopBased() && isServer) { //for coop while using a dedicated server
+			for (int i=0; i < gameLocal.numClients; i++) {
+				if (entities[i] && entities[i]->IsType(idPlayer::Type)) {
+					return static_cast<idPlayer *>( entities[i] );
+				}
+			}
+		}
 		return NULL;
 	}
+
 	return static_cast<idPlayer *>( entities[ localClientNum ] );
 }
 
