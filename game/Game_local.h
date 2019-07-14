@@ -142,9 +142,9 @@ typedef struct serverEvent_s { //added for coop to avoid events overflow
 	struct entityNetEvent_s		*event;
 }serverEvent_t;
 
-struct snapshotsort_context {
+typedef struct snapshotsort_context_s {
 	int clientNum;
-};
+} snapshotsort_context_s;
 
 
 enum {
@@ -400,9 +400,9 @@ public:
 	virtual void			ClientReadSnapshotCoop( int clientNum, int sequence, const int gameFrame, const int gameTime, const int dupeUsercmds, const int aheadOfServer, const idBitMsg &msg );
 
 	virtual void			snapshotsort_swap(idEntity* entities[], int lhs, int rhs);
-	virtual bool			snapshotsort_notInOrder(snapshotsort_context context, idEntity* lhs, idEntity* rhs);
-	virtual int				snapshotsort_partition(snapshotsort_context context, idEntity* entities[], int low, int high);
-	virtual void			snapshotsort(snapshotsort_context context, idEntity* entities[], int low, int high);
+	virtual bool			snapshotsort_notInOrder(snapshotsort_context_s context, idEntity* lhs, idEntity* rhs);
+	virtual int				snapshotsort_partition(snapshotsort_context_s context, idEntity* entities[], int low, int high);
+	virtual void			snapshotsort(snapshotsort_context_s context, idEntity* entities[], int low, int high);
 
 	// ---------------------- Public idGameLocal Interface -------------------
 

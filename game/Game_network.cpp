@@ -2624,7 +2624,7 @@ void idGameLocal::snapshotsort_swap(idEntity* entities[], int lhs, int rhs) {
 	entities[rhs] = tmp;
 };
 
-bool idGameLocal::snapshotsort_notInOrder(snapshotsort_context context, idEntity* lhs, idEntity* rhs) {
+bool idGameLocal::snapshotsort_notInOrder(snapshotsort_context_s context, idEntity* lhs, idEntity* rhs) {
 	// elements in snapshot queue should be left
 	if (!lhs->inSnapshotQueue[context.clientNum] && rhs->inSnapshotQueue[context.clientNum]) {
 		return false;
@@ -2640,7 +2640,7 @@ bool idGameLocal::snapshotsort_notInOrder(snapshotsort_context context, idEntity
 	return true;
 }
 
-int idGameLocal::snapshotsort_partition(snapshotsort_context context, idEntity* entities[], int low, int high) {
+int idGameLocal::snapshotsort_partition(snapshotsort_context_s context, idEntity* entities[], int low, int high) {
 	idEntity* pivot = entities[high];
 	int i = low;
 	for (int j = low; j < high - 1; j++) {
@@ -2653,7 +2653,7 @@ int idGameLocal::snapshotsort_partition(snapshotsort_context context, idEntity* 
 	return i;
 };
 
-void idGameLocal::snapshotsort(snapshotsort_context context, idEntity* entities[], int low, int high) {
+void idGameLocal::snapshotsort(snapshotsort_context_s context, idEntity* entities[], int low, int high) {
 	if (low < high) {
 		int p = snapshotsort_partition(context, entities, low, high);
 		snapshotsort(context, entities, low, p - 1);
@@ -2749,7 +2749,7 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 		sortsnapshotentities[sortSnapCount++] = ent;
 	}
 
-	snapshotsort_context context; // this is to keep sorting signatures clean if isInOrder requires more game state information
+	snapshotsort_context_s context; // this is to keep sorting signatures clean if isInOrder requires more game state information
 	context.clientNum = clientNum;
 	snapshotsort(context, sortsnapshotentities, 1, sortSnapCount - 1);
 
