@@ -141,6 +141,10 @@ typedef struct serverEvent_s { //added for coop to avoid events overflow
 	struct entityNetEvent_s		*event;
 }serverEvent_t;
 
+typedef struct snapshotsort_context_s {
+	int clientNum;
+} snapshotsort_context_s;
+
 enum {
 	GAME_RELIABLE_MESSAGE_INIT_DECL_REMAP,
 	GAME_RELIABLE_MESSAGE_REMAP_DECL,
@@ -456,6 +460,10 @@ public:
 	virtual void			ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg &msg, byte *clientInPVS, int numPVSClients );
 	virtual void			ClientReadSnapshotCoop( int clientNum, int sequence, const int gameFrame, const int gameTime, const int dupeUsercmds, const int aheadOfServer, const idBitMsg &msg );
 	//end by Stradex for Coop
+	virtual void			snapshotsort_swap(idEntity* entities[], int lhs, int rhs);
+	virtual bool			snapshotsort_notInOrder(snapshotsort_context_s context, idEntity* lhs, idEntity* rhs);
+	virtual int				snapshotsort_partition(snapshotsort_context_s context, idEntity* entities[], int low, int high);
+	virtual void			snapshotsort(snapshotsort_context_s context, idEntity* entities[], int low, int high);
 
 	virtual void				GetMapLoadingGUI( char gui[ MAX_STRING_CHARS ] );
 
