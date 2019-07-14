@@ -253,6 +253,7 @@ void idGameLocal::Clear( void ) {
 	lastGUI = 0;
 
 	//added for coop
+	spPlayerStartSpot.ent = NULL;
 	firstClientToSpawn = false;
 	coopMapScriptLoad = false;
 	serverEventsCount=0;
@@ -1023,10 +1024,17 @@ void idGameLocal::LocalMapRestart( ) {
 
 	InitScriptForMap();
 
+	//COOP START
+
 	firstClientToSpawn = true; //added by Stradex for coop
 	coopMapScriptLoad = false; //added by Stradex for coop
 	num_coopentities = 0; //for coop
 
+	for (i=0; i < MAX_CLIENTS; i++) {
+		mpGame.playerUseCheckpoints[i] = false;
+		mpGame.playerCheckpoints[i] = vec3_zero;
+	}
+	//COOP END
 	MapPopulate();
 
 	// once the map is populated, set the spawnCount back to where it was so we don't risk any collision
@@ -1242,8 +1250,15 @@ void idGameLocal::InitFromNewMap( const char *mapName, idRenderWorld *renderWorl
 
 	InitScriptForMap();
 
+	//COOP START
 	firstClientToSpawn = false; //added by Stradex for coop
 	coopMapScriptLoad = false; //added by Stradex for coop
+
+	for (int i=0; i < MAX_CLIENTS; i++) {
+		mpGame.playerUseCheckpoints[i] = false;
+		mpGame.playerCheckpoints[i] = vec3_zero;
+	}
+	//COOP END
 
 	num_coopentities = 0; //for coop
 
@@ -4455,6 +4470,7 @@ idEntity *idGameLocal::SelectInitialSpawnPoint( idPlayer *player ) {
 		if ( !spot.ent ) {
 			Error( "No info_player_start on map.\n" );
 		}
+		spPlayerStartSpot.ent = spot.ent;
 		return spot.ent;
 	}
 	if ( player->spectating ) {

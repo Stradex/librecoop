@@ -922,6 +922,7 @@ idAnimated::idAnimated
 idAnimated::idAnimated() {
 	anim = 0;
 	currentAnimPlaying = 0; //FOR COOP
+	hasBeenActivated = false; //FOR COOP
 	blendFrames = 0;
 	soundJoint = INVALID_JOINT;
 	activated = false;
@@ -1183,11 +1184,17 @@ void idAnimated::Event_AnimDone( int animindex ) {
 
 	if ( ( animindex >= num_anims ) && spawnArgs.GetBool( "remove" ) ) {
 		Hide();
-		PostEventMS( &EV_Remove, 0 );
+		if (gameLocal.isServer || !gameLocal.mpGame.IsGametypeCoopBased()) {
+			PostEventMS( &EV_Remove, 0 );
+		}
 	} else if ( spawnArgs.GetBool( "auto_advance" ) ) {
 		PlayNextAnim();
 	} else {
 		activated = false;
+	}
+
+	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) {
+		return;
 	}
 
 	ActivateTargets( activator.GetEntity() );
@@ -1211,6 +1218,7 @@ void idAnimated::Event_Activate( idEntity *_activator ) {
 	}
 
 	activated = true;
+	hasBeenActivated = true; //for coop only
 	activator = _activator;
 	ProcessEvent( &EV_Animated_Start );
 }
@@ -1396,12 +1404,12 @@ void idAnimated::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	//coop stuff
 	WriteBindToSnapshot( msg );
 	msg.WriteShort(currentAnimPlaying);
-	msg.WriteBits(activated, 1);
+	msg.WriteBits(hasBeenActivated, 1);
 }
 
 /*
 =====================
-idAnimated::WriteToSnapshot
+idAnimated::ReadFromSnapshot
 =====================
 */
 void idAnimated::ReadFromSnapshot( const idBitMsgDelta &msg ) {
@@ -1417,8 +1425,9 @@ void idAnimated::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 	//common->Warning("[COOP] reading snapshot for %s\n", this->GetName());
 
-	if ((newAnim != this->currentAnimPlaying) || (newActivated != this->activated)) {
+	if ((newAnim != this->currentAnimPlaying) || (newActivated != this->hasBeenActivated)) {
 		this->activated = newActivated;
+		this->hasBeenActivated = newActivated;
 		this->currentAnimPlaying = newAnim;
 		int cycle;
 		Show();
