@@ -235,12 +235,16 @@ idPlayerStart::Event_TeleportPlayer
 void idPlayerStart::Event_TeleportPlayer( idEntity *activator ) {
 	idPlayer *player;
 
-	if ( activator->IsType( idPlayer::Type ) ) {
+	
+
+	if ( activator && activator->IsType( idPlayer::Type ) ) {
 		player = static_cast<idPlayer*>( activator );
+	} else if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.GetCoopPlayer()) {
+		player = gameLocal.GetCoopPlayer();
 	} else {
 		player = gameLocal.GetLocalPlayer();
 	}
-	if ( player ) {
+	if ( player ) { 
 		if ( spawnArgs.GetBool( "visualFx" ) ) {
 
 			teleportStage = 0;

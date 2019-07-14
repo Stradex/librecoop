@@ -1176,7 +1176,7 @@ void idAFEntity_Gibbable::Gib( const idVec3 &dir, const char *damageDefName ) {
 
 	UnlinkCombat();
 
-	if ( g_bloodEffects.GetBool() ) {
+	if ( g_bloodEffects.GetBool() && !gameLocal.mpGame.IsGametypeCoopBased() ) { //unable to spawn gibs yet in coop
 		if ( gameLocal.time > gameLocal.GetGibTime() ) {
 			gameLocal.SetGibTime( gameLocal.time + GIB_DELAY );
 			SpawnGibs( dir, damageDefName );

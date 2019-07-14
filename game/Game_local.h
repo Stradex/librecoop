@@ -490,6 +490,7 @@ public:
 	idPlayer *				GetClientByCmdArgs( const idCmdArgs &args ) const;
 
 	idPlayer *				GetLocalPlayer() const;
+	idPlayer *				GetCoopPlayer() const; //added for Coop
 
 	void					SpreadLocations();
 	idLocationEntity *		LocationForPoint( const idVec3 &point );	// May return NULL

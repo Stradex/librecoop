@@ -2037,15 +2037,40 @@ idPlayer *idGameLocal::GetLocalPlayer() const {
 
 	if ( !entities[ localClientNum ] || !entities[ localClientNum ]->IsType( idPlayer::Type ) ) {
 		// not fully in game yet
+		return NULL;
+	}
+	return static_cast<idPlayer *>( entities[ localClientNum ] );
+}
 
-		if (mpGame.IsGametypeCoopBased() && isServer) { //for coop while using a dedicated server
-			for (int i=0; i < gameLocal.numClients; i++) {
-				if (entities[i] && entities[i]->IsType(idPlayer::Type)) {
-					return static_cast<idPlayer *>( entities[i] );
+/*
+================
+idGameLocal::GetLocalPlayer
+
+Nothing in the game tic should EVER make a decision based on what the
+local client number is, it shouldn't even be aware that there is a
+draw phase even happening.  This just returns client 0, which will
+be correct for single player.
+================
+*/
+idPlayer *idGameLocal::GetCoopPlayer() const {
+
+	if (mpGame.IsGametypeCoopBased()) {
+		if ( localClientNum < 0 || !entities[ localClientNum ] || !entities[ localClientNum ]->IsType( idPlayer::Type )) {
+
+			if (isServer) { //for coop while using a dedicated server
+				for (int i=0; i < gameLocal.numClients; i++) {
+					if (entities[i] && entities[i]->IsType(idPlayer::Type)) {
+						return static_cast<idPlayer *>( entities[i] );
+					}
 				}
 			}
+
+			return NULL;
 		}
-		return NULL;
+	} else {
+		if ( localClientNum < 0) {
+			return NULL;
+		}
 	}
 
 	return static_cast<idPlayer *>( entities[ localClientNum ] );
@@ -3504,8 +3529,17 @@ idGameLocal::AddEntityToHash
 ================
 */
 void idGameLocal::AddEntityToHash( const char *name, idEntity *ent ) {
-	if ( FindEntity( name ) ) {
-		Error( "Multiple entities named '%s'", name );
+	idEntity* tmpEnt;
+	tmpEnt = FindEntity( name );
+	if ( tmpEnt ) {
+		if (isClient && mpGame.IsGametypeCoopBased() && !tmpEnt->fl.coopNetworkSync) {
+			//nonsync coop enities can avoid this crash but it's kinda dangereous (could lead to deleting a NULL pointer later... or even worse).
+			common->Warning( "[COOP FATAL] Multiple entities named '%s', deleting the old one...\n", name );
+			delete tmpEnt;
+		} else {
+			Error( "Multiple entities named '%s'", name );
+		}
+	
 	}
 	entityHash.Add( entityHash.GenerateKey( name, true ), ent->entityNumber );
 }
