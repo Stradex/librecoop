@@ -2624,7 +2624,7 @@ void idGameLocal::snapshotsort_swap(idEntity* entities[], int lhs, int rhs) {
 	entities[rhs] = tmp;
 };
 
-bool idGameLocal::snapshotsort_notInOrder(idEntity* lhs, idEntity* rhs, quicksort_context context) {
+bool idGameLocal::snapshotsort_notInOrder(snapshotsort_context context, idEntity* lhs, idEntity* rhs) {
 	// elements in snapshot queue should be left
 	if (!lhs->inSnapshotQueue[context.clientNum] && rhs->inSnapshotQueue[context.clientNum]) {
 		return false;
@@ -2640,11 +2640,11 @@ bool idGameLocal::snapshotsort_notInOrder(idEntity* lhs, idEntity* rhs, quicksor
 	return true;
 }
 
-int idGameLocal::snapshotsort_partition(idEntity* entities[], int low, int high, quicksort_context context) {
+int idGameLocal::snapshotsort_partition(snapshotsort_context context, idEntity* entities[], int low, int high) {
 	idEntity* pivot = entities[high];
 	int i = low;
 	for (int j = low; j < high - 1; j++) {
-		if (snapshotsort_notInOrder(entities[j], pivot, context)) {
+		if (snapshotsort_notInOrder(context, entities[j], pivot)) {
 			snapshotsort_swap(entities, i, j);
 			i++;
 		}
@@ -2653,11 +2653,11 @@ int idGameLocal::snapshotsort_partition(idEntity* entities[], int low, int high,
 	return i;
 };
 
-void idGameLocal::snapshotsort(idEntity* entities[], int low, int high, quicksort_context context) {
+void idGameLocal::snapshotsort(snapshotsort_context context, idEntity* entities[], int low, int high) {
 	if (low < high) {
-		int p = snapshotsort_partition(entities, low, high, context);
-		snapshotsort(entities, low, p - 1, context);
-		snapshotsort(entities, p + 1, high, context);
+		int p = snapshotsort_partition(context, entities, low, high);
+		snapshotsort(context, entities, low, p - 1);
+		snapshotsort(context, entities, p + 1, high);
 	}
 };
 
@@ -2786,9 +2786,9 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 	*/
 	//END by Stradex for netcode optimization (SORT LIST)
 
-	quicksort_context context;
+	snapshotsort_context context;
 	context.clientNum = clientNum;
-	snapshotsort(sortsnapshotentities, 1, sortSnapCount - 1, context);
+	snapshotsort(context, sortsnapshotentities, 1, sortSnapCount - 1);
 
 	//bool readingQueue = true; 
 
