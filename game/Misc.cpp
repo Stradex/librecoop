@@ -197,6 +197,15 @@ void idPlayerStart::TeleportPlayer( idPlayer *player ) {
 	const char *viewName = spawnArgs.GetString( "visualView", "" );
 	idEntity *ent = viewName ? gameLocal.FindEntity( viewName ) : NULL;
 
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) { //create a new global checkpoint at this position for Coop
+		if ( f && ent ) {
+			gameLocal.mpGame.CreateNewCheckpoint(ent->GetPhysics()->GetOrigin());
+		} else {
+			gameLocal.mpGame.CreateNewCheckpoint(GetPhysics()->GetOrigin());
+		}
+		
+	}
+
 	if ( f && ent ) {
 		// place in private camera view for some time
 		// the entity needs to teleport to where the camera view is to have the PVS right

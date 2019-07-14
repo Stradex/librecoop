@@ -3020,7 +3020,7 @@ float idPlayer::PowerUpModifier( int type ) {
 			if ( healthPool <= 0 ) {
 				GiveHealthPool( 100 );
 			}
-		} else {
+		} else if (!gameLocal.mpGame.IsGametypeCoopBased()) {
 			healthPool = 0;
 		}
 	}
@@ -3177,10 +3177,13 @@ void idPlayer::UpdatePowerUps( void ) {
 		}
 	}
 
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) return;  //clients should never reach this point
+
 	if ( healthPool && gameLocal.time > nextHealthPulse && !AI_DEAD && health > 0 ) {
 		assert( !gameLocal.isClient );	// healthPool never be set on client
 		int amt = ( healthPool > 5 ) ? 5 : healthPool;
 		health += amt;
+		common->Printf("Giving to ::UpdatePowerUps\n");
 		if ( health > inventory.maxHealth ) {
 			health = inventory.maxHealth;
 			healthPool = 0;
@@ -3364,12 +3367,29 @@ idPlayer::GivePDA
 */
 void idPlayer::GivePDA( const char *pdaName, idDict *item )
 {
-	if ( gameLocal.isMultiplayer && spectating ) {
+	if ( gameLocal.isMultiplayer && (spectating || gameLocal.isClient) ) {
 		return;
 	}
 
 	if ( item ) {
 		inventory.pdaSecurity.AddUnique( item->GetString( "inv_name" ) );
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			idPlayer* p;
+			cmdSystem->BufferCommandText( CMD_EXEC_NOW, va( "say '%s^0' picked up PDA: %s!\n", gameLocal.userInfo[ this->entityNumber ].GetString( "ui_name" ), item->GetString( "inv_name" ) ) );
+			for (int j=0; j < gameLocal.numClients; j++) {
+				if (!gameLocal.entities[j]) {
+					continue;
+				}
+
+				p = static_cast<idPlayer*>(gameLocal.entities[j]);
+
+				if (!p || p->spectating || (p->entityNumber == this->entityNumber)) {
+					continue;
+				}
+
+				p->inventory.pdaSecurity.AddUnique( item->GetString( "inv_name" ) );
+			}
+		}
 	}
 
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
@@ -5986,7 +6006,11 @@ void idPlayer::Move( void ) {
 	} else if ( health <= 0 ) {
 		physicsObj.SetClipMask( MASK_DEADSOLID );
 	} else {
-		physicsObj.SetClipMask( MASK_PLAYERSOLID );
+		if (g_unblockPlayers.GetBool() && gameLocal.mpGame.IsGametypeCoopBased()) {
+			physicsObj.SetClipMask( MASK_DEADSOLID );
+		} else {
+			physicsObj.SetClipMask( MASK_PLAYERSOLID );
+		}
 	}
 
 	physicsObj.SetDebugLevel( g_debugMove.GetBool() );
@@ -7410,14 +7434,20 @@ void idPlayer::AddAIKill( void ) {
 		return;
 	}
 
-	assert( hud );
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) { //avoid crash in coop
+		assert( hud );
+	}
 
 	ammo_souls = idWeapon::GetAmmoNumForName( "ammo_souls" );
 	max_souls = inventory.MaxAmmoForAmmoClass( this, "ammo_souls" );
 	if ( inventory.ammo[ ammo_souls ] < max_souls ) {
 		inventory.ammo[ ammo_souls ]++;
 		if ( inventory.ammo[ ammo_souls ] >= max_souls ) {
-			hud->HandleNamedEvent( "soulCubeReady" );
+
+			if (hud) { //added for coop
+				hud->HandleNamedEvent( "soulCubeReady" );
+			}
+
 			StartSound( "snd_soulcube_ready", SND_CHANNEL_ANY, 0, false, NULL );
 		}
 	}

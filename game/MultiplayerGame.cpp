@@ -1379,12 +1379,14 @@ void idMultiplayerGame::Run() {
 
 	pureReady = true;
 
-	if (!gameLocal.coopMapScriptLoad && gameLocal.firstClientToSpawn && IsGametypeCoopBased() && gameLocal.localClientNum < 0) { //first player joined by the dedicated server
+	//REMOVE ME LATER (Stradex)
+	if (!gameLocal.coopMapScriptLoad && gameLocal.firstClientToSpawn && IsGametypeCoopBased() && gameLocal.localClientNum < 0 && g_freezeUntilClientJoins.GetBool()) { //first player joined by the dedicated server
 		gameLocal.coopMapScriptLoad = true;
 		gameLocal.world->InitializateMapScript();
-	} else if (!gameLocal.firstClientToSpawn && IsGametypeCoopBased() && gameLocal.localClientNum < 0) {
+	} else if (!gameLocal.firstClientToSpawn && IsGametypeCoopBased() && gameLocal.localClientNum < 0 && g_freezeUntilClientJoins.GetBool()) {
 		//return; //Freeze time until a player joins in a dedicated server in coop
 	}
+	//END REMOVE
 
 	if ( gameState == INACTIVE ) {
 		lastGameType = gameLocal.gameType;
@@ -3581,6 +3583,21 @@ SPECIFIC COOP STUFF
 
 /*
 ================
+idMultiplayerGame::CreateNewCheckpoint 
+================
+*/
+void idMultiplayerGame::CreateNewCheckpoint (idVec3 pos) {
+	int i;
+	for (i=0; i < MAX_CLIENTS; i++) {
+		playerCheckpoints[i] = pos;
+	}
+
+	cmdSystem->BufferCommandText( CMD_EXEC_NOW, "say The server created a new global checkpoint!\n");
+}
+
+
+/*
+================
 idMultiplayerGame::WantAddCheckpoint
 ================
 */
@@ -3624,7 +3641,7 @@ void idMultiplayerGame::WantUseCheckpoint( int clientNum ) {
 
 /*
 ================
-idMultiplayerGame::WantUseCheckpoint
+idMultiplayerGame::WantNoClip
 ================
 */
 void idMultiplayerGame::WantNoClip( int clientNum ) {

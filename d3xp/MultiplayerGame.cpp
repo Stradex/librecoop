@@ -4482,6 +4482,20 @@ bool idMultiplayerGame::IsGametypeCoopBased( void ) const {
 
 }
 
+/*
+================
+idMultiplayerGame::CreateNewCheckpoint 
+================
+*/
+void idMultiplayerGame::CreateNewCheckpoint (idVec3 pos) {
+	int i;
+	for (i=0; i < MAX_CLIENTS; i++) {
+		playerCheckpoints[i] = pos;
+	}
+
+	cmdSystem->BufferCommandText( CMD_EXEC_NOW, "say The server created a new global checkpoint!\n");
+}
+
 
 /*
 ================
@@ -4528,7 +4542,7 @@ void idMultiplayerGame::WantUseCheckpoint( int clientNum ) {
 
 /*
 ================
-idMultiplayerGame::WantUseCheckpoint
+idMultiplayerGame::WantNoClip
 ================
 */
 void idMultiplayerGame::WantNoClip( int clientNum ) {

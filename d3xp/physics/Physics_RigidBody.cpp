@@ -901,7 +901,7 @@ bool idPhysics_RigidBody::Evaluate( int timeStepMSec, int endTimeMSec ) {
 #endif
 
 	// check for collisions from the current to the next state
-	collided = CheckForCollisions( timeStep, next, collision );
+	collided = CheckForCollisions( timeStep, next, collision ); //crash in coop
 
 #ifdef RB_TIMINGS
 	timer_collision.Stop();
