@@ -191,7 +191,8 @@ bool idPhysics_RigidBody::CheckForCollisions( const float deltaTime, rigidBodyPS
 	rotation.SetOrigin( current.i.position );
 
 	// if there was a collision
-	if ( gameLocal.clip.Motion( collision, current.i.position, next.i.position, rotation, clipModel, current.i.orientation, clipMask, self ) ) {
+
+	if ( gameLocal.clip.Motion( collision, current.i.position, next.i.position, rotation, clipModel, current.i.orientation, clipMask, self ) ) { //crash in coop
 		// set the next state to the state at the moment of impact
 		next.i.position = collision.endpos;
 		next.i.orientation = collision.endAxis;
@@ -900,7 +901,12 @@ bool idPhysics_RigidBody::Evaluate( int timeStepMSec, int endTimeMSec ) {
 	timer_collision.Start();
 #endif
 
-	// check for collisions from the current to the next state
+	// check for collisions from the currennextt to the next state
+	if (gameLocal.mpGame.IsGametypeCoopBased() && (FLOAT_IS_NAN(next.i.angularMomentum.x) || FLOAT_IS_NAN(next.i.angularMomentum.y) || FLOAT_IS_NAN(next.i.angularMomentum.z) ||
+		FLOAT_IS_NAN(next.i.angularMomentum.x) || FLOAT_IS_NAN(next.i.angularMomentum.y) || FLOAT_IS_NAN(next.i.angularMomentum.z)) ) {
+		//common->Warning("[COOP FATAL] NAN Float at idPhysics_RigidBody::Evaluate\n");
+		return false;
+	}
 	collided = CheckForCollisions( timeStep, next, collision );
 
 #ifdef RB_TIMINGS

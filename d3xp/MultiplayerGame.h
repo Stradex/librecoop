@@ -307,6 +307,7 @@ public:
 	void			PlayerStats( int clientNum, char *data, const int len );
 
 	//specific coop functions
+	void			CreateNewCheckpoint (idVec3 pos);
 	void			WantUseCheckpoint( int clientNum );
 	void			WantAddCheckpoint( int clientNum , bool isGlobal=false);
 	void			WantNoClip( int clientNum );

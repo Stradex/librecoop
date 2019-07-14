@@ -864,6 +864,7 @@ idEntity::Think
 ================
 */
 void idEntity::Think( void ) {
+
 	RunPhysics();
 	Present();
 }
@@ -5133,6 +5134,7 @@ idAnimatedEntity::Think
 ================
 */
 void idAnimatedEntity::Think( void ) {
+
 	RunPhysics();
 	UpdateAnimation();
 	Present();

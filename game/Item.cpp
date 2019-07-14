@@ -225,6 +225,7 @@ idItem::Think
 ================
 */
 void idItem::Think( void ) {
+
 	if ( thinkFlags & TH_THINK ) {
 		if ( spin ) {
 			idAngles	ang;
@@ -936,7 +937,7 @@ idPDAItem::GiveToPlayer
 ================
 */
 bool idPDAItem::GiveToPlayer(idPlayer *player) {
-	if (gameLocal.mpGame.IsGametypeCoopBased()) { //disable pda pickup in COOP to avoid crash
+	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) { //disable pda pickup in COOP to avoid crash
 		return true;
 	}
 	const char *str = spawnArgs.GetString( "pda_name" );
@@ -1298,7 +1299,7 @@ idMoveablePDAItem::GiveToPlayer
 */
 bool idMoveablePDAItem::GiveToPlayer(idPlayer *player) {
 
-	if (gameLocal.mpGame.IsGametypeCoopBased()) { //disable pda pickup in COOP to avoid crash
+	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) { //disable pda pickup in COOP to avoid crash
 		return true;
 	}
 

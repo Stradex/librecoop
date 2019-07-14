@@ -584,7 +584,7 @@ void idBrittleFracture::Think( void ) {
 		PostEventMS( &EV_Remove, 0 );
 		return;
 	}
-
+	
 	if ( thinkFlags & TH_PHYSICS ) {
 
 		startTime = gameLocal.previousTime;
@@ -598,7 +598,7 @@ void idBrittleFracture::Think( void ) {
 				continue;
 			}
 
-			shard->physicsObj.Evaluate( endTime - startTime, endTime );
+			shard->physicsObj.Evaluate( endTime - startTime, endTime ); //causing crash in coop
 
 			if ( !shard->physicsObj.IsAtRest() ) {
 				atRest = false;

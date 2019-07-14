@@ -327,6 +327,8 @@ void idGameLocal::ServerClientConnect( int clientNum, const char *guid ) {
 
 	userInfo[ clientNum ].Clear();
 	mpGame.ServerClientConnect( clientNum );
+	//sync cvars here
+
 	Printf( "client %d connected.\n", clientNum );
 }
 
@@ -396,6 +398,13 @@ void idGameLocal::ServerClientDisconnect( int clientNum ) {
 
 	// free entity states stored for this client
 	for ( i = 0; i < MAX_GENTITIES; i++ ) {
+
+		if (mpGame.IsGametypeCoopBased() && coopentities[i]) { //COOP: Reset entity snapshot priority info
+			coopentities[i]->firstTimeInClientPVS[clientNum] = true;
+			coopentities[i]->inSnapshotQueue[clientNum] = false;
+			coopentities[i]->snapshotMissingCount[clientNum] = 0; 
+		}
+
 		if ( clientEntityStates[ clientNum ][ i ] ) {
 			entityStateAllocator.Free( clientEntityStates[ clientNum ][ i ] );
 			clientEntityStates[ clientNum ][ i ] = NULL;
@@ -2977,6 +2986,11 @@ idGameLocal::addToServerEventOverFlowList
 */
 void idGameLocal::addToServerEventOverFlowList(int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient, int eventTime, idEntity* ent)
 {
+
+	if (!msg || !ent) {
+		common->Warning("[COOP FATAL] Trying to add an event with a empty message or from an unknown entity\n");
+		return;
+	}
 
 	for (int i=0; i < SERVER_EVENTS_QUEUE_SIZE; i++) {
 		if (serverOverflowEvents[i].eventId == SERVER_EVENT_NONE) {
