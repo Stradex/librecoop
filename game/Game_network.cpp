@@ -2749,44 +2749,7 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 		sortsnapshotentities[sortSnapCount++] = ent;
 	}
 
-	//Poor CPU: FIXME: fluff, may you know a better way to sort a list. Most fast and efficient way (stradex)
-	/*
-	int iterationsDebug=0;
-	idEntity *tmpEnt;
-	for (j=1; j < (sortSnapCount-1); j++, iterationsDebug++) {
-
-		if (iterationsDebug >= MAX_SORT_ITERATIONS) {
-			break; //let's avoid the CPU to get on fire
-		}
-
-		bool needSort=false;
-
-		if (sortsnapshotentities[j+1]->inSnapshotQueue[clientNum] && !sortsnapshotentities[j]->inSnapshotQueue[clientNum]) {
-			needSort = true;
-		} else if ((sortsnapshotentities[j+1]->inSnapshotQueue[clientNum] == sortsnapshotentities[j]->inSnapshotQueue[clientNum])
-				&& (sortsnapshotentities[j+1]->snapshotPriority < sortsnapshotentities[j]->snapshotPriority)) { //This is a bit confusing: snapshotPriority's priority is like Priority 0 = MAX priority
-			needSort = true;
-		} else if ((sortsnapshotentities[j+1]->inSnapshotQueue[clientNum] == sortsnapshotentities[j]->inSnapshotQueue[clientNum])
-				&& (sortsnapshotentities[j+1]->snapshotPriority == sortsnapshotentities[j]->snapshotPriority)
-				&& (sortsnapshotentities[j+1]->firstTimeInClientPVS[clientNum] && !sortsnapshotentities[j]->firstTimeInClientPVS[clientNum])) {
-			needSort = true;
-		}
-
-		if (needSort) {
-			tmpEnt = sortsnapshotentities[j];
-			sortsnapshotentities[j] = sortsnapshotentities[j+1];
-			sortsnapshotentities[j+1] = tmpEnt;
-			//j=0;
-			j -= 2;
-			if (j<0) {
-				j=0;
-			}
-		}
-	}
-	*/
-	//END by Stradex for netcode optimization (SORT LIST)
-
-	snapshotsort_context context;
+	snapshotsort_context context; // this is to keep sorting signatures clean if isInOrder requires more game state information
 	context.clientNum = clientNum;
 	snapshotsort(context, sortsnapshotentities, 1, sortSnapCount - 1);
 
