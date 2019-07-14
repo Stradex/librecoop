@@ -2657,7 +2657,7 @@ void idGameLocal::snapshotsort_swap(idEntity* entities[], int lhs, int rhs) {
 	entities[rhs] = tmp;
 };
 
-bool idGameLocal::snapshotsort_notInOrder(snapshotsort_context_s context, idEntity* lhs, idEntity* rhs) {
+bool idGameLocal::snapshotsort_notInOrder(const snapshotsort_context_s& context, idEntity* lhs, idEntity* rhs) {
 	// elements in snapshot queue should be left
 	if (!lhs->inSnapshotQueue[context.clientNum] && rhs->inSnapshotQueue[context.clientNum]) {
 		return false;
@@ -2673,11 +2673,25 @@ bool idGameLocal::snapshotsort_notInOrder(snapshotsort_context_s context, idEnti
 	return true;
 }
 
-int idGameLocal::snapshotsort_partition(snapshotsort_context_s context, idEntity* entities[], int low, int high) {
-	idEntity* pivot = entities[high];
+int idGameLocal::snapshotsort_medianOfThree(const snapshotsort_context_s& context, idEntity* entities[], int low, int high) {
+	int mid = round((low + high) / 2);
+	if (snapshotsort_notInOrder(context, entities[low], entities[mid])) {
+		snapshotsort_swap(entities, low, mid);
+	}
+	if (snapshotsort_notInOrder(context, entities[low], entities[high])) {
+		snapshotsort_swap(entities, low, high);
+	}
+	if (snapshotsort_notInOrder(context, entities[mid], entities[high])) {
+		snapshotsort_swap(entities, mid, high);
+	}
+	return mid;
+}
+
+int idGameLocal::snapshotsort_partition(const snapshotsort_context_s& context, idEntity* entities[], int low, int high) {
+	int pivot = snapshotsort_medianOfThree(context, entities, low, high);
 	int i = low;
 	for (int j = low; j < high - 1; j++) {
-		if (snapshotsort_notInOrder(context, entities[j], pivot)) {
+		if (snapshotsort_notInOrder(context, entities[j], entities[pivot])) {
 			snapshotsort_swap(entities, i, j);
 			i++;
 		}
@@ -2686,7 +2700,7 @@ int idGameLocal::snapshotsort_partition(snapshotsort_context_s context, idEntity
 	return i;
 };
 
-void idGameLocal::snapshotsort(snapshotsort_context_s context, idEntity* entities[], int low, int high) {
+void idGameLocal::snapshotsort(const snapshotsort_context_s& context, idEntity* entities[], int low, int high) {
 	if (low < high) {
 		int p = snapshotsort_partition(context, entities, low, high);
 		snapshotsort(context, entities, low, p - 1);

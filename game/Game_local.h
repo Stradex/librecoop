@@ -400,9 +400,10 @@ public:
 	virtual void			ClientReadSnapshotCoop( int clientNum, int sequence, const int gameFrame, const int gameTime, const int dupeUsercmds, const int aheadOfServer, const idBitMsg &msg );
 
 	virtual void			snapshotsort_swap(idEntity* entities[], int lhs, int rhs);
-	virtual bool			snapshotsort_notInOrder(snapshotsort_context_s context, idEntity* lhs, idEntity* rhs);
-	virtual int				snapshotsort_partition(snapshotsort_context_s context, idEntity* entities[], int low, int high);
-	virtual void			snapshotsort(snapshotsort_context_s context, idEntity* entities[], int low, int high);
+	virtual bool			snapshotsort_notInOrder(const snapshotsort_context_s &context, idEntity* lhs, idEntity* rhs);
+	virtual int				snapshotsort_medianOfThree(const snapshotsort_context_s &context, idEntity* entities[], int low, int high);
+	virtual int				snapshotsort_partition(const snapshotsort_context_s &context, idEntity* entities[], int low, int high);
+	virtual void			snapshotsort(const snapshotsort_context_s &context, idEntity* entities[], int low, int high);
 
 	// ---------------------- Public idGameLocal Interface -------------------
 
