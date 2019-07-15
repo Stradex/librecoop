@@ -171,6 +171,7 @@ public:
 		bool				hasAwakened			:1;	// before a monster has been awakened the first time, use full PVS for dormant instead of area-connected
 		bool				networkSync			:1; // if true the entity is synchronized over the network
 		bool				coopNetworkSync		:1; // if true the entity is synchronized over the network BUT SPECIFIC FOR COOP
+		bool				useOldNetcode		:1; // if true the entity use oldnetcode  SPECIFIC FOR COOP
 	} fl;
 
 public:
@@ -274,6 +275,7 @@ public:
 	void					GetWorldVelocities( idVec3 &linearVelocity, idVec3 &angularVelocity ) const;
 
 	bool					IsMasterActive ( void ) const; //added for coop netcode
+	bool					MasterUseOldNetcode ( void ) const; //added for coop netcode
 
 	// physics
 							// set a new physics object to be used by this entity

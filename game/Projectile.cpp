@@ -1294,6 +1294,15 @@ idGuidedProjectile::Spawn
 ================
 */
 void idGuidedProjectile::Spawn( void ) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		rndScale = spawnArgs.GetAngles( "random", "15 15 0" );
+		turn_max = spawnArgs.GetFloat( "turn_max", "180" ) / ( float )USERCMD_HZ;
+		clamp_dist = spawnArgs.GetFloat( "clamp_dist", "256" );
+		burstMode = spawnArgs.GetBool( "burstMode" );
+		unGuided = false;
+		burstDist = spawnArgs.GetFloat( "burstDist", "64" );
+		burstVelocity = spawnArgs.GetFloat( "burstVelocity", "1.25" );
+	}
 }
 
 /*
@@ -1343,7 +1352,12 @@ idGuidedProjectile::GetSeekPos
 ================
 */
 void idGuidedProjectile::GetSeekPos( idVec3 &out ) {
-	idEntity *enemyEnt = enemy.GetEntity();
+	idEntity *enemyEnt;
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		enemyEnt = enemy.GetCoopEntity();
+	} else {
+		enemyEnt = enemy.GetEntity();
+	}
 	if ( enemyEnt ) {
 		if ( enemyEnt->IsType( idActor::Type ) ) {
 			out = static_cast<idActor *>(enemyEnt)->GetEyePosition();
@@ -1469,6 +1483,141 @@ void idGuidedProjectile::Launch( const idVec3 &start, const idVec3 &dir, const i
 	burstDist = spawnArgs.GetFloat( "burstDist", "64" );
 	burstVelocity = spawnArgs.GetFloat( "burstVelocity", "1.25" );
 	UpdateVisuals();
+}
+
+//EXTRA FOR COOP
+
+/*
+================
+idGuidedProjectile::ClientPredictionThink
+================
+*/
+void idGuidedProjectile::ClientPredictionThink( void ) {
+	if ( !renderEntity.hModel ) {
+		return;
+	}
+	Think();
+}
+
+/*
+================
+idGuidedProjectile::WriteToSnapshot
+================
+*/
+void idGuidedProjectile::WriteToSnapshot( idBitMsgDelta &msg ) const {
+	idProjectile::WriteToSnapshot(msg);
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		int enemyCoopId;
+		enemyCoopId = (enemy.GetCoopEntity()) ? enemy.GetCoopId() : -1;
+		msg.WriteInt(enemyCoopId);
+	}
+}
+
+/*
+================
+idProjectile::ReadFromSnapshot
+================
+*/
+void idGuidedProjectile::ReadFromSnapshot( const idBitMsgDelta &msg ) {
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+		idProjectile::ReadFromSnapshot(msg);
+		return;
+	}
+
+	projectileState_t newState;
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		owner.SetCoopId( msg.ReadBits( 32 ) );
+	} else {
+		owner.SetSpawnId( msg.ReadBits( 32 ) );
+	}
+	
+	newState = (projectileState_t) msg.ReadBits( 3 );
+	if ( msg.ReadBits( 1 ) ) {
+		Hide();
+	} else {
+		Show();
+	}
+
+	while( state != newState ) {
+		switch( state ) {
+			case SPAWNED: {
+				Create( owner.GetEntity(), vec3_origin, idVec3( 1, 0, 0 ) );
+				break;
+			}
+			case CREATED: {
+				// the right origin and direction are required if you want bullet traces
+				Launch( vec3_origin, idVec3( 1, 0, 0 ), vec3_origin );
+				break;
+			}
+			case LAUNCHED: {
+				if ( newState == FIZZLED ) {
+					Fizzle();
+				} else {
+					trace_t collision;
+					memset( &collision, 0, sizeof( collision ) );
+					collision.endAxis = GetPhysics()->GetAxis();
+					collision.endpos = GetPhysics()->GetOrigin();
+					collision.c.point = GetPhysics()->GetOrigin();
+					collision.c.normal.Set( 0, 0, 1 );
+					Explode( collision, NULL );
+				}
+				break;
+			}
+			case FIZZLED:
+			case EXPLODED: {
+				StopSound( SND_CHANNEL_BODY2, false );
+				gameEdit->ParseSpawnArgsToRenderEntity( &spawnArgs, &renderEntity );
+				state = SPAWNED;
+				break;
+			}
+		}
+	}
+
+	if ( msg.ReadBits( 1 ) ) {
+		physicsObj.ReadFromSnapshot( msg );
+	} else {
+		idVec3 origin;
+		idVec3 velocity;
+		idVec3 tmp;
+		idMat3 axis;
+
+		origin.x = msg.ReadFloat();
+		origin.y = msg.ReadFloat();
+		origin.z = msg.ReadFloat();
+
+		velocity.x = msg.ReadDeltaFloat( 0.0f, RB_VELOCITY_EXPONENT_BITS, RB_VELOCITY_MANTISSA_BITS );
+		velocity.y = msg.ReadDeltaFloat( 0.0f, RB_VELOCITY_EXPONENT_BITS, RB_VELOCITY_MANTISSA_BITS );
+		velocity.z = msg.ReadDeltaFloat( 0.0f, RB_VELOCITY_EXPONENT_BITS, RB_VELOCITY_MANTISSA_BITS );
+
+		physicsObj.SetOrigin( origin );
+		physicsObj.SetLinearVelocity( velocity );
+
+		// align z-axis of model with the direction
+		velocity.NormalizeFast();
+		axis = velocity.ToMat3();
+		tmp = axis[2];
+		axis[2] = axis[0];
+		axis[0] = -tmp;
+		physicsObj.SetAxis( axis );
+	}
+
+	//NEW For coop
+
+	const idVec3 &vel = physicsObj.GetLinearVelocity();
+	angles = vel.ToAngles();
+	speed = vel.Length();
+
+	int enemyCoopId;
+	enemyCoopId = msg.ReadInt();
+	if (enemyCoopId >= 0) {
+		enemy.SetCoopId(enemyCoopId);
+	}
+
+	if ( msg.HasChanged() ) {
+		UpdateVisuals();
+	}
 }
 
 

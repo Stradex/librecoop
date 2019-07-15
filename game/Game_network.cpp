@@ -1734,6 +1734,24 @@ gameReturn_t idGameLocal::ClientPrediction( int clientNum, const usercmd_t *clie
 
 	if (lastPredictFrame) {
 		RunClientSideFrame(player, clientCmds);
+	} else { //old netcode entities (mover entities mostly)
+		for( ent = snapshotEntities.Next(); ent != NULL; ent = ent->snapshotNode.Next() ) {
+			if ((ent->entityCoopNumber == player->entityCoopNumber) || !ent->MasterUseOldNetcode()) { //maybe the entity doesn't use oldnetcode but the masters does so do this shit then
+				continue;
+			}
+
+			ent->thinkFlags |= TH_PHYSICS;
+			ent->ClientPredictionThink();
+		}
+
+		for( ent = activeEntities.Next(); ent != NULL; ent = ent->activeNode.Next() ) {
+			if (isSnapshotEntity(ent) || (ent->entityCoopNumber ==  player->entityCoopNumber) || !ent->MasterUseOldNetcode()) {
+				continue;
+			}
+
+			ent->thinkFlags |= TH_PHYSICS;
+			ent->ClientPredictionThink();
+		}
 	}
 		//Predict only local player multiple times per frame if necessary
 		player->thinkFlags  |= TH_PHYSICS;
