@@ -1842,6 +1842,35 @@ void idSoulCubeMissile::Launch( const idVec3 &start, const idVec3 &dir, const id
 
 }
 
+//EXTRA FOR COOP
+
+/*
+================
+idSoulCubeMissile::ClientPredictionThink
+================
+*/
+void idSoulCubeMissile::ClientPredictionThink( void ) {
+	idProjectile::ClientPredictionThink();
+}
+
+/*
+================
+idSoulCubeMissile::WriteToSnapshot
+================
+*/
+void idSoulCubeMissile::WriteToSnapshot( idBitMsgDelta &msg ) const {
+	idProjectile::WriteToSnapshot(msg);
+}
+
+/*
+================
+idSoulCubeMissile::ReadFromSnapshot
+================
+*/
+void idSoulCubeMissile::ReadFromSnapshot( const idBitMsgDelta &msg ) {
+	idProjectile::ReadFromSnapshot(msg);
+}
+
 
 /*
 ===============================================================================
