@@ -241,6 +241,7 @@ public:
 	void						Event_Remove( void );
 
 	//Client-side functions called in Coop
+	bool						CS_PostEventMS( const idEventDef *ev, int time );
 	bool						CS_PostEventSec( const idEventDef *ev, float time );
 	bool						CS_PostEventSec( const idEventDef *ev, float time, idEventArg arg1 );
 

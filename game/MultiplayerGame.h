@@ -251,6 +251,9 @@ public:
 	void			WantNoClip( int clientNum );
 	void			IncrementFrags(idPlayer* player);
 
+	idVec3			playerCheckpoints[ MAX_CLIENTS ]; //added for coop checkpoints
+	bool			playerUseCheckpoints[ MAX_CLIENTS ]; //added for coop checkpoints
+
 private:
 	static const char	*MPGuis[];
 	static const char	*ThrottleVars[];
@@ -263,7 +266,6 @@ private:
 	int				pingUpdateTime;			// time to update ping
 
 	mpPlayerState_t	playerState[ MAX_CLIENTS ];
-	idVec3			playerCheckpoints[ MAX_CLIENTS ]; //added for coop checkpoints
 
 											// keep track of clients which are willingly in spectator mode
 

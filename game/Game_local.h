@@ -499,6 +499,7 @@ public:
 	idPlayer *				GetClientByCmdArgs( const idCmdArgs &args ) const;
 
 	idPlayer *				GetLocalPlayer() const;
+	idPlayer *				GetCoopPlayer() const; //added for Coop
 
 	void					SpreadLocations();
 	idLocationEntity *		LocationForPoint( const idVec3 &point );	// May return NULL
@@ -521,6 +522,7 @@ public:
 	//specific coop stuff
 	bool					firstClientToSpawn; //used in coop for dedicated server not starting scripts until a player joins
 	bool					coopMapScriptLoad; //used in coop for dedicated server not starting scripts until a player joins
+	spawnSpot_t				spPlayerStartSpot; //added for COOP
 private:
 	const static int		INITIAL_SPAWN_COUNT = 1;
 

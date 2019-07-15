@@ -221,7 +221,7 @@ void idMultiplayerGame::SpawnPlayer( int clientNum ) {
 		playerState[ clientNum ].ingame = ingame;
 
 		//added for coop
-		if ( IsGametypeCoopBased() ) {
+		if ( IsGametypeCoopBased() && !playerUseCheckpoints[clientNum] ) {
 			playerCheckpoints[clientNum] = p->GetLocalCoordinates( p->GetPhysics()->GetOrigin() ); //get spawn position as initial checkpoint
 			common->Printf("Saving player %d checkpoint\n", clientNum);
 		}
@@ -2911,9 +2911,11 @@ idMultiplayerGame::DisconnectClient
 ================
 */
 void idMultiplayerGame::DisconnectClient( int clientNum ) {
+
 	if ( lastWinner == clientNum ) {
 		lastWinner = -1;
 	}
+
 	UpdatePlayerRanks();
 	CheckAbortGame();
 }
@@ -2946,6 +2948,12 @@ void idMultiplayerGame::CheckAbortGame( void ) {
 				}
 			}
 			break;
+
+		case GAME_COOP:
+		case GAME_SURVIVAL:
+			return; //never restart round in coop or survival cause there's only one player or not players playing at all
+		break;
+
 		default:
 			if ( !EnoughClientsToPlay() ) {
 				NewState( GAMEREVIEW );
@@ -3590,6 +3598,7 @@ void idMultiplayerGame::CreateNewCheckpoint (idVec3 pos) {
 	int i;
 	for (i=0; i < MAX_CLIENTS; i++) {
 		playerCheckpoints[i] = pos;
+		playerUseCheckpoints[i] = true;
 	}
 
 	cmdSystem->BufferCommandText( CMD_EXEC_NOW, "say The server created a new global checkpoint!\n");
@@ -3612,12 +3621,14 @@ void idMultiplayerGame::WantAddCheckpoint( int clientNum , bool isGlobal) {
 			int i;
 			for (i=0; i < MAX_CLIENTS; i++) {
 				playerCheckpoints[i] = pPos;
+				playerUseCheckpoints[i] = true;
 			}
 			cmdSystem->BufferCommandText( CMD_EXEC_NOW, va( "say '%s^0' created a new global checkpoint!\n", gameLocal.userInfo[ p->entityNumber ].GetString( "ui_name" ) ) );
 			//common->Printf("Player %d added a global checkpoint\n", clientNum);
 			//gameLocal.mpGame.say
 		} else {
 			playerCheckpoints[clientNum] = pPos;
+			playerUseCheckpoints[clientNum] = true;
 			common->Printf("Player %d added a checkpoint\n", clientNum);
 		}
 		//static_cast<idPlayer *>( ent )->Kill( false, false );

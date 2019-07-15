@@ -2077,7 +2077,14 @@ void idEntity::RemoveBinds( void ) {
 		next = ent->teamChain;
 		if ( ent->bindMaster == this ) {
 			ent->Unbind();
-			ent->PostEventMS( &EV_Remove, 0 );
+			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && !ent->fl.coopNetworkSync) {
+				//get ride manually of nonsync bind entities to avoid duplicated entities in snapshot
+				//common->Printf("[COOP] Getting ride of %s\n", ent->GetName()); 
+				ent->CS_PostEventMS( &EV_Remove, 0 ); //probably this causing problems in coop
+			} else {
+				ent->PostEventMS( &EV_Remove, 0 ); //probably this causing problems in coop
+			}
+
 			next = teamChain;
 		}
 	}
