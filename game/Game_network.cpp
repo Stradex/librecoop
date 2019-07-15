@@ -2664,7 +2664,7 @@ bool idGameLocal::snapshotsort_notInOrder(const snapshotsort_context_s &context,
 
 // partition for quicksort with median-of-three pivot selection
 int idGameLocal::snapshotsort_partition(const snapshotsort_context_s &context, idEntity* entities[], int low, int high) {
-	/*int mid = round((low + high) / 2);
+	int mid = round((low + high) / 2);
 	if (snapshotsort_notInOrder(context, entities[low], entities[mid])) {
 		snapshotsort_swap(entities, low, mid);
 	}
@@ -2673,7 +2673,7 @@ int idGameLocal::snapshotsort_partition(const snapshotsort_context_s &context, i
 	}
 	if (snapshotsort_notInOrder(context, entities[high], entities[mid])) {
 		snapshotsort_swap(entities, high, mid);
-	}*/
+	}
 	idEntity* pivot = entities[high];
 	int i = low;
 	for (int j = low; j < high; j++) {
@@ -2816,6 +2816,9 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 			Warning(" Right priority: " + idStr(sortsnapshotentities[j + 1]->snapshotPriority));
 			Warning(" Left first PVS: " + idStr(sortsnapshotentities[j]->firstTimeInClientPVS[clientNum] ? "Yes" : "No"));
 			Warning("Right first PVS: " + idStr(sortsnapshotentities[j + 1]->firstTimeInClientPVS[clientNum] ? "Yes" : "No"));
+		}
+		else {
+			Warning("Successful sort!");
 		}
 	}
 
