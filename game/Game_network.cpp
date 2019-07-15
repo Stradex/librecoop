@@ -2785,8 +2785,7 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 
 	snapshotsort_context_s context; // this is to keep sorting signatures clean if isInOrder requires more game state information
 	context.clientNum = clientNum;
-	context.entityCount = sortSnapCount;
-	snapshotsort(context, sortsnapshotentities, 0, sortSnapCount - 1);
+	snapshotsort(context, sortsnapshotentities, 1, sortSnapCount - 1);
 
 	//bool readingQueue = true; 
 

@@ -462,7 +462,6 @@ public:
 	//end by Stradex for Coop
 	virtual void			snapshotsort_swap(idEntity* entities[], int lhs, int rhs);
 	virtual bool			snapshotsort_notInOrder(const snapshotsort_context_s& context, idEntity* lhs, idEntity* rhs);
-	virtual int				snapshotsort_medianOfThree(const snapshotsort_context_s& context, idEntity* entities[], int low, int high);
 	virtual int				snapshotsort_partition(const snapshotsort_context_s& context, idEntity* entities[], int low, int high);
 	virtual void			snapshotsort(const snapshotsort_context_s& context, idEntity* entities[], int low, int high);
 

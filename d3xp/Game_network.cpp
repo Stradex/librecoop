@@ -2650,30 +2650,46 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 
 }
 
+// swap elements in array
 void idGameLocal::snapshotsort_swap(idEntity* entities[], int lhs, int rhs) {
 	idEntity* tmp;
 	tmp = entities[lhs];
 	entities[lhs] = entities[rhs];
 	entities[rhs] = tmp;
+	tmp = NULL;
 };
 
+// entities in snapshot queue <-- lower snapshot priority <-- first time in PVS <-- everything else
 bool idGameLocal::snapshotsort_notInOrder(const snapshotsort_context_s& context, idEntity* lhs, idEntity* rhs) {
-	// elements in snapshot queue should be left
+	// 1 - elements in snapshot queue should be left
 	if (!lhs->inSnapshotQueue[context.clientNum] && rhs->inSnapshotQueue[context.clientNum]) {
+		return true;
+	}
+	else if (lhs->inSnapshotQueue[context.clientNum] && !rhs->inSnapshotQueue[context.clientNum]) {
 		return false;
 	}
-	// lower priority should be left
+
+	// either both are in snapshot queue or both are not in snapshot queue
+	// 2 - lower priority should be left
 	if (lhs->snapshotPriority > rhs->snapshotPriority) {
+		return true;
+	}
+	else if (lhs->snapshotPriority < rhs->snapshotPriority) {
 		return false;
 	}
-	// first time in PVS should be left
+
+	// both are same priority
+	// 3 - first time in PVS should be left
 	if (!lhs->firstTimeInClientPVS[context.clientNum] && rhs->firstTimeInClientPVS[context.clientNum]) {
-		return false;
+		return true;
 	}
-	return true;
+
+	// either left or both are in client PVS for first time
+	return false;
 }
 
-int idGameLocal::snapshotsort_medianOfThree(const snapshotsort_context_s& context, idEntity* entities[], int low, int high) {
+// partition for quicksort with median-of-three pivot selection
+int idGameLocal::snapshotsort_partition(const snapshotsort_context_s& context, idEntity* entities[], int low, int high) {
 	int mid = round((low + high) / 2);
 	if (snapshotsort_notInOrder(context, entities[low], entities[mid])) {
 		snapshotsort_swap(entities, low, mid);
@@ -2681,17 +2697,13 @@ int idGameLocal::snapshotsort_medianOfThree(const snapshotsort_context_s& contex
 	if (snapshotsort_notInOrder(context, entities[low], entities[high])) {
 		snapshotsort_swap(entities, low, high);
 	}
-	if (snapshotsort_notInOrder(context, entities[mid], entities[high])) {
-		snapshotsort_swap(entities, mid, high);
+	if (snapshotsort_notInOrder(context, entities[high], entities[mid])) {
+		snapshotsort_swap(entities, high, mid);
 	}
-	return mid;
-}
-
-int idGameLocal::snapshotsort_partition(const snapshotsort_context_s& context, idEntity* entities[], int low, int high) {
-	int pivot = snapshotsort_medianOfThree(context, entities, low, high);
+	idEntity* pivot = entities[high];
 	int i = low;
-	for (int j = low; j < high - 1; j++) {
-		if (snapshotsort_notInOrder(context, entities[j], entities[pivot])) {
+	for (int j = low; j < high; j++) {
+		if (snapshotsort_notInOrder(context, pivot, entities[j])) {
 			snapshotsort_swap(entities, i, j);
 			i++;
 		}
@@ -2700,6 +2712,7 @@ int idGameLocal::snapshotsort_partition(const snapshotsort_context_s& context, i
 	return i;
 };
 
+// recursive quicksort
 void idGameLocal::snapshotsort(const snapshotsort_context_s& context, idEntity* entities[], int low, int high) {
 	if (low < high) {
 		int p = snapshotsort_partition(context, entities, low, high);

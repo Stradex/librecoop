@@ -144,7 +144,6 @@ typedef struct serverEvent_s { //added for coop to avoid events overflow
 
 typedef struct snapshotsort_context_s {
 	int clientNum;
-	int entityCount;
 } snapshotsort_context_s;
 
 
