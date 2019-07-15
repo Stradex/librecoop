@@ -2787,40 +2787,6 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 	context.clientNum = clientNum;
 	context.entityCount = sortSnapCount;
 	snapshotsort(context, sortsnapshotentities, 0, sortSnapCount - 1);
-	bool sorted = true;
-	if (sortSnapCount > 1) {
-		for (j = 0; j < sortSnapCount - 1; j++) {
-			if (snapshotsort_notInOrder(context, sortsnapshotentities[j], sortsnapshotentities[j + 1])) {
-				sorted = false;
-				break;
-			}
-		}
-		if (!sorted) {
-			/*
-			if (!lhs->inSnapshotQueue[context.clientNum] && rhs->inSnapshotQueue[context.clientNum]) {
-				return true;
-			}
-			// lower priority should be left
-			if (lhs->snapshotPriority > rhs->snapshotPriority) {
-				return true;
-			}
-			// first time in PVS should be left
-			if (!lhs->firstTimeInClientPVS[context.clientNum] && rhs->firstTimeInClientPVS[context.clientNum]) {
-				return true;
-			}
-			*/
-			Warning("Warning! Sort failed at index " + idStr(j) + " out of " + idStr(sortSnapCount - 1));
-			Warning("  Left in queue: " + idStr(sortsnapshotentities[j]->inSnapshotQueue[clientNum] ? "Yes" : "No"));
-			Warning(" Right in queue: " + idStr(sortsnapshotentities[j + 1]->inSnapshotQueue[clientNum] ? "Yes" : "No"));
-			Warning("  Left priority:" + idStr(sortsnapshotentities[j]->snapshotPriority));
-			Warning(" Right priority: " + idStr(sortsnapshotentities[j + 1]->snapshotPriority));
-			Warning(" Left first PVS: " + idStr(sortsnapshotentities[j]->firstTimeInClientPVS[clientNum] ? "Yes" : "No"));
-			Warning("Right first PVS: " + idStr(sortsnapshotentities[j + 1]->firstTimeInClientPVS[clientNum] ? "Yes" : "No"));
-		}
-		else {
-			Warning("Successful sort!");
-		}
-	}
 
 	//bool readingQueue = true; 
 
