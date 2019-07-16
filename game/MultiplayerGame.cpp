@@ -1287,6 +1287,9 @@ void idMultiplayerGame::ExecuteVote( void ) {
 						nextMap = ent->spawnArgs.GetString("nextMap", "");
 					}
 				}
+
+				SavePersistentPlayersInfo(); //saving player info in Coop for the next map
+
 				if (nextMap != "") {
 					gameLocal.Printf("Loading next map ", nextMap);
 					si_map.SetString(nextMap);
@@ -2913,7 +2916,9 @@ void idMultiplayerGame::DisconnectClient( int clientNum ) {
 	if ( lastWinner == clientNum ) {
 		lastWinner = -1;
 	}
-
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		gameLocal.persistentPlayerInfo[clientNum].Clear(); //clear persistentInfo for this player
+	}
 	UpdatePlayerRanks();
 	CheckAbortGame();
 }
@@ -3669,5 +3674,27 @@ idMultiplayerGame::IncrementFrags
 void idMultiplayerGame::IncrementFrags(idPlayer* player) {
 	if (player) {
 		playerState[player->entityNumber].fragCount++;
+	}
+}
+
+
+
+/*
+================
+idMultiplayerGame::SavePersistentPlayersInfo
+================
+*/
+void idMultiplayerGame::SavePersistentPlayersInfo( void ) {
+	idPlayer *p;
+	for (int i=0; i < MAX_CLIENTS; i++) {
+		if (!gameLocal.entities[i] || !gameLocal.entities[i]->IsType(idPlayer::Type))
+			continue;
+
+		p =  static_cast<idPlayer*>(gameLocal.entities[i]);
+
+		if (!p || p->spectating) {
+			continue;
+		}
+		gameLocal.GetPersistentPlayerInfo(i); //This function basically save the current player persistent info
 	}
 }

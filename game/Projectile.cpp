@@ -1516,7 +1516,7 @@ void idGuidedProjectile::WriteToSnapshot( idBitMsgDelta &msg ) const {
 
 /*
 ================
-idProjectile::ReadFromSnapshot
+idGuidedProjectile::ReadFromSnapshot
 ================
 */
 void idGuidedProjectile::ReadFromSnapshot( const idBitMsgDelta &msg ) {

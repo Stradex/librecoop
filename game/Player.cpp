@@ -1441,6 +1441,7 @@ void idPlayer::Spawn( void ) {
 	cinematic = true;
 
 	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
+		originalSpawnArgs.Copy(spawnArgs); //I think there's no need for this
 		gameLocal.firstClientToSpawn = true; //addded for COOP
 	}
 
@@ -1543,7 +1544,8 @@ void idPlayer::Spawn( void ) {
 	// trigger playtesting item gives, if we didn't get here from a previous level
 	// the devmap key will be set on the first devmap, but cleared on any level
 	// transitions
-	if ( !gameLocal.isMultiplayer && gameLocal.serverInfo.FindKey( "devmap" ) ) {
+	if (!gameLocal.isMultiplayer && gameLocal.serverInfo.FindKey( "devmap" )) { //FIXME: Would be coop to have this working in coop
+		
 		// fire a trigger with the name "devmap"
 		idEntity *ent = gameLocal.FindEntity( "devmap" );
 		if ( ent ) {
@@ -2315,7 +2317,6 @@ Saves any inventory and player stats when changing levels.
 */
 void idPlayer::SavePersistantInfo( void ) {
 	idDict &playerInfo = gameLocal.persistentPlayerInfo[entityNumber];
-
 	playerInfo.Clear();
 	inventory.GetPersistantData( playerInfo );
 	playerInfo.SetInt( "health", health );
@@ -2330,7 +2331,7 @@ Restores any inventory and player stats when changing levels.
 ===============
 */
 void idPlayer::RestorePersistantInfo( void ) {
-	if ( gameLocal.isMultiplayer ) {
+	if ( gameLocal.isMultiplayer && (!gameLocal.mpGame.IsGametypeCoopBased() || gameLocal.isClient) ) { //if crash then should be server-side only
 		gameLocal.persistentPlayerInfo[entityNumber].Clear();
 	}
 
@@ -6539,6 +6540,13 @@ void idPlayer::Killed( idEntity *inflictor, idEntity *attacker, int damage, cons
 
 	assert( !gameLocal.isClient );
 
+	if (gameLocal.mpGame.IsGametypeCoopBased()){
+		spawnArgs.Clear(); //with this only should be enough
+		spawnArgs.Copy(originalSpawnArgs); //I think there's no need for this.
+		inventory.Clear(); //this maybe is not a good idea
+		gameLocal.persistentPlayerInfo[entityNumber].Clear(); //reset persistant info
+	}
+
 	// stop taking knockback once dead
 	fl.noknockback = true;
 	if ( health < -999 ) {
@@ -6737,7 +6745,7 @@ void idPlayer::CalcDamagePoints( idEntity *inflictor, idEntity *attacker, const 
 	}
 
 	// check for team damage
-	if ( gameLocal.gameType == GAME_TDM
+	if ( ((gameLocal.gameType == GAME_TDM) || (gameLocal.mpGame.IsGametypeCoopBased())) //Team damage cvar working now in Coop
 		&& !gameLocal.serverInfo.GetBool( "si_teamDamage" )
 		&& !damageDef->GetBool( "noTeam" )
 		&& player

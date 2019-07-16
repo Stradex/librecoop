@@ -250,6 +250,7 @@ public:
 	void			WantAddCheckpoint( int clientNum , bool isGlobal=false);
 	void			WantNoClip( int clientNum );
 	void			IncrementFrags(idPlayer* player);
+	void			SavePersistentPlayersInfo( void );
 
 	idVec3			playerCheckpoints[ MAX_CLIENTS ]; //added for coop checkpoints
 	bool			playerUseCheckpoints[ MAX_CLIENTS ]; //added for coop checkpoints
