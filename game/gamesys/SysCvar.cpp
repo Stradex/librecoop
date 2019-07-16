@@ -90,6 +90,7 @@ idCVar si_onePickupPerPlayer(		"si_onePickupPerPlayer",	"1",			CVAR_GAME | CVAR_
 idCVar net_serverSnapshotLimit(		"net_serverSnapshotLimit",	"120",			CVAR_GAME | CVAR_ARCHIVE | CVAR_INTEGER, "How many snapshots can we send in total as limit (per client)", 20, 500);
 idCVar g_unblockPlayers(			"g_unblockPlayers",			"0",			CVAR_GAME | CVAR_BOOL | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "If player are solid between them or not" );
 idCVar g_freezeUntilClientJoins(	"g_freezeUntilClientJoins", "0",			CVAR_GAME | CVAR_BOOL, "(Dedicated server only) used to wait until a clients join to the game start running or not" );
+idCVar si_lives(					"si_lives",					"2",			CVAR_GAME | CVAR_ARCHIVE | CVAR_INTEGER, "How many lives can the players have in Survival mode", 1, 100);
 //stradex end
 
 // user info
