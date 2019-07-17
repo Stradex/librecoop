@@ -1303,6 +1303,8 @@ void idMultiplayerGame::ExecuteVote( void ) {
 
 			if (gameLocal.gameType == GAME_SURVIVAL) {
 				for (j = 0; j < MAX_CLIENTS; j++ ) {
+					playerState[j].fragCount = 0;
+					playerState[j].teamFragCount = 0;
 					playerState[j].livesLeft = si_lives.GetInteger();
 				}
 			}
@@ -1323,6 +1325,8 @@ void idMultiplayerGame::ExecuteVote( void ) {
 
 				if (gameLocal.gameType == GAME_SURVIVAL) {
 					for (j = 0; j < MAX_CLIENTS; j++ ) {
+						playerState[j].fragCount = 0;
+						playerState[j].teamFragCount = 0;
 						playerState[j].livesLeft = si_lives.GetInteger();
 					}
 				}
@@ -3050,6 +3054,8 @@ void idMultiplayerGame::CheckAbortGame( void ) {
 			}
 			if( j == gameLocal.numClients) {
 				for ( j = 0; j < MAX_CLIENTS; j++ ) {
+					playerState[j].fragCount = 0;
+					playerState[j].teamFragCount = 0;
 					playerState[j].livesLeft = si_lives.GetInteger();
 				}
 				//Everyone is dead so restart the map
