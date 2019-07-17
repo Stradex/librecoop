@@ -508,8 +508,30 @@ void idGameLocal::ServerWriteInitialReliableMessages( int clientNum ) {
 idGameLocal::SaveEntityNetworkEvent
 ================
 */
-void idGameLocal::SaveEntityNetworkEvent( const idEntity *ent, int eventId, const idBitMsg *msg ) {
+void idGameLocal::SaveEntityNetworkEvent( const idEntity *ent, int eventId, const idBitMsg *msg , bool saveLastOnly) {
 	entityNetEvent_t *event;
+
+	if (mpGame.IsGametypeCoopBased() && saveLastOnly) { //used in  coop to avoid overflow of saved events in some entities
+		// send all saved events
+		int eventCoopId = GetCoopId( ent );
+		int eventSpawnId = GetSpawnId( ent );
+		for ( event = savedEventQueue.Start(); event; event = event->next ) {
+			if ((event->coopId != eventCoopId) || (event->spawnId != eventSpawnId)) {
+				continue;
+			}
+			event->event = eventId;
+			event->time = time;
+			if ( msg ) {
+				event->paramsSize = msg->GetSize();
+				memcpy( event->paramsBuf, msg->GetData(), msg->GetSize() );
+			} else {
+				event->paramsSize = 0;
+			}
+			//common->Printf("[COOP DEBUG] Saving last event only working...\n");
+			return;
+		}
+		event = NULL; //is this necessary of I'm just retarded?
+	}
 
 	event = savedEventQueue.Alloc();
 	
@@ -528,7 +550,6 @@ void idGameLocal::SaveEntityNetworkEvent( const idEntity *ent, int eventId, cons
 	} else {
 		event->paramsSize = 0;
 	}
-
 	savedEventQueue.Enqueue( event, idEventQueue::OUTOFORDER_IGNORE );
 }
 
@@ -2972,7 +2993,7 @@ void idGameLocal::addToServerEventOverFlowList(entityNetEvent_t* event, int clie
 idGameLocal::addToServerEventOverFlowList
 ===============
 */
-void idGameLocal::addToServerEventOverFlowList(int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient, int eventTime, idEntity* ent)
+void idGameLocal::addToServerEventOverFlowList(int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient, int eventTime, idEntity* ent, bool saveLastOnly)
 {
 
 	if (!msg || !ent) {
@@ -2987,6 +3008,7 @@ void idGameLocal::addToServerEventOverFlowList(int eventId, const idBitMsg *msg,
 			serverOverflowEvents[i].msg = *msg;
 			serverOverflowEvents[i].saveEvent = saveEvent;
 			serverOverflowEvents[i].excludeClient = excludeClient;
+			serverOverflowEvents[i].saveLastOnly = saveLastOnly;
 			serverOverflowEvents[i].eventTime = eventTime;
 			serverOverflowEvents[i].isEventType = false;
 			return;
@@ -3080,7 +3102,7 @@ void idGameLocal::sendServerOverflowEvents( void )
 		}
 
 		if ( serverOverflowEvents[i].saveEvent ) {
-			gameLocal.SaveEntityNetworkEvent( serverOverflowEvents[i].eventEnt, serverOverflowEvents[i].eventId, &serverOverflowEvents[i].msg );
+			gameLocal.SaveEntityNetworkEvent( serverOverflowEvents[i].eventEnt, serverOverflowEvents[i].eventId, &serverOverflowEvents[i].msg , serverOverflowEvents[i].saveLastOnly);
 		}
 
 		}

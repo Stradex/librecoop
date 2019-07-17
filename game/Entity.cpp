@@ -4918,7 +4918,7 @@ idEntity::ServerSendEvent
    always receive the events nomatter what time they join the game.
 ================
 */
-void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient ) {
+void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient , bool saveLastOnly) {
 	idBitMsg	outMsg;
 	byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
 
@@ -4932,7 +4932,7 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 	}
 
 	if ((gameLocal.serverEventsCount >= MAX_SERVER_EVENTS_PER_FRAME) && gameLocal.mpGame.IsGametypeCoopBased()) {
-		gameLocal.addToServerEventOverFlowList(eventId, msg, saveEvent, excludeClient, gameLocal.time, this); //Avoid serverSendEvent overflow in coop
+		gameLocal.addToServerEventOverFlowList(eventId, msg, saveEvent, excludeClient, gameLocal.time, this, saveLastOnly); //Avoid serverSendEvent overflow in coop
 		return;
 	}
 
@@ -4963,7 +4963,7 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 	}
 
 	if ( saveEvent ) {
-		gameLocal.SaveEntityNetworkEvent( this, eventId, msg );
+		gameLocal.SaveEntityNetworkEvent( this, eventId, msg , saveLastOnly);
 	}
 
 	gameLocal.serverEventsCount++; //COOP DEEBUG ONLY
