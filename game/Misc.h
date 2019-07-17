@@ -328,11 +328,21 @@ public:
 	void				Fade( const idVec4 &to, float fadeTime );
 	virtual void		Think( void );
 
+	//added for coop
+	enum {
+		EVENT_STATIC_ACTIVATE = idEntity::EVENT_MAXEVENTS,
+		EVENT_STATIC_REMOVE,
+		EVENT_MAXEVENTS
+	};
+	//end for coop
+
 	virtual void		WriteToSnapshot( idBitMsgDelta &msg ) const;
 	virtual void		ReadFromSnapshot( const idBitMsgDelta &msg );
+	virtual bool		ClientReceiveEvent( int event, int time, const idBitMsg &msg ); //added for coop
 
 private:
 	void				Event_Activate( idEntity *activator );
+	void				Event_Remove( void ); //added for coop
 
 	int					spawnTime;
 	bool				active;

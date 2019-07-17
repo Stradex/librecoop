@@ -1462,6 +1462,7 @@ void idAnimated::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 CLASS_DECLARATION( idEntity, idStaticEntity )
 	EVENT( EV_Activate,				idStaticEntity::Event_Activate )
+	EVENT( EV_Remove,				idStaticEntity::Event_Remove ) //added for coop
 END_CLASS
 
 /*
@@ -1643,13 +1644,21 @@ void idStaticEntity::Event_Activate( idEntity *activator ) {
 
 	spawnTime = gameLocal.time;
 	active = !active;
-
 	const idKeyValue *kv = spawnArgs.FindKey( "hide" );
 	if ( kv ) {
 		if ( IsHidden() ) {
 			Show();
 		} else {
 			Hide();
+		}
+
+		if ( gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased() ) { //extra sync for coop
+			idBitMsg	msg;
+			byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+
+			msg.Init( msgBuf, sizeof( msgBuf ) );
+			msg.WriteBits( IsHidden()?1:0, 1 );
+			ServerSendEvent( EVENT_STATIC_ACTIVATE, &msg, true, -1 );
 		}
 	}
 
@@ -1699,6 +1708,55 @@ void idStaticEntity::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		UpdateVisuals();
 	}
 }
+
+//COOP STUFF
+
+/*
+================
+idStaticEntity::Event_Remove
+================
+*/
+void idStaticEntity::Event_Remove( void ) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+		ServerSendEvent( EVENT_STATIC_REMOVE, NULL, true, -1 );
+	}
+	delete this;
+}
+
+
+/*
+================
+idStaticEntity::ClientReceiveEvent
+================
+*/
+bool idStaticEntity::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
+	switch( event ) {
+		case EVENT_STATIC_ACTIVATE: {
+			bool hidden = (msg.ReadBits( 1 ) != 0);
+			if ( hidden != IsHidden() ) {
+				if ( hidden ) {
+					Hide();
+					common->Printf("[COOP] Clientside idStaticEntity num: %d hide()...\n", entityNumber);
+				} else {
+					common->Printf("[COOP] Clientside idStaticEntity num: %d show()...\n", entityNumber);
+					Show();
+				}
+				
+				UpdateVisuals();
+			}
+			return true;
+		}
+		case EVENT_STATIC_REMOVE: {
+			CS_PostEventMS( &EV_Remove, 0 );
+			return true;
+		}
+		default:
+			break;
+	}
+
+	return idEntity::ClientReceiveEvent( event, time, msg );
+}
+//END COOP STUFF
 
 
 /*
