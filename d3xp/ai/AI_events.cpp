@@ -356,6 +356,7 @@ void idAI::Event_FindEnemy(int useFOV) {
 		float shortestDist = idMath::INFINITY;
 		idPlayer* player;
 		float dist;
+		idVec3		delta;
 		for (int i = 0; i < gameLocal.numClients; i++) {
 			player = gameLocal.GetClientByNum(i);
 
@@ -364,18 +365,18 @@ void idAI::Event_FindEnemy(int useFOV) {
 				continue;
 			}
 
-			dist = TravelDistance(this->GetPhysics()->GetOrigin(), player->GetPhysics()->GetOrigin());
+			//was better but marked as slow by the engine
+			//dist = TravelDistance(this->GetPhysics()->GetOrigin(), player->GetPhysics()->GetOrigin());
+			delta = physicsObj.GetOrigin() - player->GetPhysics()->GetOrigin();
+			dist = delta.LengthSqr();
 
-			if (dist < shortestDist) {
+			if ((dist < shortestDist) && CanSee(player, useFOV != 0)) {
 				shortestDist = dist;
 				closestPlayer = player;
 			}
-
-			if (CanSee(closestPlayer, useFOV != 0)) {
-				idThread::ReturnEntity(closestPlayer);
-				return;
-			}
 		}
+		idThread::ReturnEntity(closestPlayer);
+		return;
 	} else {
 		int			i;
 		idEntity* ent;

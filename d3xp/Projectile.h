@@ -171,6 +171,10 @@ public :
 	void					Event_SetEnemy(idEntity *ent);
 #endif
 
+	virtual void			ClientPredictionThink( void ); //added for Coop
+	virtual void			WriteToSnapshot( idBitMsgDelta &msg ) const; //added for Coop
+	virtual void			ReadFromSnapshot( const idBitMsgDelta &msg ); //added for Coop
+
 protected:
 	float					speed;
 	idEntityPtr<idEntity>	enemy;
@@ -199,6 +203,10 @@ public:
 	void					Spawn( void );
 	virtual void			Think( void );
 	virtual void			Launch( const idVec3 &start, const idVec3 &dir, const idVec3 &pushVelocity, const float timeSinceFire = 0.0f, const float power = 1.0f, const float dmgPower = 1.0f );
+
+	virtual void			ClientPredictionThink( void ); //added for Coop
+	virtual void			WriteToSnapshot( idBitMsgDelta &msg ) const; //added for Coop
+	virtual void			ReadFromSnapshot( const idBitMsgDelta &msg ); //added for Coop
 
 protected:
 	virtual void			GetSeekPos( idVec3 &out );

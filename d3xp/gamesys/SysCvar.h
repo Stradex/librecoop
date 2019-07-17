@@ -303,9 +303,12 @@ extern idCVar g_CTFArrows;
 #endif
 
 //stradex start
+extern idCVar	g_unblockPlayers; //if players are solid between them or not
 extern idCVar	si_onePickupPerPlayer;
 extern idCVar	net_clientCoopDebug; //added for debug stuff only
 extern idCVar	net_serverSnapshotLimit; //how many entities are we able to send per snapshot as server (avoid snapshot overflow, something common in big coop maps)
+extern idCVar	g_freezeUntilClientJoins; //If entities can start thinking and scripts executing before or after a first clients join (used only in dedicated servers)
+extern idCVar	si_lives; //survival lives
 //stradex end
 
 extern idCVar	net_clientSelfSmoothing;

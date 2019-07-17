@@ -622,11 +622,14 @@ public:
 	bool					SelfSmooth( void );
 	void					SetSelfSmooth( bool b );
 
+	//COOP SPECIFIC
+	idDict					originalSpawnArgs;	//used for coop inventory
 	idAngles				GetViewAngles( void ); //added for coop checkpoint teleport
 
 	//Client-side stuff for coop
 	bool					CS_Give( const char *statname, const char *value );
 	bool					CS_GiveItem( idItem *item );
+	//END COOP SPECIFIC
 
 private:
 	jointHandle_t			hipJoint;

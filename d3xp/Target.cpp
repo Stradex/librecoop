@@ -208,6 +208,7 @@ void idTarget_EndLevel::Event_Activate( idEntity *activator ) {
 	}
 
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		gameLocal.mpGame.SavePersistentPlayersInfo();
 		si_map.SetString(nextMap);
 		gameLocal.MapRestart();
 	} else {

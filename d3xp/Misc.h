@@ -289,6 +289,7 @@ private:
 	int						num_anims;
 	int						current_anim_index;
 	int						currentAnimPlaying; //for coop
+	bool					hasBeenActivated; //added for Coop
 	int						anim;
 	int						blendFrames;
 	jointHandle_t			soundJoint;

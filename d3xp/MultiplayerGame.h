@@ -88,6 +88,7 @@ typedef struct mpPlayerState_s {
 	int				ping;			// player ping
 	int				fragCount;		// kills
 	int				teamFragCount;	// team kills
+	int				livesLeft;		// SURVIVAL: Lives reamaining
 	int				wins;			// wins
 	playerVote_t	vote;			// player's vote
 	bool			scoreBoardUp;	// toggle based on player scoreboard button, used to activate de-activate the scoreboard gui
@@ -106,6 +107,7 @@ const int MP_PLAYER_MAXFRAGS = 100;
 #endif
 const int MP_PLAYER_MAXWINS	= 100;
 const int MP_PLAYER_MAXPING	= 999;
+const int MP_PLAYER_MAXLIVES = 100;
 
 #ifdef CTF
 const int MP_CTF_MAXPOINTS = 25;
@@ -312,6 +314,10 @@ public:
 	void			WantAddCheckpoint( int clientNum , bool isGlobal=false);
 	void			WantNoClip( int clientNum );
 	void			IncrementFrags(idPlayer* player);
+	void			SavePersistentPlayersInfo( void );
+
+	idVec3			playerCheckpoints[ MAX_CLIENTS ]; //added for coop checkpoints
+	bool			playerUseCheckpoints[ MAX_CLIENTS ]; //added for coop checkpoints
 
 private:
 	static const char	*MPGuis[];
@@ -325,7 +331,6 @@ private:
 	int				pingUpdateTime;			// time to update ping
 
 	mpPlayerState_t	playerState[ MAX_CLIENTS ];
-	idVec3			playerCheckpoints[ MAX_CLIENTS ]; //added for coop checkpoints
 
 											// keep track of clients which are willingly in spectator mode
 
