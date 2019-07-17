@@ -596,6 +596,10 @@ void idAI::Event_CreateMissile( const char *jointname ) {
 	idVec3 muzzle;
 	idMat3 axis;
 
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		return idThread::ReturnEntity( NULL ); //Make this clientside in future
+	}
+
 	if ( !projectileDef ) {
 		gameLocal.Warning( "%s (%s) doesn't have a projectile specified", name.c_str(), GetEntityDefName() );
 		return idThread::ReturnEntity( NULL );

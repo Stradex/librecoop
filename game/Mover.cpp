@@ -160,7 +160,7 @@ idMover::idMover( void ) {
 	//added for coop
 	fl.coopNetworkSync = true;
 	snapshotPriority = 2;
-	fl.useOldNetcode = true;
+	fl.useOldNetcode = false;
 }
 
 /*

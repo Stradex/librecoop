@@ -820,6 +820,7 @@ void idAnim::CallFrameCommands( idEntity *ent, int from, int to ) const {
 					break;
 				}
 				case FC_TRIGGER: {
+					//May would be better to avoid this in coop clientside
 					idEntity *target;
 
 					target = gameLocal.FindEntity( command.string->c_str() );
