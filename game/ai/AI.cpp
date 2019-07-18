@@ -399,6 +399,7 @@ idAI::idAI() {
 	currentNetAction = NETACTION_NONE;
 	forceNetworkSync = true; //added by Stradex for Coop
 	snapshotPriority = 2; //added by Stradex for coop. High priority for this
+	thereWasEnemy = true;
 }
 
 /*
@@ -1081,14 +1082,16 @@ void idAI::Think( void ) {
 	if ( CheckDormant() ) {
 		return;
 	}
-
 	if ( thinkFlags & TH_THINK ) {
 		// clear out the enemy when he dies or is hidden
 		idActor *enemyEnt = enemy.GetEntity();
 		if ( enemyEnt ) {
+			thereWasEnemy = true;
 			if ( enemyEnt->health <= 0 ) {
 				EnemyDead();
 			}
+		} else if (gameLocal.mpGame.IsGametypeCoopBased() && thereWasEnemy) { //COOP: probably a player disconnected from server
+			ClearEnemy();
 		}
 
 		current_yaw += deltaViewAngles.yaw;
@@ -3693,6 +3696,7 @@ void idAI::ClearEnemy( void ) {
 	AI_ENEMY_DEAD		= true;
 
 	SetChatSound();
+	thereWasEnemy = false; //for coop
 }
 
 /*
@@ -5012,6 +5016,16 @@ void idAI::ClientPredictionThink( void ) {
 	//this->Think();
 
 	if ( thinkFlags & TH_PHYSICS ) { //edited
+
+		idActor *enemyEnt = enemy.GetEntity();
+		if ( enemyEnt ) {
+			thereWasEnemy = true;
+			if ( enemyEnt->health <= 0 ) {
+				EnemyDead();
+			}
+		} else if (gameLocal.mpGame.IsGametypeCoopBased() && thereWasEnemy) { //COOP: probably a player disconnected from server
+			ClearEnemy();
+		}
 
 		current_yaw += deltaViewAngles.yaw;
 		ideal_yaw = idMath::AngleNormalize180( ideal_yaw + deltaViewAngles.yaw );
