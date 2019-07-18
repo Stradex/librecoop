@@ -8903,7 +8903,7 @@ void idPlayer::SetLastHitTime( int time ) {
 			if (gameLocal.mpGame.IsGametypeCoopBased()) { //avoid crash in coop
 				if ( !aimed ) {
 					hud->SetStateString( "aim_text", "Unknown" );
-					hud->SetStateFloat( "aim_color", aimed->colorBarIndex );
+					hud->SetStateFloat( "aim_color", 0);
 					hud->HandleNamedEvent( "aim_flash" );
 					MPAimHighlight = true;
 					MPAimFadeTime = 0;
@@ -8927,7 +8927,7 @@ void idPlayer::SetLastHitTime( int time ) {
 			if (gameLocal.mpGame.IsGametypeCoopBased()) { //avoid crash in coop
 				if ( !aimed ) {
 					hud->SetStateString( "aim_text", "Unknown" );
-					hud->SetStateFloat( "aim_color", aimed->colorBarIndex );
+					hud->SetStateFloat( "aim_color", 0 );
 					hud->HandleNamedEvent( "aim_flash" );
 					hud->HandleNamedEvent( "aim_fade" );
 					MPAimHighlight = false;

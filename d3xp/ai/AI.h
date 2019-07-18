@@ -448,6 +448,7 @@ protected:
 	idStr					currentDamageSND;
 	bool					haveModelDeath; //FIXME: I only exists to avoid a crash
 	idVec3					turnTowardPos; 
+	bool					thereWasEnemy;
 
 
 #ifdef _D3XP
