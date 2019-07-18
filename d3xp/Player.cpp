@@ -1744,6 +1744,7 @@ void idPlayer::Spawn( void ) {
 	cinematic = true;
 
 	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
+		originalSpawnArgs.Copy(spawnArgs);
 		gameLocal.firstClientToSpawn = true; //addded for COOP
 	}
 
@@ -2655,6 +2656,13 @@ void idPlayer::SelectInitialSpawnPoint( idVec3 &origin, idAngles &angles ) {
 	// activate the spawn locations targets
 	spot->PostEventMS( &EV_ActivateTargets, 0, this );
 
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.mpGame.playerUseCheckpoints[this->entityNumber] && gameLocal.isServer) {
+		origin = gameLocal.mpGame.playerCheckpoints[this->entityNumber];
+		origin[2] += 4.0f + CM_BOX_EPSILON;
+		angles = spot->GetPhysics()->GetAxis().ToAngles();
+		return;
+	}
+
 	origin = spot->GetPhysics()->GetOrigin();
 	origin[2] += 4.0f + CM_BOX_EPSILON;		// move up to make sure the player is at least an epsilon above the floor
 	angles = spot->GetPhysics()->GetAxis().ToAngles();
@@ -2808,7 +2816,7 @@ Restores any inventory and player stats when changing levels.
 ===============
 */
 void idPlayer::RestorePersistantInfo( void ) {
-	if ( gameLocal.isMultiplayer ) {
+	if ( gameLocal.isMultiplayer && (!gameLocal.mpGame.IsGametypeCoopBased() || gameLocal.isClient) ) { //COOP Edit
 		gameLocal.persistentPlayerInfo[entityNumber].Clear();
 	}
 
@@ -3651,7 +3659,7 @@ float idPlayer::PowerUpModifier( int type ) {
 			if ( healthPool <= 0 ) {
 				GiveHealthPool( 100 );
 			}
-		} else {
+		} else if (!gameLocal.mpGame.IsGametypeCoopBased()) {
 			healthPool = 0;
 		}
 
@@ -3983,6 +3991,8 @@ void idPlayer::UpdatePowerUps( void ) {
 		}
 	}
 
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) return;  //clients should never reach this point
+
 	if ( healthPool && gameLocal.time > nextHealthPulse && !AI_DEAD && health > 0 ) {
 		assert( !gameLocal.isClient );	// healthPool never be set on client
 		int amt = ( healthPool > 5 ) ? 5 : healthPool;
@@ -4183,6 +4193,11 @@ idPlayer::GiveSecurity
 ===============
 */
 void idPlayer::GiveSecurity( const char *security ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		return; //disable this in  coop
+	}
+
 	GetPDA()->SetSecurity( security );
 	if ( hud ) {
 		hud->SetStateString( "pda_security", "1" );
@@ -4201,6 +4216,10 @@ void idPlayer::GiveEmail( const char *emailName ) {
 		return;
 	}
 
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		return; //disable this in  coop
+	}
+
 	inventory.emails.AddUnique( emailName );
 	GetPDA()->AddEmail( emailName );
 
@@ -4216,12 +4235,29 @@ idPlayer::GivePDA
 */
 void idPlayer::GivePDA( const char *pdaName, idDict *item )
 {
-	if ( gameLocal.isMultiplayer && spectating ) {
+	if ( gameLocal.isMultiplayer && (spectating || gameLocal.isClient) ) {
 		return;
 	}
 
 	if ( item ) {
 		inventory.pdaSecurity.AddUnique( item->GetString( "inv_name" ) );
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			idPlayer* p;
+			cmdSystem->BufferCommandText( CMD_EXEC_NOW, va( "say '%s^0' picked up PDA: %s!\n", gameLocal.userInfo[ this->entityNumber ].GetString( "ui_name" ), item->GetString( "inv_name" ) ) );
+			for (int j=0; j < gameLocal.numClients; j++) {
+				if (!gameLocal.entities[j]) {
+					continue;
+				}
+
+				p = static_cast<idPlayer*>(gameLocal.entities[j]);
+
+				if (!p || p->spectating || (p->entityNumber == this->entityNumber)) {
+					continue;
+				}
+
+				p->inventory.pdaSecurity.AddUnique( item->GetString( "inv_name" ) );
+			}
+		}
 	}
 
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
@@ -7077,7 +7113,11 @@ void idPlayer::Move( void ) {
 	} else if ( health <= 0 ) {
 		physicsObj.SetClipMask( MASK_DEADSOLID );
 	} else {
-		physicsObj.SetClipMask( MASK_PLAYERSOLID );
+		if (g_unblockPlayers.GetBool() && gameLocal.mpGame.IsGametypeCoopBased()) {
+			physicsObj.SetClipMask( MASK_DEADSOLID );
+		} else {
+			physicsObj.SetClipMask( MASK_PLAYERSOLID );
+		}
 	}
 
 	physicsObj.SetDebugLevel( g_debugMove.GetBool() );
@@ -7798,6 +7838,14 @@ void idPlayer::Killed( idEntity *inflictor, idEntity *attacker, int damage, cons
 	float delay;
 
 	assert( !gameLocal.isClient );
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()){
+		spawnArgs.Clear();
+		spawnArgs.Copy(originalSpawnArgs);
+		inventory.Clear(); //this maybe is not a good idea
+		gameLocal.persistentPlayerInfo[entityNumber].Clear(); //reset persistant info
+	}
+
 
 	// stop taking knockback once dead
 	fl.noknockback = true;
@@ -8778,7 +8826,9 @@ void idPlayer::AddAIKill( void ) {
 		return;
 	}
 
-	assert( hud );
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) { //avoid crash in coop
+		assert( hud );
+	}
 
 
 	ammo_souls = idWeapon::GetAmmoNumForName( "ammo_souls" );
@@ -8786,7 +8836,9 @@ void idPlayer::AddAIKill( void ) {
 	if ( inventory.ammo[ ammo_souls ] < max_souls ) {
 		inventory.ammo[ ammo_souls ]++;
 		if ( inventory.ammo[ ammo_souls ] >= max_souls ) {
-			hud->HandleNamedEvent( "soulCubeReady" );
+			if (hud) { //added for coop
+				hud->HandleNamedEvent( "soulCubeReady" );
+			}
 			StartSound( "snd_soulcube_ready", SND_CHANNEL_ANY, 0, false, NULL );
 		}
 	}

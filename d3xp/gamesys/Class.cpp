@@ -1009,7 +1009,7 @@ void idClass::Event_SafeRemove( void ) {
 
 /*
 ================
-idClass::PostEventArgs
+idClass::CS_PostEventArgs
 ================
 */
 bool idClass::CS_PostEventArgs( const idEventDef *ev, int time, int numargs, ... ) {
@@ -1054,4 +1054,13 @@ idClass::CS_PostEventSec
 */
 bool idClass::CS_PostEventSec( const idEventDef *ev, float time, idEventArg arg1 ) {
 	return CS_PostEventArgs( ev, SEC2MS( time ), 1, &arg1 );
+}
+
+/*
+================
+idClass::CS_PostEventMS
+================
+*/
+bool idClass::CS_PostEventMS( const idEventDef *ev, int time ) {
+	return CS_PostEventArgs( ev, time, 0 );
 }

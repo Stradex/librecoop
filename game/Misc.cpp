@@ -1462,6 +1462,7 @@ void idAnimated::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 CLASS_DECLARATION( idEntity, idStaticEntity )
 	EVENT( EV_Activate,				idStaticEntity::Event_Activate )
+	EVENT( EV_Remove,				idStaticEntity::Event_Remove ) //added for coop
 END_CLASS
 
 /*
@@ -1643,13 +1644,21 @@ void idStaticEntity::Event_Activate( idEntity *activator ) {
 
 	spawnTime = gameLocal.time;
 	active = !active;
-
 	const idKeyValue *kv = spawnArgs.FindKey( "hide" );
 	if ( kv ) {
 		if ( IsHidden() ) {
 			Show();
 		} else {
 			Hide();
+		}
+
+		if ( gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased() ) { //extra sync for coop
+			idBitMsg	msg;
+			byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+
+			msg.Init( msgBuf, sizeof( msgBuf ) );
+			msg.WriteBits( IsHidden()?1:0, 1 );
+			ServerSendEvent( EVENT_STATIC_ACTIVATE, &msg, true, -1, true ); //saveLastOnly  = true to only save the last event from this entity
 		}
 	}
 
@@ -1699,6 +1708,56 @@ void idStaticEntity::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		UpdateVisuals();
 	}
 }
+
+//COOP STUFF
+
+/*
+================
+idStaticEntity::Event_Remove
+================
+*/
+void idStaticEntity::Event_Remove( void ) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+		ServerSendEvent( EVENT_STATIC_REMOVE, NULL, true, -1 );
+	}
+	delete this;
+}
+
+
+/*
+================
+idStaticEntity::ClientReceiveEvent
+================
+*/
+bool idStaticEntity::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+		return idEntity::ClientReceiveEvent( event, time, msg ); //OG D3 netcode non-coop
+	}
+	switch( event ) {
+		case EVENT_STATIC_ACTIVATE: {
+			bool hidden = (msg.ReadBits( 1 ) != 0);
+			if ( hidden != IsHidden() ) {
+				if ( hidden ) {
+					Hide();
+				} else {
+					Show();
+				}
+				
+				UpdateVisuals();
+			}
+			return true;
+		}
+		case EVENT_STATIC_REMOVE: {
+			CS_PostEventMS( &EV_Remove, 0 );
+			return true;
+		}
+		default:
+			break;
+	}
+
+	return idEntity::ClientReceiveEvent( event, time, msg );
+}
+//END COOP STUFF
 
 
 /*
@@ -2219,6 +2278,7 @@ const char *idLocationEntity::GetLocation( void ) const {
 CLASS_DECLARATION( idEntity, idBeam )
 	EVENT( EV_PostSpawn,			idBeam::Event_MatchTarget )
 	EVENT( EV_Activate,				idBeam::Event_Activate )
+	EVENT( EV_Remove,				idBeam::Event_Remove ) //added for coop
 END_CLASS
 
 /*
@@ -2265,7 +2325,12 @@ void idBeam::Spawn( void ) {
 
 	SetModel( "_BEAM" );
 	Hide();
-	PostEventMS( &EV_PostSpawn, 0 );
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		CS_PostEventMS( &EV_PostSpawn, 0 );
+	} else {
+		PostEventMS( &EV_PostSpawn, 0 );
+	}
 }
 
 /*
@@ -2376,6 +2441,15 @@ void idBeam::Event_Activate( idEntity *activator ) {
 	} else {
 		Hide();
 	}
+
+	if ( gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased() ) { //extra sync for coop
+		idBitMsg	msg;
+		byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+
+		msg.Init( msgBuf, sizeof( msgBuf ) );
+		msg.WriteBits( IsHidden()?1:0, 1 );
+		ServerSendEvent( EVENT_BEAM_ACTIVATE, &msg, true, -1, true ); //saveLastOnly  = true to only save the last event from this entity
+	}
 }
 
 /*
@@ -2408,6 +2482,80 @@ void idBeam::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		UpdateVisuals();
 	}
 }
+
+
+//COOP STUFF
+
+/*
+================
+idStaticEntity::Event_Remove
+================
+*/
+void idBeam::Event_Remove( void ) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+		ServerSendEvent( EVENT_BEAM_REMOVE, NULL, true, -1 );
+	}
+	delete this;
+}
+
+
+/*
+================
+idBeam::ClientReceiveEvent
+================
+*/
+bool idBeam::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+		return idEntity::ClientReceiveEvent( event, time, msg ); //OG D3 netcode non-coop
+	}
+	switch( event ) {
+		case EVENT_BEAM_ACTIVATE: {
+			bool hidden = (msg.ReadBits( 1 ) != 0);
+			if ( hidden != IsHidden() ) {
+				if ( hidden ) {
+					Hide();
+				} else {
+					Show();
+				}
+				
+				UpdateVisuals();
+			}
+			return true;
+		}
+		case EVENT_BEAM_REMOVE: {
+			CS_PostEventMS( &EV_Remove, 0 );
+			return true;
+		}
+		default:
+			break;
+	}
+
+	return idEntity::ClientReceiveEvent( event, time, msg );
+}
+
+/*
+================
+idBeam::ClientPredictionThink
+================
+*/
+void idBeam::ClientPredictionThink( void ) {
+	idBeam *masterEnt;
+
+	if ( !IsHidden() && !target.GetEntity() ) {
+		// hide if our target is removed
+		Hide();
+	}
+
+	RunPhysics();
+
+	masterEnt = master.GetEntity();
+	if ( masterEnt ) {
+		const idVec3 &origin = GetPhysics()->GetOrigin();
+		masterEnt->SetBeamTarget( origin );
+	}
+	Present();
+}
+//END COOP STUFF
 
 
 /*

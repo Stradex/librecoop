@@ -750,9 +750,23 @@ void idEntityFx::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 			started = 0;
 			return;
 		}
-		const idDeclFX *fx = static_cast<const idDeclFX *>( declManager->DeclByIndex( DECL_FX, fx_index ) );
+		const idDeclFX *fx;
+		//ugly avoid crash in coop
+
+		int declTypeCount = declManager->GetNumDecls(DECL_ENTITYDEF);
+		if (fx_index < 0 || fx_index >= declTypeCount) {
+			fx = NULL;
+		} else {
+			fx = static_cast<const idDeclFX *>( declManager->DeclByIndex( DECL_FX, fx_index ) );
+		}
+
+		//end avoid crash in coop
 		if ( !fx ) {
-			gameLocal.Error( "FX at index %d not found", fx_index );
+			if (gameLocal.mpGame.IsGametypeCoopBased()) {
+				common->Warning("[COOP] FX at index %d not found", fx_index);
+			} else {
+				gameLocal.Error( "FX at index %d not found", fx_index );
+			}
 		}
 		fxEffect = fx;
 		Setup( fx->GetName() );

@@ -139,6 +139,7 @@ typedef struct serverEvent_s { //added for coop to avoid events overflow
 	int							eventTime;
 	idEntity*					eventEnt;
 	bool						isEventType;
+	bool						saveLastOnly; //added by stradex for coop
 	struct entityNetEvent_s		*event;
 }serverEvent_t;
 
@@ -291,7 +292,7 @@ public:
 	int						serverEventsCount;				//just to debug delete later
 	int						clientEventsCount;				//just to debug, delete later
 	serverEvent_t			serverOverflowEvents[SERVER_EVENTS_QUEUE_SIZE]; //To avoid server reliabe messages overflow
-	void					addToServerEventOverFlowList(int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient, int eventTime, idEntity* ent); //To avoid server reliabe messages overflow
+	void					addToServerEventOverFlowList(int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient, int eventTime, idEntity* ent, bool saveLastOnly=false); //To avoid server reliabe messages overflow
 	void					addToServerEventOverFlowList(entityNetEvent_t* event, int clientNum); //To avoid server reliabe messages overflow
 	void					sendServerOverflowEvents( void ); //to send the overflow events that are in queue to avoid event overflow
 	int						overflowEventCountdown; //FIXME: Not pretty way I I think
@@ -506,7 +507,7 @@ public:
 	idEntity *				SelectInitialSpawnPoint( idPlayer *player );
 
 	void					SetPortalState( qhandle_t portal, int blockingBits );
-	void					SaveEntityNetworkEvent( const idEntity *ent, int event, const idBitMsg *msg );
+	void					SaveEntityNetworkEvent( const idEntity *ent, int event, const idBitMsg *msg , bool saveLastOnly=false); //COOP: added saveLastOnly
 	void					ServerSendChatMessage( int to, const char *name, const char *text );
 	int						ServerRemapDecl( int clientNum, declType_t type, int index );
 	int						ClientRemapDecl( declType_t type, int index );

@@ -2171,7 +2171,7 @@ idActor::Gib
 */
 void idActor::Gib( const idVec3 &dir, const char *damageDefName ) {
 	// no gibbing in multiplayer - by self damage or by moving objects
-	if ( gameLocal.isMultiplayer ) {
+	if ( gameLocal.isMultiplayer && !gameLocal.mpGame.IsGametypeCoopBased() ) { //gibs in coop
 		return;
 	}
 	// only gib once
@@ -2266,7 +2266,7 @@ void idActor::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir
 				health = -999;
 			}
 			Killed( inflictor, attacker, damage, dir, location );
-			if ( ( health < -20 ) && spawnArgs.GetBool( "gib" ) && damageDef->GetBool( "gib" ) ) {
+			if ( ( (health < -20) || gameLocal.mpGame.IsGametypeCoopBased() ) && spawnArgs.GetBool( "gib" ) && damageDef->GetBool( "gib" ) ) { //instant gib in coop
 				Gib( dir, damageDefName );
 			}
 		} else {

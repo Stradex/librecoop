@@ -388,6 +388,13 @@ void idGameLocal::ServerClientDisconnect( int clientNum ) {
 
 	// free entity states stored for this client
 	for ( i = 0; i < MAX_GENTITIES; i++ ) {
+
+		if (mpGame.IsGametypeCoopBased() && coopentities[i]) { //COOP: Reset entity snapshot priority info
+			coopentities[i]->firstTimeInClientPVS[clientNum] = true;
+			coopentities[i]->inSnapshotQueue[clientNum] = false;
+			coopentities[i]->snapshotMissingCount[clientNum] = 0; 
+		}
+
 		if ( clientEntityStates[ clientNum ][ i ] ) {
 			entityStateAllocator.Free( clientEntityStates[ clientNum ][ i ] );
 			clientEntityStates[ clientNum ][ i ] = NULL;
@@ -1748,6 +1755,24 @@ gameReturn_t idGameLocal::ClientPrediction( int clientNum, const usercmd_t *clie
 
 	if (lastPredictFrame) {
 		RunClientSideFrame(player, clientCmds);
+	} else { //old netcode entities (mover entities mostly)
+		for( ent = snapshotEntities.Next(); ent != NULL; ent = ent->snapshotNode.Next() ) {
+			if ((ent->entityCoopNumber == player->entityCoopNumber) || !ent->MasterUseOldNetcode()) { //maybe the entity doesn't use oldnetcode but the masters does so do this shit then
+				continue;
+			}
+
+			ent->thinkFlags |= TH_PHYSICS;
+			ent->ClientPredictionThink();
+		}
+
+		for( ent = activeEntities.Next(); ent != NULL; ent = ent->activeNode.Next() ) {
+			if (isSnapshotEntity(ent) || (ent->entityCoopNumber ==  player->entityCoopNumber) || !ent->MasterUseOldNetcode()) {
+				continue;
+			}
+
+			ent->thinkFlags |= TH_PHYSICS;
+			ent->ClientPredictionThink();
+		}
 	}
 		//Predict only player
 		player->thinkFlags  |= TH_PHYSICS;

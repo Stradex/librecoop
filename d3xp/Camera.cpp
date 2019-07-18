@@ -473,11 +473,12 @@ void idCameraAnim::Start( void ) {
 
 	starttime = gameLocal.time;
 	gameLocal.SetCamera( this );
-	BecomeActive( TH_THINK );
 
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
 		return; //Disabled cinematics in COOP
 	}
+
+	BecomeActive( TH_THINK );
 
 	// if the player has already created the renderview for this frame, have him update it again so that the camera starts this frame
 	if ( gameLocal.GetLocalPlayer()->GetRenderView()->time == gameLocal.time ) {

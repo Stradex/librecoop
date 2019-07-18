@@ -462,6 +462,7 @@ idEntity::idEntity() {
 	forceNetworkSync = false; //added by Stradex for Coop
 	readByServer = false; //added by Stradex for Coop netcode optimization
 	snapshotPriority = DEFAULT_SNAPSHOT_PRIORITY;
+	fl.useOldNetcode = false; //added by Stradex for Coop netcode
 
 	for (int i=0; i < MAX_CLIENTS; i++) {
 		firstTimeInClientPVS[i] = true; //added by Stradex for Coop netcode optimization
@@ -2165,7 +2166,13 @@ void idEntity::RemoveBinds( void ) {
 		next = ent->teamChain;
 		if ( ent->bindMaster == this ) {
 			ent->Unbind();
-			ent->PostEventMS( &EV_Remove, 0 );
+			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && !ent->fl.coopNetworkSync) {
+				//get ride manually of nonsync bind entities to avoid duplicated entities in snapshot
+				//common->Printf("[COOP] Getting ride of %s\n", ent->GetName()); 
+				ent->CS_PostEventMS( &EV_Remove, 0 ); //probably this causing problems in coop
+			} else {
+				ent->PostEventMS( &EV_Remove, 0 ); //probably this causing problems in coop
+			}
 			next = teamChain;
 		}
 	}
@@ -2201,6 +2208,24 @@ bool idEntity::IsMasterActive( void ) const {
 	}
 	return true;
 }
+
+/*
+================
+idEntity::MasterUseOldNetcode
+Coop stuff
+================
+*/
+bool idEntity::MasterUseOldNetcode( void ) const {
+	if ( !bindMaster ) {
+		return this->fl.useOldNetcode; //FIXME: Probably not a good idea but now it works by returning the current entity value when there's no master
+	}
+	if ((bindMaster->entityNumber == this->entityNumber) || this->fl.useOldNetcode) { //this shouldn't never happen but weird shit can happen in this Coop tech demo
+		return this->fl.useOldNetcode;
+	}
+
+	return bindMaster->MasterUseOldNetcode();
+}
+
 
 /*
 ================
@@ -4914,7 +4939,15 @@ void idEntity::WriteBindToSnapshot( idBitMsgDelta &msg ) const {
 	int bindInfo;
 
 	if ( bindMaster ) {
-		bindInfo = bindMaster->entityNumber;
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			if (bindMaster->fl.coopNetworkSync) {
+				bindInfo = bindMaster->entityCoopNumber;
+			} else {
+				bindInfo = bindMaster->entityNumber;
+			}
+		} else {
+			bindInfo = bindMaster->entityNumber;
+		}
 		bindInfo |= ( fl.bindOrientated & 1 ) << GENTITYNUM_BITS;
 		if ( bindJoint != INVALID_JOINT ) {
 			bindInfo |= 1 << ( GENTITYNUM_BITS + 1 );
@@ -4943,7 +4976,11 @@ void idEntity::ReadBindFromSnapshot( const idBitMsgDelta &msg ) {
 	bindEntityNum = bindInfo & ( ( 1 << GENTITYNUM_BITS ) - 1 );
 
 	if ( bindEntityNum != ENTITYNUM_NONE ) {
-		master = gameLocal.entities[ bindEntityNum ];
+		if (gameLocal.mpGame.IsGametypeCoopBased()) { //this can cause some problems...
+			master = (gameLocal.coopentities[ bindEntityNum ] != NULL) ? gameLocal.coopentities[ bindEntityNum ] : gameLocal.entities[ bindEntityNum ];
+		} else {
+			master = gameLocal.entities[ bindEntityNum ];
+		}
 
 		bindOrientated = ( bindInfo >> GENTITYNUM_BITS ) & 1;
 		bindPos = ( bindInfo >> ( GENTITYNUM_BITS + 3 ) );

@@ -2343,7 +2343,20 @@ bool idWeapon::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 		}
 		case EVENT_CHANGESKIN: {
 			int index = gameLocal.ClientRemapDecl( DECL_SKIN, msg.ReadInt() );
-			renderEntity.customSkin = ( index != -1 ) ? static_cast<const idDeclSkin *>( declManager->DeclByIndex( DECL_SKIN, index ) ) : NULL;
+			//ugly to avoid crash in coop
+			if (index != -1) {
+				int declTypeCount = declManager->GetNumDecls(DECL_SKIN);
+				if (index < 0 || index >= declTypeCount) {
+					renderEntity.customSkin = NULL;
+					common->Warning("[COOP] index declType out of range at idWeapon::ClientReceiveEvent\n");
+				} else {
+					renderEntity.customSkin = static_cast<const idDeclSkin *>( declManager->DeclByIndex( DECL_SKIN, index ) );
+				}
+			} else {
+				renderEntity.customSkin = NULL;
+			}
+			//end ugly
+			//renderEntity.customSkin = ( index != -1 ) ? static_cast<const idDeclSkin *>( declManager->DeclByIndex( DECL_SKIN, index ) ) : NULL;
 			UpdateVisuals();
 			if ( worldModel.GetEntity() ) {
 				worldModel.GetEntity()->SetSkin( renderEntity.customSkin );

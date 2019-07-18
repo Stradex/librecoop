@@ -1045,6 +1045,7 @@ int idTypeInfoTools::WriteVariable_r( const void *varPtr, const char *varName, c
 		Write( varName, varType, scope, prefix, ".hasAwakened", flags->hasAwakened ? "true" : "false", NULL, 0 );
 		Write( varName, varType, scope, prefix, ".networkSync", flags->networkSync ? "true" : "false", NULL, 0 );
 		Write( varName, varType, scope, prefix, ".coopNetworkSync", flags->coopNetworkSync ? "true" : "false", NULL, 0 ); //added for COOP
+		Write( varName, varType, scope, prefix, ".useOldNetcode", flags->useOldNetcode ? "true" : "false", NULL, 0 ); //added for COOP
 		typeSize = sizeof( idEntity::entityFlags_s );
 
 	} else if ( token == "idScriptBool" ) {

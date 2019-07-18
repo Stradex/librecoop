@@ -160,6 +160,7 @@ idMover::idMover( void ) {
 	//added for coop
 	fl.coopNetworkSync = true;
 	snapshotPriority = 2;
+	fl.useOldNetcode = false;
 }
 
 /*
@@ -1602,6 +1603,7 @@ idElevator::idElevator( void ) {
 	returnTime = 0;
 	fl.networkSync = true;
 	fl.coopNetworkSync = true;
+	fl.useOldNetcode = true;
 }
 
 /*
@@ -3159,6 +3161,7 @@ idDoor::idDoor( void ) {
 	normalAxisIndex = 0;
 	fl.networkSync = true;
 	fl.coopNetworkSync = true;
+	fl.useOldNetcode = false;
 }
 
 /*
