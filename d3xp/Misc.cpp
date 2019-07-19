@@ -239,7 +239,7 @@ idPlayerStart::Event_TeleportPlayer
 void idPlayerStart::Event_TeleportPlayer( idEntity *activator ) {
 	idPlayer *player;
 
-	if ( activator->IsType( idPlayer::Type ) ) {
+	if (activator && activator->IsType( idPlayer::Type ) ) { //edited to avoid crash in coop
 		player = static_cast<idPlayer*>( activator );
 	} else if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.GetCoopPlayer()) {
 		player = gameLocal.GetCoopPlayer();

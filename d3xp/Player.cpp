@@ -8073,7 +8073,7 @@ void idPlayer::CalcDamagePoints( idEntity *inflictor, idEntity *attacker, const 
 	}
 
 	// check for team damage
-	if ( gameLocal.mpGame.IsGametypeTeamBased() /* CTF */
+	if ( (gameLocal.mpGame.IsGametypeTeamBased() || gameLocal.mpGame.IsGametypeCoopBased()) /* CTF and Coop */
 		&& !gameLocal.serverInfo.GetBool( "si_teamDamage" )
 		&& !damageDef->GetBool( "noTeam" )
 		&& player
