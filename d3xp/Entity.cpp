@@ -5088,7 +5088,7 @@ idEntity::ServerSendEvent
    always receive the events nomatter what time they join the game.
 ================
 */
-void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient ) {
+void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient, bool saveLastOnly) {
 	idBitMsg	outMsg;
 	byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
 
@@ -5102,7 +5102,7 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 	}
 
 	if ((gameLocal.serverEventsCount >= MAX_SERVER_EVENTS_PER_FRAME) && gameLocal.mpGame.IsGametypeCoopBased()) {
-		gameLocal.addToServerEventOverFlowList(eventId, msg, saveEvent, excludeClient, gameLocal.time, this); //Avoid serverSendEvent overflow in coop
+		gameLocal.addToServerEventOverFlowList(eventId, msg, saveEvent, excludeClient, gameLocal.time, this, saveLastOnly); //Avoid serverSendEvent overflow in coop
 		return;
 	}
 
@@ -5134,7 +5134,7 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 	}
 
 	if ( saveEvent ) {
-		gameLocal.SaveEntityNetworkEvent( this, eventId, msg );
+		gameLocal.SaveEntityNetworkEvent( this, eventId, msg , saveLastOnly);
 	}
 
 	gameLocal.serverEventsCount++;
@@ -5708,9 +5708,18 @@ bool idAnimatedEntity::ClientReceiveEvent( int event, int time, const idBitMsg &
 			damageDefIndex = gameLocal.ClientRemapDecl( DECL_ENTITYDEF, msg.ReadInt() );
 			materialIndex = gameLocal.ClientRemapDecl( DECL_MATERIAL, msg.ReadInt() );
 
-			if ((damageDefIndex == -1 || materialIndex  == -1 ) && gameLocal.mpGame.IsGametypeCoopBased()){ //ugly avoid crash in coop
+			//ugly avoid crash in coop
+			int declTypeCount = declManager->GetNumDecls(DECL_ENTITYDEF);
+			if (damageDefIndex < 0 || damageDefIndex >= declTypeCount) {
+				common->Warning("[COOP] index declType out of range at idAnimatedEntity::ClientReceiveEvent\n");
 				return true;
 			}
+			declTypeCount = declManager->GetNumDecls(DECL_MATERIAL);
+			if (materialIndex < 0 || materialIndex >= declTypeCount) {
+				common->Warning("[COOP] index declType out of range at idAnimatedEntity::ClientReceiveEvent\n");
+				return true;
+			}
+			//avoid crash in coop
 
 			const idDeclEntityDef *damageDef = static_cast<const idDeclEntityDef *>( declManager->DeclByIndex( DECL_ENTITYDEF, damageDefIndex ) ); //causing some crashes in coop
 			const idMaterial *collisionMaterial = static_cast<const idMaterial *>( declManager->DeclByIndex( DECL_MATERIAL, materialIndex ) );

@@ -393,7 +393,7 @@ public:
 	void					WriteGUIToSnapshot( idBitMsgDelta &msg ) const;
 	void					ReadGUIFromSnapshot( const idBitMsgDelta &msg );
 
-	void					ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient ); //COOP: was const
+	void					ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient, bool saveLastOnly=false ); //COOP: was const
 	void					ClientSendEvent( int eventId, const idBitMsg *msg ) const;
 
 protected:

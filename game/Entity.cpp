@@ -5502,9 +5502,18 @@ bool idAnimatedEntity::ClientReceiveEvent( int event, int time, const idBitMsg &
 			damageDefIndex = gameLocal.ClientRemapDecl( DECL_ENTITYDEF, msg.ReadInt() );
 			materialIndex = gameLocal.ClientRemapDecl( DECL_MATERIAL, msg.ReadInt() );
 
-			if ((damageDefIndex == -1 || materialIndex  == -1 ) && gameLocal.mpGame.IsGametypeCoopBased()){ //ugly avoid crash in coop
+			//ugly avoid crash in coop
+			int declTypeCount = declManager->GetNumDecls(DECL_ENTITYDEF);
+			if (damageDefIndex < 0 || damageDefIndex >= declTypeCount) {
+				common->Warning("[COOP] index declType out of range at idAnimatedEntity::ClientReceiveEvent\n");
 				return true;
 			}
+			declTypeCount = declManager->GetNumDecls(DECL_MATERIAL);
+			if (materialIndex < 0 || materialIndex >= declTypeCount) {
+				common->Warning("[COOP] index declType out of range at idAnimatedEntity::ClientReceiveEvent\n");
+				return true;
+			}
+			//avoid crash in coop
 
 			const idDeclEntityDef *damageDef = static_cast<const idDeclEntityDef *>( declManager->DeclByIndex( DECL_ENTITYDEF, damageDefIndex ) );
 			const idMaterial *collisionMaterial = static_cast<const idMaterial *>( declManager->DeclByIndex( DECL_MATERIAL, materialIndex ) );
