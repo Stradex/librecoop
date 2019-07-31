@@ -637,7 +637,9 @@ idMultiplayerGame::EnoughClientsToPlay
 bool idMultiplayerGame::EnoughClientsToPlay() {
 	int team[ 2 ];
 	int clients = NumActualClients( false, &team[ 0 ] );
-	if ( gameLocal.gameType == GAME_TDM ) {
+	if (IsGametypeCoopBased()) {
+		return clients >= 1;
+	} else if (gameLocal.gameType == GAME_TDM) {
 		return clients >= 2 && team[ 0 ] && team[ 1 ];
 	} else {
 		return clients >= 2;
