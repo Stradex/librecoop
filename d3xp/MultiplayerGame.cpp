@@ -4339,6 +4339,7 @@ bool idMultiplayerGame::IsGametypeTeamBased( void ) /* CTF */
 	case GAME_TOURNEY:
 	case GAME_LASTMAN:
 	case GAME_COOP:
+	case GAME_SURVIVAL:
 		return false;
 #ifdef CTF
 	case GAME_CTF:
@@ -4367,6 +4368,7 @@ bool idMultiplayerGame::IsGametypeFlagBased( void )  {
 	case GAME_LASTMAN:
 	case GAME_TDM:
 	case GAME_COOP:
+	case GAME_SURVIVAL:
 		return false;
 
 #ifdef CTF

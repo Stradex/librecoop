@@ -2737,7 +2737,7 @@ bool idGameLocal::snapshotsort_notInOrder(const snapshotsort_context_s& context,
 
 // partition for quicksort with median-of-three pivot selection
 int idGameLocal::snapshotsort_partition(const snapshotsort_context_s& context, idEntity* entities[], int low, int high) {
-	int mid = round((low + high) / 2);
+	int mid = idMath::Rint((low + high) / 2);
 	if (snapshotsort_notInOrder(context, entities[low], entities[mid])) {
 		snapshotsort_swap(entities, low, mid);
 	}
