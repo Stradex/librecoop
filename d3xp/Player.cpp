@@ -2634,6 +2634,41 @@ void idPlayer::ServerSpectate( bool spectate ) {
 #endif
 }
 
+bool idPlayer::IsCollidingWithPlayer(void) {
+	idPhysics* phys = GetPhysics();
+	if (!phys->GetNumClipModels()) {
+		return false;
+	}
+
+	idClipModel* clipModels[MAX_GENTITIES];
+	int num = gameLocal.clip.ClipModelsTouchingBounds(phys->GetAbsBounds(), phys->GetClipMask(), clipModels, MAX_GENTITIES);
+
+	idClipModel* cm;
+	idEntity* hit;
+	for (int i = 0; i < num; i++) {
+		cm = clipModels[i];
+
+		// don't check render entities
+		if (cm->IsRenderModel()) {
+			continue;
+		}
+
+		hit = cm->GetEntity();
+		if (hit == this) {
+			continue;
+		}
+
+		if (!phys->ClipContents(cm)) {
+			continue;
+		}
+
+		if (hit->IsType(idPlayer::Type)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 /*
 ===========
 idPlayer::SelectInitialSpawnPoint
@@ -2766,6 +2801,7 @@ void idPlayer::SpawnToPoint( const idVec3 &spawn_origin, const idAngles &spawn_a
 	if ( !spectating ) {
 		physicsObj.SetClipMask( MASK_PLAYERSOLID ); // the clip mask is usually maintained in Move(), but KillBox requires it
 		gameLocal.KillBox( this );
+		spawnPhaseWalk = (gameLocal.mpGame.IsGametypeCoopBased() && IsCollidingWithPlayer());
 	}
 
 	// don't allow full run speed for a bit
@@ -7115,6 +7151,10 @@ void idPlayer::Move( void ) {
 	} else {
 		if (g_unblockPlayers.GetBool() && gameLocal.mpGame.IsGametypeCoopBased()) {
 			physicsObj.SetClipMask( MASK_DEADSOLID );
+		} else if (spawnPhaseWalk && gameLocal.mpGame.IsGametypeCoopBased()) {
+			physicsObj.SetClipMask(MASK_PLAYERSOLID);
+			spawnPhaseWalk = IsCollidingWithPlayer();
+			physicsObj.SetClipMask(MASK_DEADSOLID);
 		} else {
 			physicsObj.SetClipMask( MASK_PLAYERSOLID );
 		}

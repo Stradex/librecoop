@@ -329,6 +329,7 @@ public:
 	idMat3					firstPersonViewAxis;
 
 	idDragEntity			dragEntity;
+	bool					spawnPhaseWalk;
 
 public:
 	CLASS_PROTOTYPE( idPlayer );
@@ -510,6 +511,7 @@ public:
 
 	// server side work for in/out of spectate. takes care of spawning it into the world as well
 	void					ServerSpectate( bool spectate );
+	bool					IsCollidingWithPlayer(); // used in coop
 	// for very specific usage. != GetPhysics()
 	idPhysics				*GetPlayerPhysics( void );
 	void					TeleportDeath( int killer );
