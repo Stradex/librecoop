@@ -450,6 +450,8 @@ idEntity::idEntity() {
 		inSnapshotQueue[i] = false; //added by Stradex for Coop netcode optimization
 		snapshotMissingCount[i] = 0;  //added by Stradex for Coop netcode optimization
 	}
+
+	spawnSnapShot = true;
 }
 
 /*

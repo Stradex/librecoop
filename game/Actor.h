@@ -209,6 +209,8 @@ public:
 	bool					AnimDone( int channel, int blendFrames ) const;
 	virtual void			SpawnGibs( const idVec3 &dir, const char *damageDefName );
 
+	void					Event_OverrideAnim( int channel ); //Public for coop. Was private
+
 protected:
 	friend class			idAnimState;
 
@@ -296,7 +298,6 @@ private:
 	void					Event_PlayCycle( int channel, const char *name );
 	void					Event_IdleAnim( int channel, const char *name );
 	void					Event_SetSyncedAnimWeight( int channel, int anim, float weight );
-	void					Event_OverrideAnim( int channel );
 	void					Event_EnableAnim( int channel, int blendFrames );
 	void					Event_SetBlendFrames( int channel, int blendFrames );
 	void					Event_GetBlendFrames( int channel );

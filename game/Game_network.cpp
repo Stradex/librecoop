@@ -35,10 +35,10 @@ If you have questions concerning this license or the applicable additional terms
 #include "Entity.h"
 #include "Player.h"
 
-#include "Sound.h" //FIXME, I need to solve the duplicated entities problem at clientreadsnapshot and serverwritesnapshot
-#include "Mover.h" //FIXME, I need to solve the duplicated entities problem at clientreadsnapshot and serverwritesnapshot
-#include "Misc.h"  //FIXME, I need to solve the duplicated entities problem at clientreadsnapshot and serverwritesnapshot
-#include "Trigger.h"  //FIXME, I need to solve the duplicated entities problem at clientreadsnapshot and serverwritesnapshot
+#include "Sound.h"
+#include "Mover.h"
+#include "Misc.h" 
+#include "Trigger.h"
 #include "gamesys/SysCvar.h" //added for netcode optimization stuff
 
 #include "Game_local.h"
@@ -2939,6 +2939,7 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 			newBase->next = snapshot->firstEntityState;
 			snapshot->firstEntityState = newBase;
 
+			ent->spawnSnapShot = false; //used to send spawn data first time an entity is in the snapshot
 #if ASYNC_WRITE_TAGS
 			msg.WriteInt( tagRandom.RandomInt() );
 #endif

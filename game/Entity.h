@@ -156,6 +156,7 @@ public:
 	bool					readByServer;			//if the entity was already tried to be sent in the snapshot
 	int						snapshotPriority;		//The priority of this entity (useful when snapshot overflow
 	int						snapshotMissingCount[MAX_CLIENTS];	//Missing snapshots count for coop
+	bool					spawnSnapShot;			 //first snapshot send by server
 
 	struct entityFlags_s {
 		bool				notarget			:1;	// if true never attack or target this entity

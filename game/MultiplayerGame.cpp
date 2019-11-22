@@ -214,7 +214,7 @@ void idMultiplayerGame::SpawnPlayer( int clientNum ) {
 			//SwitchToTeam( clientNum, -1, 0 ); //Always team 0 in Coop
 			p->team = 0;//Always team 0 in Coop
 			if (gameLocal.gameType == GAME_SURVIVAL) {
-				if (gameState == WARMUP || gameState == COUNTDOWN) {
+				if (gameState  <= COUNTDOWN) {
 					playerState[ clientNum ].livesLeft = si_lives.GetInteger(); //added for Survival
 				} else {
 					playerState[ clientNum ].livesLeft = 0; //Don't allow players to join in middle of a game

@@ -400,6 +400,7 @@ idAI::idAI() {
 	forceNetworkSync = true; //added by Stradex for Coop
 	snapshotPriority = 2; //added by Stradex for coop. High priority for this
 	thereWasEnemy = true;
+	currentChannelOverride = 0;
 }
 
 /*
@@ -5112,6 +5113,14 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 		normalizedLastDamageDir = lastDamageDir;
 	}
 
+	msg.WriteBits( spawnSnapShot, 1 );
+	if (spawnSnapShot) {
+		//sending origin position
+		msg.WriteFloat(GetPhysics()->GetOrigin().x);
+		msg.WriteFloat(GetPhysics()->GetOrigin().y);
+		msg.WriteFloat(GetPhysics()->GetOrigin().z);
+	}
+
 	physicsObj.WriteToSnapshot( msg );
 	
 	WriteBindToSnapshot( msg );
@@ -5160,6 +5169,9 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteInt( enemyEntityNum );
 	msg.WriteInt( goalEntityNum );
 
+	msg.WriteShort( currentChannelOverride );
+	msg.WriteBits( disableGravity, 1 );
+
 	msg.WriteBits( fl.hidden, 1);
 }
 
@@ -5175,10 +5187,19 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	}
 
 	int		i, oldHealth, enemySpawnId, torsoAnimId, legsAnimId, enemyEntityId, goalEntityId;
-	bool	newHitToggle, stateHitch, hasEnemy;
+	bool	newHitToggle, stateHitch, hasEnemy, isSpawnSnapshot;
 	netActionType_t newNetAction;
+	idVec3	tmpOrigin = vec3_zero;
 
 	oldHealth = health;
+
+	isSpawnSnapshot  = msg.ReadBits( 1 ) != 0;
+	if (isSpawnSnapshot) {
+		//sending origin position
+		tmpOrigin.x = msg.ReadFloat();
+		tmpOrigin.y = msg.ReadFloat();
+		tmpOrigin.z = msg.ReadFloat();
+	}
 
 	physicsObj.ReadFromSnapshot( msg );
 	ReadBindFromSnapshot( msg );
@@ -5233,6 +5254,11 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		move.goalEntity.SetSpawnId(gameLocal.GetSpawnId(gameLocal.coopentities[goalEntityId])); //should I use SetSpawnId or better SetCoopId?
 	}
 
+
+	currentChannelOverride = msg.ReadShort();
+
+	disableGravity = msg.ReadBits( 1 ) != 0;
+
 	bool isInvisible=false;
 	isInvisible = msg.ReadBits( 1 ) != 0;
 
@@ -5261,6 +5287,9 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		//AI_PAIN = Pain( NULL, NULL, oldHealth - health, lastDamageDir, lastDamageLocation ); //causing crash.
 	}
 	if ( msg.HasChanged() ) {
+		if (isSpawnSnapshot) { //lets update origin then
+			physicsObj.SetOrigin( tmpOrigin + idVec3( 0, 0, CM_CLIP_EPSILON ) );
+		}
 		ClientProcessNetAction(newNetAction);
 		UpdateVisuals();
 	}
@@ -5358,6 +5387,9 @@ void idAI::ClientProcessNetAction(netActionType_t newAction) {
 		break;
 		case NETACTION_HIDE:
 			Hide();
+		break;
+		case NETACTION_OVERRIDEANIM:
+			Event_OverrideAnim(currentChannelOverride);
 		break;
 	}
 		
@@ -5557,6 +5589,22 @@ void idAI::CSKilled( void ) {
 		
 	SetWaitState( "" );
 	animator.ClearAllJoints(); //should this happen?
+}
+
+/*
+===============
+idAI::Event_OverrideAnim
+===============
+*/
+void idAI::Event_OverrideAnim( int channel ) {
+	if (gameLocal.isServer) {
+		currentChannelOverride = channel;
+		currentNetAction = NETACTION_OVERRIDEANIM;
+	}
+
+	idActor::Event_OverrideAnim(channel);
+
+	return;
 }
 
 
