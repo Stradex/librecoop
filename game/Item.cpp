@@ -388,12 +388,12 @@ bool idItem::Pickup( idPlayer *player ) {
 	bool dropped = spawnArgs.GetBool( "dropped" );
 	bool no_respawn = spawnArgs.GetBool( "no_respawn" );
 
-	if ( (!gameLocal.mpGame.IsGametypeCoopBased() || si_itemRespawn.GetBool() ) && gameLocal.isMultiplayer && respawn == 0.0f ) {
+	if ( (!gameLocal.mpGame.IsGametypeCoopBased() || gameLocal.serverInfo.GetBool("si_itemRespawn") ) && gameLocal.isMultiplayer && respawn == 0.0f ) {
 		respawn = 20.0f;
 	}
 
 	if ( gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased() ) { //client-side pickup for coop
-		if (player && si_onePickupPerPlayer.GetBool() && (player->entityNumber != gameLocal.localClientNum)) { //One Pickup per player clientside behaviour
+		if (player && gameLocal.serverInfo.GetBool("si_onePickupPerPlayer") && (player->entityNumber != gameLocal.localClientNum)) { //One Pickup per player clientside behaviour
 			return false;
 		}
 		if ( !CS_GiveToPlayer( player ) ) {
@@ -427,7 +427,7 @@ bool idItem::Pickup( idPlayer *player ) {
 	
 	//server-side - Singleplayer pickup
 
-	if (player && si_onePickupPerPlayer.GetBool() && clientPickedItem[player->entityNumber] && gameLocal.mpGame.IsGametypeCoopBased()) { //COOP
+	if (player && gameLocal.serverInfo.GetBool("si_onePickupPerPlayer") && clientPickedItem[player->entityNumber] && gameLocal.mpGame.IsGametypeCoopBased()) { //COOP
 		return false; //this player already picked this item
 	}
 
@@ -444,12 +444,12 @@ bool idItem::Pickup( idPlayer *player ) {
 	StartSound( "snd_acquire", SND_CHANNEL_ITEM, 0, false, NULL );
 
 	// trigger our targets
-	if (firstTimePicked || !si_onePickupPerPlayer.GetBool() || !gameLocal.mpGame.IsGametypeCoopBased()) {
+	if (firstTimePicked || !gameLocal.serverInfo.GetBool("si_onePickupPerPlayer") || !gameLocal.mpGame.IsGametypeCoopBased()) {
 		firstTimePicked = false; //COOP: used only when si_onePickupPerPlayer enabled
 		ActivateTargets( player );
 	}
 
-	if (!si_onePickupPerPlayer.GetBool() || !gameLocal.mpGame.IsGametypeCoopBased()) { //COOP: enable multiple pickups with si_onePickupPerPlayer enabled
+	if (!gameLocal.serverInfo.GetBool("si_onePickupPerPlayer") || !gameLocal.mpGame.IsGametypeCoopBased()) { //COOP: enable multiple pickups with si_onePickupPerPlayer enabled
 		// clear our contents so the object isn't picked up twice
 		GetPhysics()->SetContents( 0 );
 	}
@@ -457,7 +457,7 @@ bool idItem::Pickup( idPlayer *player ) {
 	// hide the model
 
 	//COOP: if si_onePickupPerPlayer enabled, then only hide the model when the local player pick it.
-	if (!si_onePickupPerPlayer.GetBool() || (player->entityNumber == gameLocal.localClientNum) || !gameLocal.mpGame.IsGametypeCoopBased()) 
+	if (!gameLocal.serverInfo.GetBool("si_onePickupPerPlayer") || (player->entityNumber == gameLocal.localClientNum) || !gameLocal.mpGame.IsGametypeCoopBased()) 
 	{
 
 	Hide();
@@ -477,7 +477,7 @@ bool idItem::Pickup( idPlayer *player ) {
 	} else if ( !spawnArgs.GetBool( "inv_objective" ) && !no_respawn ) {
 		// give some time for the pickup sound to play
 		// FIXME: Play on the owner
-		if ( !spawnArgs.GetBool( "inv_carry" ) && !si_onePickupPerPlayer.GetBool() ) {
+		if ( !spawnArgs.GetBool( "inv_carry" ) && !gameLocal.serverInfo.GetBool("si_onePickupPerPlayer") ) {
 			PostEventMS( &EV_Remove, 5000 );
 		}
 	}

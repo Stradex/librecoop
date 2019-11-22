@@ -3406,18 +3406,20 @@ bool idGameLocal::InhibitEntitySpawn( idDict &spawnArgs ) {
 
 	bool result = false;
 
+	int gSkill = (isMultiplayer && gameLocal.mpGame.IsGametypeCoopBased()) ? gameLocal.serverInfo.GetInt("g_skill")  : g_skill.GetInteger();
+
 	if ( isMultiplayer && !gameLocal.mpGame.IsGametypeCoopBased() ) {
 		spawnArgs.GetBool( "not_multiplayer", "0", result );
-	} else if ( g_skill.GetInteger() == 0 ) {
+	} else if ( gSkill == 0 ) {
 		spawnArgs.GetBool( "not_easy", "0", result );
-	} else if ( g_skill.GetInteger() == 1 ) {
+	} else if ( gSkill == 1 ) {
 		spawnArgs.GetBool( "not_medium", "0", result );
 	} else {
 		spawnArgs.GetBool( "not_hard", "0", result );
 	}
 
 	const char *name;
-	if ( g_skill.GetInteger() == 3 ) {
+	if ( gSkill == 3 ) {
 		name = spawnArgs.GetString( "classname" );
 		if ( idStr::Icmp( name, "item_medkit" ) == 0 || idStr::Icmp( name, "item_medkit_small" ) == 0 ) {
 			result = true;
@@ -3486,7 +3488,8 @@ void idGameLocal::SpawnMapEntities( void ) {
 		return;
 	}
 
-	SetSkill( g_skill.GetInteger() );
+
+	SetSkill( g_skill.GetInteger() ); //Should we modify this?
 
 	numEntities = mapFile->GetNumEntities();
 	if ( numEntities == 0 ) {
