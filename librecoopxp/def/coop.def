@@ -17,6 +17,7 @@ entityDef player_doommarine_coop {
 	"bleed"								"1"
 	"gib"								"1"
 
+
 	"weapon"							"weapon_fists,weapon_pistol,weapon_flashlight,weapon_handgrenade,weapon_plasmagun,weapon_machinegun,weapon_shotgun,weapon_grabber"
 	"current_weapon"					"1"
 	"ammo_grenades"						"2"

@@ -23,6 +23,7 @@ entityDef player_doommarine_coop {
 	"deathSkinTime"						"500"	// how long once dead before setting the dead body contents to 0
 
 	"weapon"							"weapon_fists,weapon_pistol,weapon_flashlight,weapon_handgrenade,weapon_plasmagun,weapon_machinegun,weapon_shotgun"
+	"weapon_nightmare"					"weapon_fists,weapon_pistol,weapon_flashlight,weapon_pda,weapon_soulcube,weapon_machinegun"
 	"current_weapon"					"1"
 	"ammo_grenades"						"2"
 	"ammo_shells"						"18"

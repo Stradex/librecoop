@@ -4231,7 +4231,7 @@
 	"#str_04225"	"Show all;Pass only;No password"
 	"#str_04226"	"Show all;Hide full;Hide both"
 	"#str_04227"	"Internet;LAN"
-	"#str_04228"	"Deathmatch;Tourney;Team DM;Last Man;Coop"
+	"#str_04228"	"Deathmatch;Tourney;Team DM;Last Man;Coop;Survival"
 	"#str_04229"	"No Change;128 kbits;256 kbits;384 kbits;512 kbits;LAN"
 	"#str_04230"	"Yes;No"
 	"#str_04231"	"Off;2x;4x;8x;16x"
