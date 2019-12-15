@@ -53,6 +53,9 @@ const int ASYNC_PLAYER_INV_CLIP_BITS = -7;								// -7 bits to cover the range 
 ===============================================================================
 */
 
+// MSEC per sending movement info the server (every 1 second)
+const int PLAYER_CLIENT_SEND_MOVEMENT = 1*1000;
+
 // distance between ladder rungs (actually is half that distance, but this sounds better)
 const int LADDER_RUNG_DISTANCE = 32;
 
@@ -1143,6 +1146,7 @@ idPlayer::idPlayer() {
 
 	//adde for COOP by stradex
 	snapshotPriority		= 1;
+	nextSendPhysicsInfoTime = 0;
 }
 
 /*
@@ -1415,6 +1419,12 @@ void idPlayer::Init( void ) {
 	MPAimFadeTime		= 0;
 	MPAimHighlight		= false;
 
+	//coop start
+	allowClientsideMovement = false; //added by Stradex
+
+	nextSendPhysicsInfoTime = gameLocal.clientsideTime + PLAYER_CLIENT_SEND_MOVEMENT*2; //disable clientside movement two seconds
+	//coop ends
+
 	if ( hud ) {
 		hud->HandleNamedEvent( "aim_clear" );
 	}
@@ -1449,6 +1459,7 @@ void idPlayer::Spawn( void ) {
 		// always start in spectating state waiting to be spawned in
 		// do this before SetClipModel to get the right bounding box
 		spectating = true;
+		nextSendPhysicsInfoTime = gameLocal.clientsideTime + PLAYER_CLIENT_SEND_MOVEMENT*2;
 	}
 
 	// set our collision model
@@ -7994,7 +8005,7 @@ void idPlayer::ClientPredictionThink( void ) {
 	}
 
 
-	if ( !isLagged ) {
+	if ((!isLagged && (!net_clientSideMovement.GetBool() || !allowClientsideMovement)) || (gameLocal.isNewFrame && net_clientSideMovement.GetBool() && allowClientsideMovement)) {
 		// don't allow client to move when lagged
 		Move();
 
@@ -8072,6 +8083,36 @@ void idPlayer::ClientPredictionThink( void ) {
 
 	if ( gameLocal.isMultiplayer ) {
 		DrawPlayerIcons();
+	}
+
+	if ( net_clientSideMovement.GetBool() && gameLocal.isNewFrame && !spectating && (gameLocal.localClientNum == entityNumber) && gameLocal.mpGame.IsGametypeCoopBased() && (gameLocal.clientsideTime >= nextSendPhysicsInfoTime)) {
+
+		if (health > 0) { //alive
+			if (allowClientsideMovement) {
+
+				//sending event to server
+				idBitMsg	msg;
+				byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+
+				assert( entityNumber == gameLocal.localClientNum );
+
+				msg.Init( msgBuf, sizeof( msgBuf ) );
+				msg.BeginWriting();
+				physicsObj.WriteToEvent(msg);
+				msg.WriteDeltaFloat( 0.0f, deltaViewAngles[0] );
+				msg.WriteDeltaFloat( 0.0f, deltaViewAngles[1] );
+				msg.WriteDeltaFloat( 0.0f, deltaViewAngles[2] );
+				ClientSendEvent( EVENT_PLAYERPHYSICS, &msg );
+
+			}
+
+			allowClientsideMovement = true;
+
+		} else {
+			allowClientsideMovement = false;
+		}
+
+		nextSendPhysicsInfoTime = gameLocal.clientsideTime + PLAYER_CLIENT_SEND_MOVEMENT;
 	}
 
 	Present();
@@ -8202,8 +8243,9 @@ idPlayer::ReadFromSnapshot
 ================
 */
 void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
-	int		i, oldHealth, newIdealWeapon, weaponSpawnId, weaponCoopId;
-	bool	newHitToggle, stateHitch;
+	int					i, oldHealth, newIdealWeapon, weaponSpawnId, weaponCoopId;
+	bool				newHitToggle, stateHitch;
+	idPhysics_Player	readOnlyPhysics;
 
 	if ( snapshotSequence - lastSnapshotSequence > 1 ) {
 		stateHitch = true;
@@ -8216,9 +8258,17 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 	physicsObj.ReadFromSnapshot( msg );
 	ReadBindFromSnapshot( msg );
-	deltaViewAngles[0] = msg.ReadDeltaFloat( 0.0f );
-	deltaViewAngles[1] = msg.ReadDeltaFloat( 0.0f );
-	deltaViewAngles[2] = msg.ReadDeltaFloat( 0.0f );
+
+	if ((entityNumber == gameLocal.localClientNum) && !spectating && net_clientSideMovement.GetBool() && allowClientsideMovement) { //clientside movement CODE
+		msg.ReadDeltaFloat( 0.0f );  //just read but do nothing with this
+		msg.ReadDeltaFloat( 0.0f ); //just read but do nothing with this
+		msg.ReadDeltaFloat( 0.0f ); //just read but do nothing with this
+	} else { //normal netcode
+		deltaViewAngles[0] = msg.ReadDeltaFloat( 0.0f );
+		deltaViewAngles[1] = msg.ReadDeltaFloat( 0.0f );
+		deltaViewAngles[2] = msg.ReadDeltaFloat( 0.0f );
+	}
+
 	health = msg.ReadShort();
 	lastDamageDef = gameLocal.ClientRemapDecl( DECL_ENTITYDEF, msg.ReadBits( gameLocal.entityDefBits ) );
 	lastDamageDir = msg.ReadDir( 9 );
@@ -8427,6 +8477,13 @@ bool idPlayer::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 	switch( event ) {
 		case EVENT_IMPULSE: {
 			PerformImpulse( msg.ReadBits( 6 ) );
+			return true;
+		}
+		case EVENT_PLAYERPHYSICS: {
+			physicsObj.ReadFromEvent(msg);
+			deltaViewAngles[0] = msg.ReadDeltaFloat( 0.0f );
+			deltaViewAngles[1] = msg.ReadDeltaFloat( 0.0f );
+			deltaViewAngles[2] = msg.ReadDeltaFloat( 0.0f );
 			return true;
 		}
 		default: {

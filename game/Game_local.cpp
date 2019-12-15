@@ -265,6 +265,7 @@ void idGameLocal::Clear( void ) {
 		serverOverflowEvents[i].event = NULL;
 	}
 	overflowEventCountdown=0;
+	clientsideTime = 0;
 	//end for coop
 
 	memset( clientEntityStates, 0, sizeof( clientEntityStates ) );
@@ -2356,6 +2357,7 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 		previousTime = time;
 		time += msec;
 		realClientTime = time;
+		clientsideTime = time;
 		
 		//COOP DEBUG
 		//serverEventsCount=0;

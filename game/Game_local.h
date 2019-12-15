@@ -343,6 +343,7 @@ public:
 	int						localClientNum;			// number of the local client. MP: -1 on a dedicated
 	idLinkList<idEntity>	snapshotEntities;		// entities from the last snapshot
 	int						realClientTime;			// real client time
+	int						clientsideTime;			// only for clients added by Stradex
 	bool					isNewFrame;				// true if this is a new game frame, not a rerun due to prediction
 	float					clientSmoothing;		// smoothing of other clients in the view
 	int						entityDefBits;			// bits required to store an entity def number

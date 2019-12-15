@@ -29,6 +29,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "sys/platform.h"
 #include "gamesys/SysCvar.h"
 #include "Entity.h"
+#include "Player.h"
 
 #include "physics/Physics_Player.h"
 
@@ -2021,6 +2022,77 @@ idPhysics_Player::ReadFromSnapshot
 ================
 */
 void idPhysics_Player::ReadFromSnapshot( const idBitMsgDelta &msg ) {
+
+	if (net_clientSideMovement.GetBool() && self && (self->entityNumber == gameLocal.localClientNum) && static_cast< idPlayer * >( self )->allowClientsideMovement) { //clientside movement netcode
+		
+		msg.ReadFloat(); //do nothing with data received
+		msg.ReadFloat();
+		msg.ReadFloat();
+		msg.ReadFloat( PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+		msg.ReadFloat( PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+		msg.ReadFloat( PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+		msg.ReadDeltaFloat( current.origin[0] );
+		msg.ReadDeltaFloat( current.origin[1] );
+		msg.ReadDeltaFloat( current.origin[2] );
+		msg.ReadDeltaFloat( 0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+		msg.ReadDeltaFloat( 0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+		msg.ReadDeltaFloat( 0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+
+	} else { //normal netcode
+		current.origin[0] = msg.ReadFloat();
+		current.origin[1] = msg.ReadFloat();
+		current.origin[2] = msg.ReadFloat();
+		current.velocity[0] = msg.ReadFloat( PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+		current.velocity[1] = msg.ReadFloat( PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+		current.velocity[2] = msg.ReadFloat( PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+		current.localOrigin[0] = msg.ReadDeltaFloat( current.origin[0] );
+		current.localOrigin[1] = msg.ReadDeltaFloat( current.origin[1] );
+		current.localOrigin[2] = msg.ReadDeltaFloat( current.origin[2] );
+		current.pushVelocity[0] = msg.ReadDeltaFloat( 0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+		current.pushVelocity[1] = msg.ReadDeltaFloat( 0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+		current.pushVelocity[2] = msg.ReadDeltaFloat( 0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+	}
+
+	current.stepUp = msg.ReadDeltaFloat( 0.0f );
+	current.movementType = msg.ReadBits( PLAYER_MOVEMENT_TYPE_BITS );
+	current.movementFlags = msg.ReadBits( PLAYER_MOVEMENT_FLAGS_BITS );
+	current.movementTime = msg.ReadDeltaInt( 0 );
+
+	if ( clipModel ) {
+		clipModel->Link( gameLocal.clip, self, 0, current.origin, clipModel->GetAxis() );
+	}
+}
+
+/*
+================
+idPhysics_Player::WriteToEvent
+================
+*/
+void idPhysics_Player::WriteToEvent( idBitMsg &msg ) {
+	msg.WriteFloat( current.origin[0] );
+	msg.WriteFloat( current.origin[1] );
+	msg.WriteFloat( current.origin[2] );
+	msg.WriteFloat( current.velocity[0], PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+	msg.WriteFloat( current.velocity[1], PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+	msg.WriteFloat( current.velocity[2], PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+	msg.WriteDeltaFloat( current.origin[0], current.localOrigin[0] );
+	msg.WriteDeltaFloat( current.origin[1], current.localOrigin[1] );
+	msg.WriteDeltaFloat( current.origin[2], current.localOrigin[2] );
+	msg.WriteDeltaFloat( 0.0f, current.pushVelocity[0], PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+	msg.WriteDeltaFloat( 0.0f, current.pushVelocity[1], PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+	msg.WriteDeltaFloat( 0.0f, current.pushVelocity[2], PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+	//msg.WriteDeltaFloat( 0.0f, current.stepUp );
+	//msg.WriteBits( current.movementType, PLAYER_MOVEMENT_TYPE_BITS );
+	//msg.WriteBits( current.movementFlags, PLAYER_MOVEMENT_FLAGS_BITS );
+	//msg.WriteDeltaInt( 0, current.movementTime );
+}
+
+/*
+================
+idPhysics_Player::ReadFromEvent
+================
+*/
+void idPhysics_Player::ReadFromEvent( const idBitMsg &msg ) {
 	current.origin[0] = msg.ReadFloat();
 	current.origin[1] = msg.ReadFloat();
 	current.origin[2] = msg.ReadFloat();
@@ -2033,10 +2105,10 @@ void idPhysics_Player::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	current.pushVelocity[0] = msg.ReadDeltaFloat( 0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
 	current.pushVelocity[1] = msg.ReadDeltaFloat( 0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
 	current.pushVelocity[2] = msg.ReadDeltaFloat( 0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
-	current.stepUp = msg.ReadDeltaFloat( 0.0f );
-	current.movementType = msg.ReadBits( PLAYER_MOVEMENT_TYPE_BITS );
-	current.movementFlags = msg.ReadBits( PLAYER_MOVEMENT_FLAGS_BITS );
-	current.movementTime = msg.ReadDeltaInt( 0 );
+	//current.stepUp = msg.ReadDeltaFloat( 0.0f );
+	//current.movementType = msg.ReadBits( PLAYER_MOVEMENT_TYPE_BITS );
+	//current.movementFlags = msg.ReadBits( PLAYER_MOVEMENT_FLAGS_BITS );
+	//current.movementTime = msg.ReadDeltaInt( 0 );
 
 	if ( clipModel ) {
 		clipModel->Link( gameLocal.clip, self, 0, current.origin, clipModel->GetAxis() );

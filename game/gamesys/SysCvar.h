@@ -259,6 +259,7 @@ extern idCVar	net_clientCoopDebug; //added for debug stuff only
 extern idCVar	net_serverSnapshotLimit; //how many entities are we able to send per snapshot as server (avoid snapshot overflow, something common in big coop maps)
 extern idCVar	g_freezeUntilClientJoins; //If entities can start thinking and scripts executing before or after a first clients join (used only in dedicated servers)
 extern idCVar	si_lives; //survival lives
+extern idCVar	net_clientSideMovement; //added by Stradex (experimental, works only with high ping)
 //stradex end
 
 
