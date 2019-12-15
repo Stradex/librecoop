@@ -283,6 +283,7 @@ public:
 
 	//start: stradex for coop netcode
 	int						firstFreeCoopIndex;			// first free index in the entities array for coop
+	int						firstFreeCsIndex;		// first free index in the entities array for clientsideEntities
 	idEntity *				coopentities[MAX_GENTITIES];	//For coop netcode only by Stradex
 	idEntity *				sortsnapshotentities[MAX_GENTITIES]; //for coop only to sort the priority of snapshot
 	int						coopIds[MAX_GENTITIES];			// for use in idEntityPtr in coop
@@ -342,6 +343,7 @@ public:
 													// NOTE: on a listen server, isClient is false
 	int						localClientNum;			// number of the local client. MP: -1 on a dedicated
 	idLinkList<idEntity>	snapshotEntities;		// entities from the last snapshot
+	idLinkList<idEntity>	clientsideEntities;		// entities only present in the client machine that requires to think (added by Stradex)
 	int						realClientTime;			// real client time
 	int						clientsideTime;			// only for clients added by Stradex
 	bool					isNewFrame;				// true if this is a new game frame, not a rerun due to prediction

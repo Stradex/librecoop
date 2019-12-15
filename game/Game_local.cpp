@@ -276,6 +276,7 @@ void idGameLocal::Clear( void ) {
 	savedEventQueue.Init();
 
 	memset( lagometer, 0, sizeof( lagometer ) );
+	clientsideEntities.Clear();
 }
 
 /*
@@ -917,6 +918,7 @@ void idGameLocal::LoadMap( const char *mapName, int randseed ) {
 	num_coopentities = MAX_CLIENTS;
 	firstFreeIndex	= MAX_CLIENTS;
 	firstFreeCoopIndex = MAX_CLIENTS; //added for Coop
+	firstFreeCsIndex = CS_ENTITIES_START; //added for Coop
 
 	// reset the random number generator.
 	random.SetSeed( isMultiplayer ? randseed : 0 );
@@ -3185,13 +3187,27 @@ void idGameLocal::RegisterEntity( idEntity *ent ) {
 	}
 
 	if ( !spawnArgs.GetInt( "spawn_entnum", "0", spawn_entnum ) ) {
-		while( entities[firstFreeIndex] && firstFreeIndex < ENTITYNUM_MAX_NORMAL ) {
-			firstFreeIndex++;
+
+		if (spawnArgs.GetBool("clientside", "0")) { //is  clientside only entity
+			while( entities[firstFreeCsIndex] && firstFreeCsIndex < ENTITYNUM_MAX_NORMAL ) {
+				firstFreeCsIndex++;
+			}
+			if ( firstFreeCsIndex >= ENTITYNUM_MAX_NORMAL ) {
+				Error( "no free clientside entities." );
+			}
+
+			spawn_entnum = firstFreeCsIndex++;
+		} else { //normal entity
+
+			while( entities[firstFreeIndex] && firstFreeIndex < ENTITYNUM_MAX_NORMAL ) {
+				firstFreeIndex++;
+			}
+			if ( firstFreeIndex >= ENTITYNUM_MAX_NORMAL ) {
+				Error( "no free entities" );
+			}
+
+			spawn_entnum = firstFreeIndex++;
 		}
-		if ( firstFreeIndex >= ENTITYNUM_MAX_NORMAL ) {
-			Error( "no free entities" );
-		}
-		spawn_entnum = firstFreeIndex++;
 	}
 
 	if (ent->fl.coopNetworkSync || spawnArgs.GetInt( "coop_entnum", "0")) {
@@ -3205,6 +3221,11 @@ void idGameLocal::RegisterEntity( idEntity *ent ) {
 	spawnIds[ spawn_entnum ] = spawnCount++;
 	ent->entityNumber = spawn_entnum;
 	ent->spawnNode.AddToEnd( spawnedEntities );
+
+	if (spawnArgs.GetBool("clientside", "0")) { //added by Stradex
+		ent->clientsideNode.AddToEnd( clientsideEntities ); 
+	}
+
 	ent->spawnArgs.TransferKeyValues( spawnArgs ); //stradex: I love IDSoftware cause this
 
 	if ( spawn_entnum >= num_entities ) {
@@ -3226,10 +3247,14 @@ void idGameLocal::UnregisterEntity( idEntity *ent ) {
 
 	if ( ( ent->entityNumber != ENTITYNUM_NONE ) && ( entities[ ent->entityNumber ] == ent ) ) {
 		ent->spawnNode.Remove();
+		ent->clientsideNode.Remove(); //added by Stradex
 		entities[ ent->entityNumber ] = NULL;
 		spawnIds[ ent->entityNumber ] = -1;
 		if ( ent->entityNumber >= MAX_CLIENTS && ent->entityNumber < firstFreeIndex ) {
 			firstFreeIndex = ent->entityNumber;
+		}
+		if ( ent->entityNumber >= CS_ENTITIES_START && ent->entityNumber < firstFreeCsIndex ) { //clientside firstFreeCsIndex update
+			firstFreeCsIndex = ent->entityNumber;
 		}
 		ent->entityNumber = ENTITYNUM_NONE;
 

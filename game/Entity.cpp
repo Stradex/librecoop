@@ -407,7 +407,7 @@ idEntity::idEntity() {
 	spawnNode.SetOwner( this );
 	activeNode.SetOwner( this );
 	coopNode.SetOwner( this ); //added by Stradex for Coop
-
+	clientsideNode.SetOwner( this ); //for clientside entities...
 	snapshotNode.SetOwner( this );
 	snapshotSequence = -1;
 	snapshotBits = 0;
@@ -4930,6 +4930,10 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 
 	// prevent dupe events caused by frame re-runs
 	if ( !gameLocal.isNewFrame ) {
+		return;
+	}
+
+	if (clientsideNode.InList()) { //ignore client-side entities only
 		return;
 	}
 

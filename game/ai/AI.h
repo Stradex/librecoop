@@ -293,6 +293,8 @@ public:
 	void					ClientProcessNetAction(netActionType_t newAction);  //Added for COOP by Stradex
 	idPlayer				*GetClosestPlayerEnemy( void );
 
+	void					TriggerWeaponEffects( const idVec3 &muzzle ); //moved to public by Stradex for COOP
+
 protected:
 	// navigation
 	idAAS *					aas;
@@ -559,7 +561,6 @@ protected:
 	// special effects
 	void					GetMuzzle( const char *jointname, idVec3 &muzzle, idMat3 &axis );
 	void					InitMuzzleFlash( void );
-	void					TriggerWeaponEffects( const idVec3 &muzzle );
 	void					UpdateMuzzleFlash( void );
 	virtual bool			UpdateAnimationControllers( void );
 	void					UpdateParticles( void );

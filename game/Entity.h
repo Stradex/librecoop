@@ -128,6 +128,7 @@ public:
 	idLinkList<idEntity>	activeNode;				// for being linked into activeEntities list
 	idLinkList<idEntity>	coopNode;				// for being linked into coopSyncEntities list by Stradex for Coop
 	idLinkList<idEntity>	serverPriorityNode;		// for being linked into serverPriorityEntities list by Stradex for Coop netcode optimization
+	idLinkList<idEntity>	clientsideNode;			// for being linked into clientsideEntities list (added by Stradex)
 
 	idLinkList<idEntity>	snapshotNode;			// for being linked into snapshotEntities list
 	int						snapshotSequence;		// last snapshot this entity was in

@@ -385,23 +385,35 @@ void idProjectile::Launch( const idVec3 &start, const idVec3 &dir, const idVec3 
 
 	thruster.SetPosition( &physicsObj, 0, idVec3( GetPhysics()->GetBounds()[ 0 ].x, 0, 0 ) );
 
-	if ( !gameLocal.isClient ) {
+	if ( !gameLocal.isClient || this->clientsideNode.InList() ) {
 		if ( fuse <= 0 ) {
 			// run physics for 1 second
 			RunPhysics();
-			PostEventMS( &EV_Remove, spawnArgs.GetInt( "remove_time", "1500" ) );
+			if (gameLocal.isClient) {
+				CS_PostEventMS( &EV_Remove, spawnArgs.GetInt( "remove_time", "1500" ) );
+			} else {
+				PostEventMS( &EV_Remove, spawnArgs.GetInt( "remove_time", "1500" ) );
+			}
 		} else if ( spawnArgs.GetBool( "detonate_on_fuse" ) ) {
 			fuse -= timeSinceFire;
 			if ( fuse < 0.0f ) {
 				fuse = 0.0f;
 			}
-			PostEventSec( &EV_Explode, fuse );
+			if (gameLocal.isClient) {
+				CS_PostEventSec( &EV_Explode, fuse );
+			} else {
+				PostEventSec( &EV_Explode, fuse );
+			}
 		} else {
 			fuse -= timeSinceFire;
 			if ( fuse < 0.0f ) {
 				fuse = 0.0f;
 			}
-			PostEventSec( &EV_Fizzle, fuse );
+			if (gameLocal.isClient) {
+				PostEventSec( &EV_Fizzle, fuse );
+			} else {
+				CS_PostEventSec( &EV_Fizzle, fuse );
+			}
 		}
 	}
 
@@ -504,6 +516,15 @@ bool idProjectile::Collide( const trace_t &collision, const idVec3 &velocity ) {
 			Explode( collision, NULL );
 			return true;
 		}
+
+		// remove projectile when a 'noimpact' surface is hit
+		if ( collision.c.material && ( collision.c.material->GetSurfaceFlags() & SURF_NOIMPACT ) ) {
+			//no-impact surface or failed collision
+			if (this->clientsideNode.InList()) {
+				CS_PostEventMS( &EV_Remove, 0 );
+			}
+		}
+
 		return false;
 	}
 
@@ -877,6 +898,10 @@ void idProjectile::Explode( const trace_t &collision, idEntity *ignore ) {
 	state = EXPLODED;
 
 	if ( gameLocal.isClient ) {
+		if (this->clientsideNode.InList()) {
+			this->ClientPredictionThink();
+			CS_PostEventMS( &EV_Remove, removeTime );
+		}
 		return;
 	}
 
