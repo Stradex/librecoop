@@ -360,6 +360,9 @@ private:
 	void					UpdateNozzleFx( void );
 	void					UpdateFlashPosition( void );
 
+	//coop
+	void					ClientsideFireProjectile(  int num_projectiles, float spread, float fuseOffset, float launchPower, float dmgPower, const idDict &projectileDef);
+
 	// script events
 	void					Event_Clear( void );
 	void					Event_GetOwner( void );

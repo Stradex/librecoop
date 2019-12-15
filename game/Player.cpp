@@ -6801,7 +6801,7 @@ void idPlayer::CalcDamagePoints( idEntity *inflictor, idEntity *attacker, const 
 		&& !damageDef->GetBool( "noTeam" )
 		&& player
 		&& player != this		// you get self damage no matter what
-		&& player->team == team ) {
+		&& (player->team == team || gameLocal.mpGame.IsGametypeCoopBased())) {
 			damage = 0;
 	}
 

@@ -132,6 +132,9 @@ public:	// common physics interface
 	void					WriteToSnapshot( idBitMsgDelta &msg ) const;
 	void					ReadFromSnapshot( const idBitMsgDelta &msg );
 
+	void					WriteToEvent( idBitMsg &msg ); //added by Stradex
+	void					ReadFromEvent( const idBitMsg &msg ); //added by Stradex
+
 private:
 	// player physics state
 	playerPState_t			current;

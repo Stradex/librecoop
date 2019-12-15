@@ -116,7 +116,8 @@ typedef enum {
 typedef enum {
 	NETACTION_NONE,
 	NETACTION_HIDE,
-	NETACTION_SHOW
+	NETACTION_SHOW,
+	NETACTION_OVERRIDEANIM
 } netActionType_t;
 
 #define	DI_NODIR	-1
@@ -308,6 +309,8 @@ public:
 	void					ClientProcessNetAction(netActionType_t newAction);  //Added for COOP by Stradex
 	idPlayer				*GetClosestPlayerEnemy( void );
 
+	void					TriggerWeaponEffects( const idVec3 &muzzle ); //moved to public by Stradex for COOP
+
 
 #ifdef _D3XP
 	virtual void			Gib( const idVec3 &dir, const char *damageDefName );
@@ -449,6 +452,7 @@ protected:
 	bool					haveModelDeath; //FIXME: I only exists to avoid a crash
 	idVec3					turnTowardPos; 
 	bool					thereWasEnemy;
+	int						currentChannelOverride;
 
 
 #ifdef _D3XP
@@ -519,6 +523,7 @@ protected:
 	//client-side movement for Coop
 	void					CSAnimMove( void );
 	void					CSKilled( void );
+	void					Event_OverrideAnim( int channel ); //for netaction
 
 	// damage
 	virtual bool			Pain( idEntity *inflictor, idEntity *attacker, int damage, const idVec3 &dir, int location );
@@ -587,7 +592,6 @@ protected:
 	// special effects
 	void					GetMuzzle( const char *jointname, idVec3 &muzzle, idMat3 &axis );
 	void					InitMuzzleFlash( void );
-	void					TriggerWeaponEffects( const idVec3 &muzzle );
 	void					UpdateMuzzleFlash( void );
 	virtual bool			UpdateAnimationControllers( void );
 	void					UpdateParticles( void );

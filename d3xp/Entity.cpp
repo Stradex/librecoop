@@ -423,7 +423,7 @@ idEntity::idEntity() {
 	spawnNode.SetOwner( this );
 	activeNode.SetOwner( this );
 	coopNode.SetOwner( this ); //added by Stradex for Coop
-
+	clientsideNode.SetOwner( this ); //for clientside entities...
 
 	snapshotNode.SetOwner( this );
 	snapshotSequence = -1;
@@ -469,6 +469,8 @@ idEntity::idEntity() {
 		inSnapshotQueue[i] = false; //added by Stradex for Coop netcode optimization
 		snapshotMissingCount[i] = 0;  //added by Stradex for Coop netcode optimization
 	}
+
+	spawnSnapShot = true;
 
 #ifdef _D3XP
 	memset( &xrayEntity, 0, sizeof( xrayEntity ) );
@@ -5098,6 +5100,10 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 
 	// prevent dupe events caused by frame re-runs
 	if ( !gameLocal.isNewFrame ) {
+		return;
+	}
+
+	if (clientsideNode.InList()) { //ignore client-side entities only
 		return;
 	}
 

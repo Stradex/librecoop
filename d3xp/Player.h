@@ -255,6 +255,7 @@ public:
 		EVENT_ABORT_TELEPORTER,
 		EVENT_POWERUP,
 		EVENT_SPECTATE,
+		EVENT_PLAYERPHYSICS, //addded by stradex
 #ifdef _D3XP
 		EVENT_PICKUPNAME,
 #endif
@@ -627,6 +628,7 @@ public:
 	//COOP SPECIFIC
 	idDict					originalSpawnArgs;	//used for coop inventory
 	idAngles				GetViewAngles( void ); //added for coop checkpoint teleport
+	bool					allowClientsideMovement; //used to let the server send info for some seconds after spawning, to avoid spawn in void
 
 	//Client-side stuff for coop
 	bool					CS_Give( const char *statname, const char *value );
@@ -664,6 +666,8 @@ private:
 	int						weaponSwitchTime;
 	bool					weaponEnabled;
 	bool					showWeaponViewModel;
+
+	int						nextSendPhysicsInfoTime; // COOP: added for clientside movement code 
 
 	const idDeclSkin *		skin;
 	const idDeclSkin *		powerUpSkin;

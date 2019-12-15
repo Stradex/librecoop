@@ -107,6 +107,7 @@ idCVar net_serverSnapshotLimit(		"net_serverSnapshotLimit",	"120",			CVAR_GAME |
 idCVar g_unblockPlayers(			"g_unblockPlayers",			"0",			CVAR_GAME | CVAR_BOOL | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "If player are solid between them or not" );
 idCVar g_freezeUntilClientJoins(	"g_freezeUntilClientJoins", "0",			CVAR_GAME | CVAR_BOOL, "(Dedicated server only) used to wait until a clients join to the game start running or not" );
 idCVar si_lives(					"si_lives",					"2",			CVAR_GAME | CVAR_ARCHIVE | CVAR_INTEGER, "How many lives can the players have in Survival mode", 1, 100);
+idCVar net_clientSideMovement(		"net_clientSideMovement",	"1",			CVAR_GAME | CVAR_BOOL | CVAR_NOCHEAT, "Clientside movement, use only if you're suffering lag" );
 //stradex end
 
 #ifdef CTF
@@ -142,7 +143,7 @@ idCVar g_doubleVision(				"g_doubleVision",			"1",			CVAR_GAME | CVAR_ARCHIVE | 
 idCVar g_monsters(					"g_monsters",				"1",			CVAR_GAME | CVAR_BOOL, "" );
 idCVar g_decals(					"g_decals",					"1",			CVAR_GAME | CVAR_ARCHIVE | CVAR_BOOL, "show decals such as bullet holes" );
 idCVar g_knockback(					"g_knockback",				"1000",			CVAR_GAME | CVAR_INTEGER, "" );
-idCVar g_skill(						"g_skill",					"1",			CVAR_GAME | CVAR_INTEGER | CVAR_NETWORKSYNC, "" ); //network sync for coop
+idCVar g_skill(						"g_skill",					"1",			CVAR_GAME | CVAR_INTEGER | CVAR_SERVERINFO, "" ); //network sync for coop via serverinfo
 idCVar g_nightmare(					"g_nightmare",				"0",			CVAR_GAME | CVAR_ARCHIVE | CVAR_BOOL, "if nightmare mode is allowed" );
 idCVar g_gravity(					"g_gravity",		DEFAULT_GRAVITY_STRING, CVAR_GAME | CVAR_FLOAT, "" );
 idCVar g_skipFX(					"g_skipFX",					"0",			CVAR_GAME | CVAR_BOOL, "" );

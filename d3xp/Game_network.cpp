@@ -711,6 +711,11 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 	// create the snapshot
 	for( ent = spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next() ) {
 
+		//Clientside projectiles start
+		if (ent->clientsideNode.InList()) { //Stradex: ignore clientside only entities to avoid weird shit
+			continue;
+		}
+
 		// if the entity is not in the player PVS
 		if ( !ent->PhysicsTeamInPVS( pvsHandle ) && ent->entityNumber != clientNum ) {
 			continue;
@@ -1332,6 +1337,10 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 	// add entities in the PVS that haven't changed since the last applied snapshot
 	for( ent = spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next() ) {
 
+		if (ent->clientsideNode.InList()) { //Stradex: ignore clientside only entities to avoid weird shit
+			continue;
+		}
+
 		// if the entity is already in the snapshot
 		if ( ent->snapshotSequence == sequence ) {
 			continue;
@@ -1755,6 +1764,7 @@ gameReturn_t idGameLocal::ClientPrediction( int clientNum, const usercmd_t *clie
 	if ( time > realClientTime ) {
 		realClientTime = time;
 		isNewFrame = true;
+		clientsideTime += msec; //added for clientside movement code and events
 	} else {
 		isNewFrame = false;
 	}
@@ -1769,13 +1779,21 @@ gameReturn_t idGameLocal::ClientPrediction( int clientNum, const usercmd_t *clie
 
 	// run prediction on all entities from the last snapshot
 	if (!mpGame.IsGametypeCoopBased()) { //non-coop original netcode
+
+		if (isNewFrame) {
+			for( ent = clientsideEntities.Next(); ent != NULL; ent = ent->clientsideNode.Next() ) {
+				ent->thinkFlags |= TH_PHYSICS;
+				ent->ClientPredictionThink();
+			}
+		}
+
 		for( ent = snapshotEntities.Next(); ent != NULL; ent = ent->snapshotNode.Next() ) {
 			ent->thinkFlags |= TH_PHYSICS;
 			ent->ClientPredictionThink();
 		}
 	} else { //COOP netcode
 
-	if (lastPredictFrame) {
+	if (isNewFrame) {
 		RunClientSideFrame(player, clientCmds);
 	} else { //old netcode entities (mover entities mostly)
 		for( ent = snapshotEntities.Next(); ent != NULL; ent = ent->snapshotNode.Next() ) {
@@ -2574,6 +2592,11 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 	// add entities in the PVS that haven't changed since the last applied snapshot
 	//for( ent = spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next() ) {
 	for( ent = coopSyncEntities.Next(); ent != NULL; ent = ent->coopNode.Next() ) { //test for coop
+
+		if (ent->clientsideNode.InList()) { //Stradex: ignore clientside only entities to avoid weird shit
+			continue;
+		}
+
 		// if the entity is already in the snapshot
 		if (!ent->forceNetworkSync) { //avoid crash related to idEntity::FindTargets coop entities
 			continue; //is this really necessary for coop?
@@ -2855,6 +2878,17 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 	for( ent = coopSyncEntities.Next(); ent != NULL; ent = ent->coopNode.Next() ) {
 		ent->readByServer = false;
 
+		if (ent->clientsideNode.InList()) { //Stradex: ignore clientside only entities to avoid weird shit
+			continue;
+		}
+
+		if (ent->IsType(idProjectile::Type)) { //clientside self projectiles
+			idEntity* tmpOwner = static_cast<idProjectile*>(ent)->GetOwner();
+			if (tmpOwner && tmpOwner->entityNumber == clientNum) { //projectiles created by current player
+				continue;
+			}
+		}
+
 		if ( !ent->PhysicsTeamInPVS( pvsHandle ) && (((ent->entityNumber != clientNum) && !mpGame.IsGametypeCoopBased()) || ((ent->entityCoopNumber != clientNum) && mpGame.IsGametypeCoopBased()))  ) {
 			continue;
 		}
@@ -2985,6 +3019,7 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 		} else {
 			newBase->next = snapshot->firstEntityState;
 			snapshot->firstEntityState = newBase;
+			ent->spawnSnapShot = false; //used to send spawn data first time an entity is in the snapshot
 
 #if ASYNC_WRITE_TAGS
 			msg.WriteInt( tagRandom.RandomInt() );

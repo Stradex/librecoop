@@ -693,6 +693,14 @@ idAI::Event_LaunchMissile
 void idAI::Event_LaunchMissile( const idVec3 &org, const idAngles &ang ) {
 
 	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		if ( flashJointWorld != INVALID_JOINT ) {
+			idVec3 muzzle;
+			animator.GetJointTransform( flashJointWorld, gameLocal.time, muzzle, worldMuzzleFlash.axis );
+			animator.GetJointTransform( flashJointWorld, gameLocal.time, muzzle, worldMuzzleFlash.axis );
+			muzzle = physicsObj.GetOrigin() + ( muzzle + modelOffset ) * viewAxis * physicsObj.GetGravityAxis();
+			TriggerWeaponEffects( muzzle ); //to show flash effects for clients
+			//common->Printf("[debug] Event_LaunchMissile\n");
+		}
 		//gameLocal.Warning( "[COOP] Event_LaunchMissile called by a client!\n"); //not a warning, just a natural thing in coop
 		return idThread::ReturnEntity( NULL );
 	}

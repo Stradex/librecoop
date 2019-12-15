@@ -302,6 +302,8 @@ void idGameLocal::Clear( void ) {
 		serverOverflowEvents[i].event = NULL;
 	}
 	overflowEventCountdown=0;
+	clientsideTime = 0;
+	clientsideEntities.Clear();
 	//end for coop
 
 	memset( clientEntityStates, 0, sizeof( clientEntityStates ) );
@@ -1014,6 +1016,7 @@ void idGameLocal::LoadMap( const char *mapName, int randseed ) {
 	num_coopentities = MAX_CLIENTS; //added for Coop
 	firstFreeIndex	= MAX_CLIENTS;
 	firstFreeCoopIndex = MAX_CLIENTS; //added for Coop
+	firstFreeCsIndex = CS_ENTITIES_START; //added for Coop
 
 	// reset the random number generator.
 	random.SetSeed( isMultiplayer ? randseed : 0 );
@@ -2599,6 +2602,7 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 		previousTime = time;
 		time += msec;
 		realClientTime = time;
+		clientsideTime = time;
 
 #ifdef _D3XP
 		slow.Set( time, previousTime, msec, framenum, realClientTime );
@@ -3409,13 +3413,27 @@ void idGameLocal::RegisterEntity( idEntity *ent ) {
 	}
 
 	if ( !spawnArgs.GetInt( "spawn_entnum", "0", spawn_entnum ) ) {
-		while( entities[firstFreeIndex] && firstFreeIndex < ENTITYNUM_MAX_NORMAL ) {
-			firstFreeIndex++;
+
+		if (spawnArgs.GetBool("clientside", "0")) { //is  clientside only entity
+			while( entities[firstFreeCsIndex] && firstFreeCsIndex < ENTITYNUM_MAX_NORMAL ) {
+				firstFreeCsIndex++;
+			}
+			if ( firstFreeCsIndex >= ENTITYNUM_MAX_NORMAL ) {
+				Error( "no free clientside entities." );
+			}
+
+			spawn_entnum = firstFreeCsIndex++;
+		} else { //normal entity
+
+			while( entities[firstFreeIndex] && firstFreeIndex < ENTITYNUM_MAX_NORMAL ) {
+				firstFreeIndex++;
+			}
+			if ( firstFreeIndex >= ENTITYNUM_MAX_NORMAL ) {
+				Error( "no free entities" );
+			}
+
+			spawn_entnum = firstFreeIndex++;
 		}
-		if ( firstFreeIndex >= ENTITYNUM_MAX_NORMAL ) {
-			Error( "no free entities" );
-		}
-		spawn_entnum = firstFreeIndex++;
 	}
 
 	if (ent->fl.coopNetworkSync || spawnArgs.GetInt( "coop_entnum", "0")) {
@@ -3429,6 +3447,11 @@ void idGameLocal::RegisterEntity( idEntity *ent ) {
 	spawnIds[ spawn_entnum ] = spawnCount++;
 	ent->entityNumber = spawn_entnum;
 	ent->spawnNode.AddToEnd( spawnedEntities );
+
+	if (spawnArgs.GetBool("clientside", "0")) { //added by Stradex
+		ent->clientsideNode.AddToEnd( clientsideEntities ); 
+	}
+
 	ent->spawnArgs.TransferKeyValues( spawnArgs );
 
 	if ( spawn_entnum >= num_entities ) {
@@ -3479,10 +3502,14 @@ void idGameLocal::UnregisterEntity( idEntity *ent ) {
 
 	if ( ( ent->entityNumber != ENTITYNUM_NONE ) && ( entities[ ent->entityNumber ] == ent ) ) {
 		ent->spawnNode.Remove();
+		ent->clientsideNode.Remove(); //added by Stradex
 		entities[ ent->entityNumber ] = NULL;
 		spawnIds[ ent->entityNumber ] = -1;
 		if ( ent->entityNumber >= MAX_CLIENTS && ent->entityNumber < firstFreeIndex ) {
 			firstFreeIndex = ent->entityNumber;
+		}
+		if ( ent->entityNumber >= CS_ENTITIES_START && ent->entityNumber < firstFreeCsIndex ) { //clientside firstFreeCsIndex update
+			firstFreeCsIndex = ent->entityNumber;
 		}
 		ent->entityNumber = ENTITYNUM_NONE;
 
@@ -3671,17 +3698,19 @@ idGameLocal::InhibitEntitySpawn
 bool idGameLocal::InhibitEntitySpawn( idDict &spawnArgs ) {
 
 	bool result = false;
+	
+	int gSkill = (isMultiplayer && gameLocal.mpGame.IsGametypeCoopBased()) ? gameLocal.serverInfo.GetInt("g_skill")  : g_skill.GetInteger();
 
 	if ( isMultiplayer && !gameLocal.mpGame.IsGametypeCoopBased() ) {
 		spawnArgs.GetBool( "not_multiplayer", "0", result );
-	} else if ( g_skill.GetInteger() == 0 ) {
+	} else if ( gSkill == 0 ) {
 		spawnArgs.GetBool( "not_easy", "0", result );
-	} else if ( g_skill.GetInteger() == 1 ) {
+	} else if ( gSkill == 1 ) {
 		spawnArgs.GetBool( "not_medium", "0", result );
 	} else {
 		spawnArgs.GetBool( "not_hard", "0", result );
 #ifdef _D3XP
-		if ( !result && g_skill.GetInteger() == 3 ) {
+		if ( !result && gSkill == 3 ) {
 			spawnArgs.GetBool( "not_nightmare", "0", result );
 		}
 #endif
@@ -3689,7 +3718,7 @@ bool idGameLocal::InhibitEntitySpawn( idDict &spawnArgs ) {
 
 
 	const char *name;
-	if ( g_skill.GetInteger() == 3 ) {
+	if ( gSkill == 3 ) {
 		name = spawnArgs.GetString( "classname" );
 		// _D3XP :: remove moveable medkit packs also
 		if ( idStr::Icmp( name, "item_medkit" ) == 0 || idStr::Icmp( name, "item_medkit_small" ) == 0 ||

@@ -46,7 +46,7 @@ If you have questions concerning this license or the applicable additional terms
 // could be a problem if players manage to go down sudden deaths till this .. oh well
 #define LASTMAN_NOLIVES -20
 
-idCVar g_spectatorChat( "g_spectatorChat", "0", CVAR_GAME | CVAR_ARCHIVE | CVAR_BOOL, "let spectators talk to everyone during game" );
+idCVar g_spectatorChat( "g_spectatorChat", "1", CVAR_GAME | CVAR_ARCHIVE | CVAR_BOOL, "let spectators talk to everyone during game" );
 
 // global sounds transmitted by index - 0 .. SND_COUNT
 // sounds in this list get precached on MP start
@@ -242,7 +242,7 @@ void idMultiplayerGame::SpawnPlayer( int clientNum ) {
 		if (IsGametypeCoopBased()) { /* SURVIVAL - COOP */
 			p->team = 0;//Always team 0 in Coop
 			if (gameLocal.gameType == GAME_SURVIVAL) {
-				if (gameState == WARMUP || gameState == COUNTDOWN) {
+				if (gameState  <= COUNTDOWN) {
 					playerState[ clientNum ].livesLeft = si_lives.GetInteger(); //added for Survival
 				} else {
 					playerState[ clientNum ].livesLeft = 0; //Don't allow players to join in middle of a game
@@ -508,7 +508,7 @@ void idMultiplayerGame::UpdateScoreboard( idUserInterface *scoreBoard, idPlayer 
 			}
 
 			if (gameLocal.gameType == GAME_SURVIVAL) {
-				value = idMath::ClampInt( 0, MP_PLAYER_MAXWINS, playerState[ rankedPlayers[ i ]->entityNumber ].livesLeft ); //use the "wins" slot for lives in survival
+				value = idMath::ClampInt( 0, MP_PLAYER_MAXLIVES, playerState[ rankedPlayers[ i ]->entityNumber ].livesLeft ); //use the "wins" slot for lives in survival
 			} else {
 				value = idMath::ClampInt( 0, MP_PLAYER_MAXWINS, playerState[ rankedPlayers[ i ]->entityNumber ].wins );
 			}

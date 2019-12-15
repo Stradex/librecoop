@@ -926,6 +926,13 @@ void idAnim::CallFrameCommands( idEntity *ent, int from, int to ) const {
 					break;
 				}
 				case FC_LAUNCHMISSILE: {
+					if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) { //COOP, to force triggerweaponeffects in clients
+						//fake muzzleflash by force
+						if (ent && ent->IsType(idAI::Type)){
+							idAI* tmpAI = static_cast<idAI*>(ent);
+							tmpAI->TriggerWeaponEffects(vec3_zero);
+						}
+					}
 					ent->ProcessEvent( &AI_AttackMissile, command.string->c_str() );
 					break;
 				}
