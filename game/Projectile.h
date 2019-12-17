@@ -61,6 +61,7 @@ public :
 
 	idEntity *				GetOwner( void ) const;
 
+	virtual void			SpawnDebris( void ); //added for COOP Clientside code
 	virtual void			Think( void );
 	virtual void			Killed( idEntity *inflictor, idEntity *attacker, int damage, const idVec3 &dir, int location );
 	virtual bool			Collide( const trace_t &collision, const idVec3 &velocity );
@@ -74,6 +75,8 @@ public :
 		EVENT_DAMAGE_EFFECT = idEntity::EVENT_MAXEVENTS,
 		EVENT_MAXEVENTS
 	};
+
+	bool					selfClientside; //if this projectile should be allowed to be self Clientside
 
 	static void				DefaultDamageEffect( idEntity *soundEnt, const idDict &projectileDef, const trace_t &collision, const idVec3 &velocity );
 	static bool				ClientPredictionCollide( idEntity *soundEnt, const idDict &projectileDef, const trace_t &collision, const idVec3 &velocity, bool addDamageEffect );
@@ -262,7 +265,7 @@ public :
 	void					Explode( void );
 	void					Fizzle( void );
 	virtual bool			Collide( const trace_t &collision, const idVec3 &velocity );
-
+	virtual void			ClientPredictionThink( void ); //added for Coop
 
 private:
 	idEntityPtr<idEntity>	owner;

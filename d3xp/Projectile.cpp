@@ -1341,11 +1341,10 @@ idProjectile::ClientPredictionThink
 ================
 */
 void idProjectile::ClientPredictionThink( void ) {
-	if ( !renderEntity.hModel && ((owner && (owner->entityNumber != gameLocal.localClientNum)) || !gameLocal.mpGame.IsGametypeCoopBased()) ) {
+	if ( !renderEntity.hModel && ((owner && owner.GetEntity() && (owner->entityNumber != gameLocal.localClientNum)) || !gameLocal.mpGame.IsGametypeCoopBased()) ) {
 		return;
 	}
-
-	if ((owner && (owner->entityNumber != gameLocal.localClientNum)) && gameLocal.mpGame.IsGametypeCoopBased()) {
+	if ((owner && owner.GetEntity() && (owner->entityNumber != gameLocal.localClientNum)) && gameLocal.mpGame.IsGametypeCoopBased()) {
 		thinkFlags |= TH_THINK;
 	}
 

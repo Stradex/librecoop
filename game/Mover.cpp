@@ -1604,6 +1604,7 @@ idElevator::idElevator( void ) {
 	fl.networkSync = true;
 	fl.coopNetworkSync = true;
 	fl.useOldNetcode = true;
+
 }
 
 /*
@@ -2128,6 +2129,7 @@ idMover_Binary::idMover_Binary() {
 	blocked = false;
 	fl.networkSync = true;
 	fl.coopNetworkSync = true;
+	fl.useOldNetcode = true;
 }
 
 /*
