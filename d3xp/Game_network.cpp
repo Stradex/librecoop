@@ -2882,7 +2882,7 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 			continue;
 		}
 
-		if (ent->IsType(idProjectile::Type)) { //clientside self projectiles
+		if (ent->IsType(idProjectile::Type) && static_cast<idProjectile*>(ent)->selfClientside) { //clientside self projectiles
 			idEntity* tmpOwner = static_cast<idProjectile*>(ent)->GetOwner();
 			if (tmpOwner && tmpOwner->entityNumber == clientNum) { //projectiles created by current player
 				continue;
@@ -2892,7 +2892,7 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 		if ( !ent->PhysicsTeamInPVS( pvsHandle ) && (((ent->entityNumber != clientNum) && !mpGame.IsGametypeCoopBased()) || ((ent->entityCoopNumber != clientNum) && mpGame.IsGametypeCoopBased()))  ) {
 			continue;
 		}
-		if (!ent->IsActive() && !ent->IsMasterActive() && !ent->firstTimeInClientPVS[clientNum] && !ent->forceNetworkSync && !ent->inSnapshotQueue[clientNum]) { //ignore inactive entities that the player already saw before
+		if (!ent->IsActive() && !ent->IsMasterActive() && !ent->firstTimeInClientPVS[clientNum] && !ent->forceNetworkSync && !ent->inSnapshotQueue[clientNum] && !ent->MasterUseOldNetcode()) { //ignore inactive entities that the player already saw before
 			continue;
 		}
 		// if that entity is not marked for network synchronization

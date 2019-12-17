@@ -68,6 +68,8 @@ public :
 	void					Event_SetGravity( float gravity );
 #endif
 
+
+	virtual void			SpawnDebris( void ); //added for COOP Clientside code
 	virtual void			Think( void );
 	virtual void			Killed( idEntity *inflictor, idEntity *attacker, int damage, const idVec3 &dir, int location );
 	virtual bool			Collide( const trace_t &collision, const idVec3 &velocity );
@@ -82,9 +84,10 @@ public :
 		EVENT_MAXEVENTS
 	};
 
-	
 	void					SetLaunchedFromGrabber( bool bl ) { launchedFromGrabber = bl; } //Added for LM
 	bool					GetLaunchedFromGrabber() { return launchedFromGrabber; } //Added for LM
+
+	bool					selfClientside; //if this projectile should be allowed to be self Clientside
 
 	static void				DefaultDamageEffect( idEntity *soundEnt, const idDict &projectileDef, const trace_t &collision, const idVec3 &velocity );
 	static bool				ClientPredictionCollide( idEntity *soundEnt, const idDict &projectileDef, const trace_t &collision, const idVec3 &velocity, bool addDamageEffect );
@@ -327,6 +330,7 @@ public :
 	void					Explode( void );
 	void					Fizzle( void );
 	virtual bool			Collide( const trace_t &collision, const idVec3 &velocity );
+	virtual void			ClientPredictionThink( void ); //added for Coop
 
 
 private:

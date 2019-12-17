@@ -5653,6 +5653,7 @@ idPlayer *idAI::GetClosestPlayerEnemy( void ) {
 	return closestPlayer;
 }
 
+
 /*
 =======================
 idAI::CSAnimMove
@@ -5685,12 +5686,7 @@ void idAI::CSAnimMove( void ) {
 		TurnToward( turnTowardPos );
 		goalPos = oldorigin;
 	} else if ( GetMovePos( goalPos ) ) {
-		if ( move.moveCommand != MOVE_WANDER ) {
-			CheckObstacleAvoidance( goalPos, newDest );
-			TurnToward( turnTowardPos );
-		} else {
-			TurnToward( turnTowardPos );
-		}
+		TurnToward( turnTowardPos ); //no need for CheckObstacleAvoidance in coop
 	}
 
 	Turn();

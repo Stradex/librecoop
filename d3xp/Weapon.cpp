@@ -3420,7 +3420,9 @@ void idWeapon::Event_LaunchProjectiles( int num_projectiles, float spread, float
 	if ( gameLocal.isClient ) {
 
 		// predict instant hit projectiles
-		if ( projectileDict.GetBool( "net_instanthit" ) ) {
+		 if ((gameLocal.localClientNum == owner->entityNumber) && gameLocal.mpGame.IsGametypeCoopBased() && projectileDict.GetBool( "self_clientside", "1" )) { //predict projectiles on local player only
+			ClientsideFireProjectile(num_projectiles, spread,  fuseOffset,launchPower, dmgPower, projectileDict);
+		} else if ( projectileDict.GetBool( "net_instanthit" ) ) {
 			float spreadRad = DEG2RAD( spread );
 			muzzle_pos = muzzleOrigin + playerViewAxis[ 0 ] * 2.0f;
 			for( i = 0; i < num_projectiles; i++ ) {
@@ -3433,8 +3435,6 @@ void idWeapon::Event_LaunchProjectiles( int num_projectiles, float spread, float
 					idProjectile::ClientPredictionCollide( this, projectileDict, tr, vec3_origin, true );
 				}
 			}
-		} else if (gameLocal.localClientNum == owner->entityNumber) { //predict projectiles on local player only
-			ClientsideFireProjectile(num_projectiles, spread,  fuseOffset,launchPower, dmgPower, projectileDict);
 		}
 
 	} else {
