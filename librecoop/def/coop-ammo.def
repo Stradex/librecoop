@@ -1,0 +1,14 @@
+entityDef projectile_soulblast_coop {
+	"inherit"					"projectile_soulblast"
+	"self_clientside"			"0" //added by Stradex
+}
+
+entityDef projectile_bfg_coop {
+	"inherit"					"projectile_bfg"
+	"self_clientside"			"0" //added by Stradex
+}
+
+entityDef projectile_grenade_coop {
+	"inherit"					"projectile_grenade"
+	"self_clientside"			"0" //added by Stradex
+}

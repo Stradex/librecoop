@@ -1,0 +1,20 @@
+entityDef projectile_soulblast_coop {
+	"inherit"					"projectile_soulblast"
+	"self_clientside"			"0" //added by Stradex
+}
+
+entityDef projectile_bfg_coop {
+	"inherit"					"projectile_bfg"
+	"self_clientside"			"0" //added by Stradex
+}
+
+entityDef projectile_grenade_coop {
+	"inherit"					"projectile_grenade"
+	"self_clientside"			"0" //added by Stradex
+}
+
+//FIXME: For some reason SSG projectile clientside is not working...
+entityDef projectile_bullet_shotgun_double_coop {
+	"inherit"					"projectile_bullet_shotgun_double"
+	"self_clientside"			"0" //added by Stradex
+}
