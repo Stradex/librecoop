@@ -488,6 +488,9 @@ private:
 	void					Event_HasFunction( const char *name );
 	void					Event_CallFunction( const char *name );
 	void					Event_SetNeverDormant( int enable );
+
+	void					Event_SetNetShaderParm( int parmnum, float value ); //added for OpenCoop Compatibility
+	void					Event_StartNetSoundShader( const char *soundName, int channel, int netSync ); //added for OpenCoop Compatibility
 };
 
 /*

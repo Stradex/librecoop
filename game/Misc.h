@@ -81,6 +81,8 @@ public:
 
 	void				Save( idSaveGame *savefile ) const;
 	void				Restore( idRestoreGame *savefile );
+	void				Event_Enable( void ); //added for OpenCoop maps Compability
+	void				Event_Disable( void ); //added for OpenCoop maps Compability
 
 	virtual bool		ClientReceiveEvent( int event, int time, const idBitMsg &msg );
 
@@ -474,6 +476,10 @@ public:
 	void				Spawn( void );
 
 	const char *		GetLocation( void ) const;
+	int					GetPlayersIn( void ) const ; //added for OpenCoop maps support
+	void				Event_NumPlayers( void ); //added for OpenCoop maps support
+	void				Event_AllPlayersIn( void ); //added for OpenCoop maps support
+	void				Event_NoPlayersIn( void ); //added for OpenCoop maps support
 
 private:
 };

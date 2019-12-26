@@ -121,6 +121,8 @@ const idEventDef EV_StartFx( "startFx", "s" );
 const idEventDef EV_HasFunction( "hasFunction", "s", 'd' );
 const idEventDef EV_CallFunction( "callFunction", "s" );
 const idEventDef EV_SetNeverDormant( "setNeverDormant", "d" );
+const idEventDef EV_SetNetShaderParm( "setNetShaderParm", "df" ); //added for OpenCoop maps compatibility
+const idEventDef EV_StartNetSoundShader( "startNetSndShader", "sdd", 'f' ); //added for OpenCoop maps compatibility
 
 ABSTRACT_DECLARATION( idClass, idEntity )
 	EVENT( EV_GetName,				idEntity::Event_GetName )
@@ -187,6 +189,8 @@ ABSTRACT_DECLARATION( idClass, idEntity )
 	EVENT( EV_CallFunction,			idEntity::Event_CallFunction )
 	EVENT( EV_SetNeverDormant,		idEntity::Event_SetNeverDormant )
 	EVENT( EV_SafeRemove,			idEntity::Event_SafeRemove ) //added for coop
+	EVENT( EV_SetNetShaderParm,		idEntity::Event_SetNetShaderParm ) //added opencoop maps compatibility
+	EVENT( EV_StartNetSoundShader,	idEntity::Event_StartNetSoundShader ) //added opencoop maps compatibility
 END_CLASS
 
 /*
@@ -4756,7 +4760,7 @@ void idEntity::Event_SetNeverDormant( int enable ) {
 
 /*
 ================
-idClass::Event_SafeRemove
+idEntity::Event_SafeRemove
 ================
 */
 void idEntity::Event_SafeRemove( void ) {
@@ -4771,6 +4775,29 @@ void idEntity::Event_SafeRemove( void ) {
 		PostEventMS( &EV_Remove, 0 );
 	}
 }
+
+/*
+================
+idEntity::Event_SetNetShaderParm
+================
+*/
+void idEntity::Event_SetNetShaderParm( int parmnum, float value ) {
+	SetShaderParm( parmnum, value ); //FIXME Stradex: NetSync this later
+}
+
+/*
+================
+idEntity::Event_StartNetSoundShader
+================
+*/
+void idEntity::Event_StartNetSoundShader( const char *soundName, int channel, int netSync ) {
+	int length;
+
+	StartSoundShader( declManager->FindSound( soundName ), (s_channelType)channel, netSync, false, &length );
+	idThread::ReturnFloat( MS2SEC( length ) );
+}
+
+
 
 /***********************************************************************
 

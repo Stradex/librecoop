@@ -3244,7 +3244,7 @@ void idGameLocal::UnregisterEntity( idEntity *ent ) {
 	if ( editEntities ) {
 		editEntities->RemoveSelectedEntity( ent );
 	}
-
+	
 	if ( ( ent->entityNumber != ENTITYNUM_NONE ) && ( entities[ ent->entityNumber ] == ent ) ) {
 		ent->spawnNode.Remove();
 		ent->clientsideNode.Remove(); //added by Stradex
@@ -4488,9 +4488,11 @@ void idGameLocal::RandomizeInitialSpawns( void ) {
 	spot.ent = FindEntityUsingDef( NULL,  static_cast<const char*>(spawnDefEntity) );
 	
 	while( spot.ent ) {
-		spawnSpots.Append( spot );
-		if ( spot.ent->spawnArgs.GetBool( "initial" ) ) {
-			initialSpots.Append( spot.ent );
+		if (!spot.ent->spawnArgs.GetBool( "start_off" )) { //for OpenCoop maps compatibility
+			spawnSpots.Append( spot );
+			if ( spot.ent->spawnArgs.GetBool( "initial" ) ) {
+				initialSpots.Append( spot.ent );
+			}
 		}
 		spot.ent = FindEntityUsingDef( spot.ent, static_cast<const char*>(spawnDefEntity) );
 	}
