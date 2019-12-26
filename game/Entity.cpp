@@ -186,6 +186,7 @@ ABSTRACT_DECLARATION( idClass, idEntity )
 	EVENT( EV_HasFunction,			idEntity::Event_HasFunction )
 	EVENT( EV_CallFunction,			idEntity::Event_CallFunction )
 	EVENT( EV_SetNeverDormant,		idEntity::Event_SetNeverDormant )
+	EVENT( EV_SafeRemove,			idEntity::Event_SafeRemove ) //added for coop
 END_CLASS
 
 /*
@@ -1209,6 +1210,11 @@ idEntity::Hide
 */
 void idEntity::Hide( void ) {
 	if ( !IsHidden() ) {
+
+		for (int i=0; i < MAX_CLIENTS; i++) {
+			firstTimeInClientPVS[i] = true; //To ensure atleast one shapshot after hiding a sync entity
+		}
+
 		fl.hidden = true;
 		FreeModelDef();
 		UpdateVisuals();
@@ -1222,6 +1228,9 @@ idEntity::Show
 */
 void idEntity::Show( void ) {
 	if ( IsHidden() ) {
+		for (int i=0; i < MAX_CLIENTS; i++) {
+			firstTimeInClientPVS[i] = true;  //To ensure atleast one shapshot after showing a sync entity
+		}
 		fl.hidden = false;
 		UpdateVisuals();
 	}
@@ -4743,6 +4752,24 @@ idEntity::Event_SetNeverDormant
 void idEntity::Event_SetNeverDormant( int enable ) {
 	fl.neverDormant	= ( enable != 0 );
 	dormantStart = 0;
+}
+
+/*
+================
+idClass::Event_SafeRemove
+================
+*/
+void idEntity::Event_SafeRemove( void ) {
+	// Forces the remove to be done at a safe time
+	if (gameLocal.isClient && fl.coopNetworkSync) //don't dare in trying to delete coop networksync entities while being client
+	{
+		return;
+	}
+	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) {
+		CS_PostEventMS( &EV_Remove, 0 );
+	} else {
+		PostEventMS( &EV_Remove, 0 );
+	}
 }
 
 /***********************************************************************

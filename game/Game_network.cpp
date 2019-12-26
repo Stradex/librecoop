@@ -2120,7 +2120,8 @@ gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const userc
 		ent->ClientPredictionThink();
 	}
 
-	//FIXME: AVOID UGLY COOP IN BUG START
+	//FIXME: AVOID UGLY COOP IN BUG START (this code is shit)
+	/*
 	for( ent = coopSyncEntities.Next(); ent != NULL; ent = ent->coopNode.Next() ) {
 		if (!ent->forceNetworkSync || (ent->entityCoopNumber == clientPlayer->entityCoopNumber)) {
 			continue;
@@ -2131,6 +2132,7 @@ gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const userc
 			//common->Printf("[COOP] Hiding: %s\n", ent->GetName());
 		}
 	}
+	*/
 	//players: Now that players are forceNetworkSync = true this could be deleted I think
 	for (int i=0; i < MAX_CLIENTS; i++) {
 		if (!coopentities[i] || (coopentities[i]->entityCoopNumber == clientPlayer->entityCoopNumber)) {
@@ -2853,6 +2855,9 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 			continue;
 		}
 		if (!ent->IsActive() && !ent->IsMasterActive() && !ent->firstTimeInClientPVS[clientNum] && !ent->forceNetworkSync && !ent->inSnapshotQueue[clientNum] && !ent->MasterUseOldNetcode()) { //ignore inactive entities that the player already saw before
+			continue;
+		}
+		if (ent->IsHidden() && !ent->firstTimeInClientPVS[clientNum] && !ent->inSnapshotQueue[clientNum] ) { //this shit is really important to improve server netcode
 			continue;
 		}
 		// if that entity is not marked for network synchronization

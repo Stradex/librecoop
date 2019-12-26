@@ -8107,9 +8107,6 @@ void idPlayer::ClientPredictionThink( void ) {
 
 	bool tmpBecameUnlocked = false;
 	if (net_clientSideMovement.GetBool()  && (gameLocal.localClientNum == entityNumber) && physicsObj.ClientPusherLocked(tmpBecameUnlocked)) {
-		if ( gameLocal.isNewFrame ) {
-			common->Printf("Over a pusher object...\n");
-		}
 		allowClientsideMovement = false;
 	}
 

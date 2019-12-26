@@ -436,6 +436,7 @@ private:
 	void					Event_BindToJoint( idEntity *master, const char *jointname, float orientated );
 	void					Event_Unbind( void );
 	void					Event_RemoveBinds( void );
+	void					Event_SafeRemove( void );  //added for coop 
 	void					Event_SpawnBind( void );
 	void					Event_SetOwner( idEntity *owner );
 	void					Event_SetModel( const char *modelname );
