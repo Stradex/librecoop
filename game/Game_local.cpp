@@ -1029,7 +1029,7 @@ void idGameLocal::LocalMapRestart( ) {
 
 	//COOP START
 
-	firstClientToSpawn = true; //added by Stradex for coop
+	firstClientToSpawn = false; //added by Stradex for coop
 	coopMapScriptLoad = false; //added by Stradex for coop
 	num_coopentities = 0; //for coop
 
@@ -2440,20 +2440,12 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 						ent->GetPhysics()->UpdateTime( time );
 						continue;
 					}
-					if  (isMultiplayer && mpGame.IsGametypeCoopBased() && localClientNum < 0 && !gameLocal.firstClientToSpawn && g_freezeUntilClientJoins.GetBool()) {
-						num++;
-						continue; //don't let any entity to think while there're no players in-game yet for dedicated server in coop
-					}
 					ent->Think();
 					num++;
 				}
 			} else {
 				num = 0;
 				for( ent = activeEntities.Next(); ent != NULL; ent = ent->activeNode.Next() ) {
-					if  (isMultiplayer && mpGame.IsGametypeCoopBased() && localClientNum < 0 && !gameLocal.firstClientToSpawn  && g_freezeUntilClientJoins.GetBool()) {
-						num++;
-						continue;//don't let any entity to think while there're no players in-game yet for dedicated server in coop
-					}
 					ent->Think();
 					num++;
 				}

@@ -981,6 +981,7 @@ idPlayer::idPlayer() {
 
 	noclip					= false;
 	godmode					= false;
+	forceSPSpawnPoint		= false; //added for coop
 
 	spawnAnglesSet			= false;
 	spawnAngles				= ang_zero;
@@ -1469,7 +1470,6 @@ void idPlayer::Spawn( void ) {
 
 	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
 		originalSpawnArgs.Copy(spawnArgs); //I think there's no need for this
-		gameLocal.firstClientToSpawn = true; //addded for COOP
 	}
 
 	if ( gameLocal.isMultiplayer ) {
@@ -1560,6 +1560,10 @@ void idPlayer::Spawn( void ) {
 		if ( !gameLocal.isClient ) {
 			// set yourself ready to spawn. idMultiplayerGame will decide when/if appropriate and call SpawnFromSpawnSpot
 			SetupWeaponEntity();
+			if (!gameLocal.firstClientToSpawn && !spectating) {
+				forceSPSpawnPoint = true;
+				gameLocal.firstClientToSpawn = true;
+			}
 			SpawnFromSpawnSpot();
 			forceRespawn = true;
 			assert( spectating );
@@ -2174,6 +2178,10 @@ void idPlayer::ServerSpectate( bool spectate ) {
 		}
 	}
 	if ( !spectate ) {
+		if (!gameLocal.firstClientToSpawn && !spectating) {
+			forceSPSpawnPoint = true;
+			gameLocal.firstClientToSpawn = true;
+		}
 		SpawnFromSpawnSpot();
 	}
 }
@@ -2225,7 +2233,16 @@ void idPlayer::SelectInitialSpawnPoint( idVec3 &origin, idAngles &angles ) {
 	idEntity *spot;
 	idStr skin;
 
-	spot = gameLocal.SelectInitialSpawnPoint( this );
+	if (forceSPSpawnPoint && !spectating) { //added to ensure that info_player_start it is used atleast once
+		spot = gameLocal.FindEntityUsingDef( NULL, "info_player_start" );
+		if ( !spot ) {
+			gameLocal.Error( "No info_player_start on map.\n" );
+		}
+		gameLocal.Printf("[COOP DEBUG] Forcing info_player_start...\n");
+		forceSPSpawnPoint = false;
+	} else {
+		spot = gameLocal.SelectInitialSpawnPoint( this );
+	}
 
 	// set the player skin from the spawn location
 	if ( spot->spawnArgs.GetString( "skin", NULL, skin ) ) {
@@ -2235,12 +2252,16 @@ void idPlayer::SelectInitialSpawnPoint( idVec3 &origin, idAngles &angles ) {
 	// activate the spawn locations targets
 	spot->PostEventMS( &EV_ActivateTargets, 0, this );
 
+	/*
+	//Disable checkpoint spawn now that we can play OpenCoop maps
 	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.mpGame.playerUseCheckpoints[this->entityNumber] && gameLocal.isServer) {
 		origin = gameLocal.mpGame.playerCheckpoints[this->entityNumber];
 		origin[2] += 4.0f + CM_BOX_EPSILON;
 		angles = spot->GetPhysics()->GetAxis().ToAngles();
 		return;
 	}
+	*/
+	
 
 	origin = spot->GetPhysics()->GetOrigin();
 	origin[2] += 4.0f + CM_BOX_EPSILON;		// move up to make sure the player is at least an epsilon above the floor

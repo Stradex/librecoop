@@ -596,6 +596,8 @@ private:
 
 	int						nextSendPhysicsInfoTime; // COOP: added for clientside movement code 
 
+	bool					forceSPSpawnPoint;  // COO
+
 	const idDeclSkin *		skin;
 	const idDeclSkin *		powerUpSkin;
 	idStr					baseSkinName;
