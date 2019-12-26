@@ -26,6 +26,26 @@ If you have questions concerning this license or the applicable additional terms
 ===========================================================================
 */
 
+/*
+===========================================================================
+Doom 3 BFG Edition GPL Source Code
+Copyright (C) 1993-2012 id Software LLC, a ZeniMax Media company.
+This file is part of the Doom 3 BFG Edition GPL Source Code ("Doom 3 BFG Edition Source Code").
+Doom 3 BFG Edition Source Code is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+Doom 3 BFG Edition Source Code is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with Doom 3 BFG Edition Source Code.  If not, see <http://www.gnu.org/licenses/>.
+In addition, the Doom 3 BFG Edition Source Code is also subject to certain additional terms. You should have received a copy of these additional terms immediately following the terms and conditions of the GNU General Public License which accompanied the Doom 3 BFG Edition Source Code.  If not, please request a copy in writing from id Software at the address below.
+If you have questions concerning this license or the applicable additional terms, you may contact in writing id Software LLC, c/o ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
+===========================================================================
+*/
+
 #ifndef __PHYSICS_PLAYER_H__
 #define __PHYSICS_PLAYER_H__
 
@@ -99,6 +119,7 @@ public:
 	bool					IsCrouching( void ) const;
 	bool					OnLadder( void ) const;
 	const idVec3 &			PlayerGetOrigin( void ) const;	// != GetOrigin
+	const idVec3 &			GetClientOrigin( void ) const;
 
 public:	// common physics interface
 	bool					Evaluate( int timeStepMSec, int endTimeMSec );
@@ -122,6 +143,9 @@ public:	// common physics interface
 	void					SetLinearVelocity( const idVec3 &newLinearVelocity, int id = 0 );
 
 	const idVec3 &			GetLinearVelocity( int id = 0 ) const;
+	const idVec3 &			GetClientLinearVelocity( int id = 0 ) const;
+
+	bool					ClientPusherLocked( bool& justBecameUnlocked ); //added from BFG Edition for clientside movement
 
 	void					SetPushed( int deltaTime );
 	const idVec3 &			GetPushedLinearVelocity( const int id = 0 ) const;
@@ -137,6 +161,7 @@ public:	// common physics interface
 private:
 	// player physics state
 	playerPState_t			current;
+	playerPState_t			client;
 	playerPState_t			saved;
 
 	// properties
@@ -170,6 +195,8 @@ private:
 	// results of last evaluate
 	waterLevel_t			waterLevel;
 	int						waterType;
+
+	bool					clientPusherLocked; //added from BFG Edition for clientside movement
 
 private:
 	float					CmdScale( const usercmd_t &cmd ) const;
