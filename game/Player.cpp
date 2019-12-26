@@ -3324,6 +3324,9 @@ bool idPlayer::GiveInventoryItem( idDict *item ) {
 	if ( gameLocal.isMultiplayer && spectating ) {
 		return false;
 	}
+	if ( gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		return true;
+	}
 	inventory.items.Append( new idDict( *item ) );
 	idItemInfo info;
 	const char* itemName = item->GetString( "inv_name" );
@@ -3338,6 +3341,7 @@ bool idPlayer::GiveInventoryItem( idDict *item ) {
 		hud->SetStateString( "itemicon", info.icon );
 		hud->HandleNamedEvent( "invPickup" );
 	}
+
 	return true;
 }
 
@@ -3491,7 +3495,7 @@ void idPlayer::GivePDA( const char *pdaName, idDict *item )
 				if (!p || p->spectating || (p->entityNumber == this->entityNumber)) {
 					continue;
 				}
-
+				
 				p->inventory.pdaSecurity.AddUnique( item->GetString( "inv_name" ) );
 			}
 		}
@@ -6635,6 +6639,7 @@ void idPlayer::Killed( idEntity *inflictor, idEntity *attacker, int damage, cons
 	if (gameLocal.mpGame.IsGametypeCoopBased()){
 		spawnArgs.Clear(); //with this only should be enough
 		spawnArgs.Copy(originalSpawnArgs); //I think there's no need for this.
+		inventory.pdaSecurity.Clear(); //necessary?
 		inventory.Clear(); //this maybe is not a good idea
 		gameLocal.persistentPlayerInfo[entityNumber].Clear(); //reset persistant info
 	}
