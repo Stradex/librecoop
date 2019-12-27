@@ -598,7 +598,7 @@ idTarget_Give::Spawn
 */
 void idTarget_Give::Spawn( void ) {
 	if ( spawnArgs.GetBool( "onSpawn" ) ) {
-		PostEventMS( &EV_Activate, 50 );
+		PostEventMS( &EV_Activate, 50 , this); //Stradex: Fixing the game logic
 	}
 }
 

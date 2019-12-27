@@ -201,6 +201,49 @@ void idInventory::Clear( void ) {
 
 /*
 ==============
+idInventory::CoopClear
+==============
+*/
+void idInventory::CoopClear( void ) {
+	maxHealth		= 0;
+	weapons			= 0;
+	powerups		= 0;
+	armor			= 0;
+	maxarmor		= 0;
+	deplete_armor	= 0;
+	deplete_rate	= 0.0f;
+	deplete_ammount	= 0;
+	nextArmorDepleteTime = 0;
+
+	memset( ammo, 0, sizeof( ammo ) );
+
+	ClearPowerUps();
+
+	// set to -1 so that the gun knows to have a full clip the first time we get it and at the start of the level
+	memset( clip, -1, sizeof( clip ) );
+
+	selVideo = 0;
+	selEMail = 0;
+	selPDA = 0;
+	selAudio = 0;
+	pdaOpened = false;
+	turkeyScore = false;
+
+	nextItemPickup = 0;
+	nextItemNum = 1;
+	onePickupTime = 0;
+
+	ammoPredictTime = 0;
+
+	lastGiveTime = 0;
+
+	ammoPulse	= false;
+	weaponPulse	= false;
+	armorPulse	= false;
+}
+
+/*
+==============
 idInventory::GivePowerUp
 ==============
 */
@@ -350,7 +393,11 @@ void idInventory::RestoreInventory( idPlayer *owner, const idDict &dict ) {
 	const idKeyValue *kv;
 	const char	*name;
 
-	Clear();
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		CoopClear();
+	} else {
+		Clear();
+	}
 
 	// health/armor
 	maxHealth		= dict.GetInt( "maxhealth", "100" );
@@ -370,25 +417,28 @@ void idInventory::RestoreInventory( idPlayer *owner, const idDict &dict ) {
 		}
 	}
 
-	// items
-	num = dict.GetInt( "items" );
-	items.SetNum( num );
-	for( i = 0; i < num; i++ ) {
-		item = new idDict();
-		items[ i ] = item;
-		sprintf( itemname, "item_%i ", i );
-		kv = dict.MatchPrefix( itemname );
-		while( kv ) {
-			key = kv->GetKey();
-			key.Strip( itemname );
-			item->Set( key, kv->GetValue() );
-			kv = dict.MatchPrefix( itemname, kv );
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+		// items
+		num = dict.GetInt( "items" );
+		items.SetNum( num );
+		for( i = 0; i < num; i++ ) {
+			item = new idDict();
+			items[ i ] = item;
+			sprintf( itemname, "item_%i ", i );
+			kv = dict.MatchPrefix( itemname );
+			while( kv ) {
+				key = kv->GetKey();
+				key.Strip( itemname );
+				item->Set( key, kv->GetValue() );
+				kv = dict.MatchPrefix( itemname, kv );
+			}
 		}
-	}
 
-	// pdas viewed
-	for ( i = 0; i < 4; i++ ) {
-		pdasViewed[i] = dict.GetInt(va("pdasViewed_%i", i));
+		// pdas viewed
+		for ( i = 0; i < 4; i++ ) {
+			pdasViewed[i] = dict.GetInt(va("pdasViewed_%i", i));
+		}
+
 	}
 
 	selPDA = dict.GetInt( "selPDA" );
@@ -398,28 +448,32 @@ void idInventory::RestoreInventory( idPlayer *owner, const idDict &dict ) {
 	pdaOpened = dict.GetBool( "pdaOpened" );
 	turkeyScore = dict.GetBool( "turkeyScore" );
 
-	// pdas
-	num = dict.GetInt( "pdas" );
-	pdas.SetNum( num );
-	for ( i = 0; i < num; i++ ) {
-		sprintf( itemname, "pda_%i", i );
-		pdas[i] = dict.GetString( itemname, "default" );
-	}
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) {
 
-	// videos
-	num = dict.GetInt( "videos" );
-	videos.SetNum( num );
-	for ( i = 0; i < num; i++ ) {
-		sprintf( itemname, "video_%i", i );
-		videos[i] = dict.GetString( itemname, "default" );
-	}
+		// pdas
+		num = dict.GetInt( "pdas" );
+		pdas.SetNum( num );
+		for ( i = 0; i < num; i++ ) {
+			sprintf( itemname, "pda_%i", i );
+			pdas[i] = dict.GetString( itemname, "default" );
+		}
 
-	// emails
-	num = dict.GetInt( "emails" );
-	emails.SetNum( num );
-	for ( i = 0; i < num; i++ ) {
-		sprintf( itemname, "email_%i", i );
-		emails[i] = dict.GetString( itemname, "default" );
+		// videos
+		num = dict.GetInt( "videos" );
+		videos.SetNum( num );
+		for ( i = 0; i < num; i++ ) {
+			sprintf( itemname, "video_%i", i );
+			videos[i] = dict.GetString( itemname, "default" );
+		}
+
+		// emails
+		num = dict.GetInt( "emails" );
+		emails.SetNum( num );
+		for ( i = 0; i < num; i++ ) {
+			sprintf( itemname, "email_%i", i );
+			emails[i] = dict.GetString( itemname, "default" );
+		}
+
 	}
 
 	// weapons are stored as a number for persistant data, but as strings in the entityDef
@@ -431,14 +485,18 @@ void idInventory::RestoreInventory( idPlayer *owner, const idDict &dict ) {
 		Give( owner, dict, "weapon", dict.GetString( "weapon" ), NULL, false );
 	}
 
-	num = dict.GetInt( "levelTriggers" );
-	for ( i = 0; i < num; i++ ) {
-		sprintf( itemname, "levelTrigger_Level_%i", i );
-		idLevelTriggerInfo lti;
-		lti.levelName = dict.GetString( itemname );
-		sprintf( itemname, "levelTrigger_Trigger_%i", i );
-		lti.triggerName = dict.GetString( itemname );
-		levelTriggers.Append( lti );
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+
+		num = dict.GetInt( "levelTriggers" );
+		for ( i = 0; i < num; i++ ) {
+			sprintf( itemname, "levelTrigger_Level_%i", i );
+			idLevelTriggerInfo lti;
+			lti.levelName = dict.GetString( itemname );
+			sprintf( itemname, "levelTrigger_Trigger_%i", i );
+			lti.triggerName = dict.GetString( itemname );
+			levelTriggers.Append( lti );
+		}
+
 	}
 
 }
@@ -6639,8 +6697,7 @@ void idPlayer::Killed( idEntity *inflictor, idEntity *attacker, int damage, cons
 	if (gameLocal.mpGame.IsGametypeCoopBased()){
 		spawnArgs.Clear(); //with this only should be enough
 		spawnArgs.Copy(originalSpawnArgs); //I think there's no need for this.
-		inventory.pdaSecurity.Clear(); //necessary?
-		inventory.Clear(); //this maybe is not a good idea
+		inventory.CoopClear(); 
 		gameLocal.persistentPlayerInfo[entityNumber].Clear(); //reset persistant info
 	}
 
