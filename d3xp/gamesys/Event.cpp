@@ -254,7 +254,8 @@ idEvent *idEvent::Alloc( const idEventDef *evdef, int numargs, va_list args ) {
 	ev->eventdef = evdef;
 
 	if ( numargs != evdef->GetNumArgs() ) {
-		gameLocal.Error( "idEvent::Alloc : Wrong number of args for '%s' event.", evdef->GetName() );
+		//assert(0); //to force crash
+		gameLocal.Error( "idEvent::Alloc : Wrong number of args for '%s' event. E: %d - R: %d", evdef->GetName(), evdef->GetNumArgs(), numargs );
 	}
 
 	size = evdef->GetArgSize();

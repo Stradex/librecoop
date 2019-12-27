@@ -2224,7 +2224,7 @@ be correct for single player.
 ================
 */
 idPlayer *idGameLocal::GetLocalPlayer() const {
-	if ( localClientNum < 0 ) {
+	if ( localClientNum < 0 ) { 
 		return NULL;
 	}
 

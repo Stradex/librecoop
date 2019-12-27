@@ -596,9 +596,9 @@ END_CLASS
 idTarget_Give::Spawn
 ================
 */
-void idTarget_Give::Spawn( void ) {
+void idTarget_Give::Spawn( void ) { //is this code bugged?
 	if ( spawnArgs.GetBool( "onSpawn" ) ) {
-		PostEventMS( &EV_Activate, 50 );
+		PostEventMS(&EV_Activate, 50, this); //Stradex: Fixing the game logic
 	}
 }
 
@@ -614,7 +614,7 @@ void idTarget_Give::Event_Activate( idEntity *activator ) {
 	}
 
 	static int giveNum = 0;
-	idPlayer *player = gameLocal.GetLocalPlayer();
+	idPlayer *player = gameLocal.GetLocalPlayer(); //should I use get Coop player?
 	if ( player ) {
 		const idKeyValue *kv = spawnArgs.MatchPrefix( "item", NULL );
 		while ( kv ) {
