@@ -219,6 +219,7 @@ public:
 	void					Restore( idRestoreGame *savefile );					// unarchives object from save game file
 
 	void					Clear( void );
+	void					CoopClear( void ); //To keep pda security, keys, etc... (and all related to inv_carry)
 	void					GivePowerUp( idPlayer *player, int powerup, int msec );
 	void					ClearPowerUps( void );
 	void					GetPersistantData( idDict &dict );
