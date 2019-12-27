@@ -63,10 +63,6 @@ void idWorldspawn::Spawn( void ) {
 	if ( spawnArgs.GetBool( "no_stamina" ) ) {
 		pm_stamina.SetFloat( 0.0f );
 	}
-	if (cvarSystem->GetCVarInteger( "net_serverDedicated" ) == 1 && gameLocal.mpGame.IsGametypeCoopBased() && g_freezeUntilClientJoins.GetBool()) { 
-		common->Printf("[COOP] dedicated server don't start script map until a player joins...\n");
-		return ; //dedicated coop server can't start the script map until a player joins
-	}
 
 	InitializateMapScript(); //Added by Stradex
 }

@@ -1140,7 +1140,7 @@ void idGameLocal::LocalMapRestart( ) {
 
 	InitScriptForMap();
 
-	firstClientToSpawn = true; //added by Stradex for coop
+	firstClientToSpawn = false; //added by Stradex for coop
 	coopMapScriptLoad = false; //added by Stradex for coop
 	num_coopentities = 0; //for coop
 
@@ -2686,10 +2686,6 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 						ent->GetPhysics()->UpdateTime( time );
 						continue;
 					}
-					if  (isMultiplayer && mpGame.IsGametypeCoopBased() && localClientNum < 0 && !gameLocal.firstClientToSpawn && g_freezeUntilClientJoins.GetBool()) {
-						num++;
-						continue; //don't let any entity to think while there're no players in-game yet for dedicated server in coop
-					}
 					ent->Think();
 					num++;
 				}
@@ -2701,10 +2697,6 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 						continue;
 					}
 #endif
-					if  (isMultiplayer && mpGame.IsGametypeCoopBased() && localClientNum < 0 && !gameLocal.firstClientToSpawn && g_freezeUntilClientJoins.GetBool()) {
-						num++;
-						continue; //don't let any entity to think while there're no players in-game yet for dedicated server in coop
-					}
 					ent->Think();
 					num++;
 				}
@@ -4787,6 +4779,8 @@ void idGameLocal::RandomizeInitialSpawns( void ) {
 				common->Warning( "info_player_deathmatch : invalid or no team attached to spawn point\n");
 		}
 #endif
+		if (!spot.ent->spawnArgs.GetBool( "start_off" )) { //for OpenCoop maps compatibility
+
 		spawnSpots.Append( spot ); //causing crash in ROE coop
 		if ( spot.ent->spawnArgs.GetBool( "initial" ) ) {
 #ifdef CTF
@@ -4798,6 +4792,8 @@ void idGameLocal::RandomizeInitialSpawns( void ) {
 #endif
 
 			initialSpots.Append( spot.ent );
+		}
+
 		}
 		spot.ent = FindEntityUsingDef( spot.ent, static_cast<const char*>(spawnDefEntity) ); 
 	}

@@ -591,6 +591,8 @@ public:
 	bool					firstClientToSpawn; //used in coop for dedicated server not starting scripts until a player joins
 	bool					coopMapScriptLoad; //used in coop for dedicated server not starting scripts until a player joins
 	spawnSpot_t				spPlayerStartSpot; //added for COOP
+	idStaticList<spawnSpot_t, MAX_GENTITIES> spawnSpots; //public for coop
+	idStaticList<idEntity *, MAX_GENTITIES> initialSpots; //public for coop
 
 private:
 	const static int		INITIAL_SPAWN_COUNT = 1;
@@ -637,8 +639,6 @@ private:
 	idEventQueue			eventQueue;
 	idEventQueue			savedEventQueue;
 
-	idStaticList<spawnSpot_t, MAX_GENTITIES> spawnSpots;
-	idStaticList<idEntity *, MAX_GENTITIES> initialSpots;
 	int						currentInitialSpot;
 
 #ifdef CTF

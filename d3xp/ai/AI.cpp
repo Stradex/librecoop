@@ -991,7 +991,7 @@ void idAI::Spawn( void ) {
 	useBoneAxis = spawnArgs.GetBool( "useBoneAxis" );
 	SpawnParticles( "smokeParticleSystem" );
 
-	if ( num_cinematics || spawnArgs.GetBool( "hide" ) || spawnArgs.GetBool( "teleport" ) || spawnArgs.GetBool( "trigger_anim" ) ) {
+	if ( num_cinematics || spawnArgs.GetBool( "hide" ) || spawnArgs.GetBool( "teleport" ) || spawnArgs.GetBool( "trigger_anim" ) || gameLocal.isClient  ) {
 		fl.takedamage = false;
 		physicsObj.SetContents( 0 );
 		physicsObj.GetClipModel()->Unlink();

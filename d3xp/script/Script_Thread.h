@@ -77,6 +77,12 @@ extern const idEventDef EV_Thread_FadeIn;
 extern const idEventDef EV_Thread_FadeOut;
 extern const idEventDef EV_Thread_FadeTo;
 extern const idEventDef EV_Thread_Restart;
+extern const idEventDef EV_Thread_GetSkill;
+extern const idEventDef EV_Thread_GetClosestPlayer;
+extern const idEventDef EV_Thread_KillEntities;
+#ifdef _D3XP
+extern const idEventDef EV_Thread_GiveItemToPlayers; //to fix powercells in d3xp
+#endif
 
 class idThread : public idClass {
 private:
@@ -198,6 +204,13 @@ private:
 	void						Event_DebugBounds( const idVec3 &color, const idVec3 &mins, const idVec3 &maxs, const float lifetime );
 	void						Event_DrawText( const char *text, const idVec3 &origin, float scale, const idVec3 &color, const int align, const float lifetime );
 	void						Event_InfluenceActive( void );
+	void						Event_GetSkill( void ); //added for OpenCoop maps support
+	void						Event_NumPlayers( void ); //added for OpenCoop maps support
+	void						Event_GetClosestPlayer(const idVec3 &pos ); //added for OpenCoop maps support
+	void						Event_KillEntities( const char *key, const char *value ); //added for OpenCoop maps support
+#ifdef _D3XP
+	void						Event_GiveItemToPlayers(  const char *itemName ); //added for OpenCoop maps support (D3XP only)
+#endif
 
 public:
 								CLASS_PROTOTYPE( idThread );

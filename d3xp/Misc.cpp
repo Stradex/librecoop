@@ -78,10 +78,14 @@ void idSpawnableEntity::Spawn() {
 */
 
 const idEventDef EV_TeleportStage( "<TeleportStage>", "e" );
+const idEventDef EV_Spawn_Enable( "enable", NULL ); //added for OpenCoop maps compatibility
+const idEventDef EV_Spawn_Disable( "disable", NULL ); //added for OpenCoop maps compatibility
 
 CLASS_DECLARATION( idEntity, idPlayerStart )
 	EVENT( EV_Activate,			idPlayerStart::Event_TeleportPlayer )
 	EVENT( EV_TeleportStage,	idPlayerStart::Event_TeleportStage )
+	EVENT( EV_Spawn_Enable,		idPlayerStart::Event_Enable ) //added for OpenCoop maps compatibility
+	EVENT( EV_Spawn_Disable,	idPlayerStart::Event_Disable ) //added for OpenCoop maps compatibility
 END_CLASS
 
 /*
@@ -267,6 +271,54 @@ void idPlayerStart::Event_TeleportPlayer( idEntity *activator ) {
 			TeleportPlayer( player );
 		}
 	}
+}
+
+/*
+===============
+idPlayerStart::Event_Enable
+================
+*/
+void idPlayerStart::Event_Enable( void ) 
+{
+	if (spawnArgs.GetBool( "initial" ) && (gameLocal.initialSpots.FindIndex(this) < 0)) {
+		gameLocal.initialSpots.Append(this);
+	}
+	int spawnSpotIndex=-1;
+	for (int i=0; i < gameLocal.spawnSpots.Num(); i++) {
+		if (gameLocal.spawnSpots[i].ent && (gameLocal.spawnSpots[i].ent->entityNumber == this->entityNumber)) {
+			spawnSpotIndex = i;
+			break;
+		}
+	} 
+	if (spawnSpotIndex < 0) {
+		spawnSpot_t	spot;
+		spot.dist = 0;
+		spot.ent = this;
+		gameLocal.spawnSpots.Append(spot);
+	}
+
+}
+
+/*
+===============
+idPlayerStart::Event_Disable
+================
+*/
+void idPlayerStart::Event_Disable( void ) {
+
+	gameLocal.initialSpots.Remove(this);
+
+	int spawnSpotIndex=-1;
+	for (int i=0; i < gameLocal.spawnSpots.Num(); i++) {
+		if (gameLocal.spawnSpots[i].ent && (gameLocal.spawnSpots[i].ent->entityNumber == this->entityNumber)) {
+			spawnSpotIndex = i;
+			break;
+		}
+	} 
+	if (spawnSpotIndex >= 0) {
+		gameLocal.spawnSpots.RemoveIndex(spawnSpotIndex);
+	}
+
 }
 
 /*
@@ -1485,7 +1537,9 @@ void idAnimated::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		idAFEntity_Gibbable::ReadFromSnapshot(msg);
 		return;
 	}
-	int newAnim, newActivated;
+
+	int newAnim;
+	bool newActivated;
 	//coop stuff
 	ReadBindFromSnapshot( msg );
 	newAnim = msg.ReadShort();
@@ -2461,7 +2515,14 @@ idLocationEntity
 ===============================================================================
 */
 
+const idEventDef EV_NumPlayers( "numPlayers", NULL, 'd' ); //added for OpenCoop maps support
+const idEventDef EV_AllPlayersIn( "allPlayersIn", NULL, 'd' ); //added for OpenCoop maps support
+const idEventDef EV_NoPlayersIn( "noPlayersIn", NULL, 'd' ); //added for OpenCoop maps support
+
 CLASS_DECLARATION( idEntity, idLocationEntity )
+	EVENT( EV_NumPlayers,	idLocationEntity::Event_NumPlayers )
+	EVENT( EV_AllPlayersIn,	idLocationEntity::Event_AllPlayersIn )
+	EVENT( EV_NoPlayersIn,	idLocationEntity::Event_NoPlayersIn )
 END_CLASS
 
 /*
@@ -2487,6 +2548,71 @@ idLocationEntity::GetLocation
 */
 const char *idLocationEntity::GetLocation( void ) const {
 	return spawnArgs.GetString( "location" );
+}
+
+/*
+======================
+idLocationEntity::GetPlayersIn
+======================
+*/
+int	idLocationEntity::GetPlayersIn( void ) const {
+	int playersInside=0;
+
+	for (int i=0; i < gameLocal.numClients; i++) {
+		idPlayer *client = gameLocal.GetClientByNum(i);
+
+		if (!client || client->spectating) {
+			continue;
+		}
+		idLocationEntity *locationEntity = gameLocal.LocationForPoint( client->GetEyePosition() );
+		if ( locationEntity && (locationEntity->entityNumber == this->entityNumber) ) {
+			playersInside++;
+		}
+	}
+
+	return playersInside;
+}
+
+//Events for OPENCOOP maps compatibility
+
+/*
+======================
+idLocationEntity::Event_NumPlayers
+======================
+*/
+void	idLocationEntity::Event_NumPlayers( void )
+{
+	idThread::ReturnInt( GetPlayersIn() );
+}
+
+/*
+======================
+idLocationEntity::Event_AllPlayersIn
+======================
+*/
+void	idLocationEntity::Event_AllPlayersIn( void )
+{
+	int totalPlayers=0;
+
+	for (int i=0; i < gameLocal.numClients; i++) {
+		idPlayer *client = gameLocal.GetClientByNum(i);
+
+		if (!client || client->spectating) {
+			continue;
+		}
+		totalPlayers++;
+	}
+
+	idThread::ReturnInt( GetPlayersIn() == totalPlayers );
+}
+/*
+======================
+idLocationEntity::Event_NoPlayersIn
+======================
+*/
+void	idLocationEntity::Event_NoPlayersIn( void )
+{
+	idThread::ReturnInt( GetPlayersIn() == 0 );
 }
 
 /*

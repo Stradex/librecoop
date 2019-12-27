@@ -361,8 +361,34 @@ bool idItem::GiveToPlayer( idPlayer *player ) {
 	if ( player == NULL ) {
 		return false;
 	}
+	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) { //how the fuck this point is reached?
+		return false;
+	}
 
 	if ( spawnArgs.GetBool( "inv_carry" ) ) {
+
+		if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
+			if (idStr::FindText(this->GetEntityDefName(), "item_key", false) >= 0) { //HACK: Key items
+				cmdSystem->BufferCommandText( CMD_EXEC_NOW, va( "say '%s^0' picked up Key: %s!\n", gameLocal.userInfo[ player->entityNumber ].GetString( "ui_name" ), spawnArgs.GetString( "inv_name" ) ) );
+				for (int i=0; i < gameLocal.numClients; i++) {
+					idPlayer* p = gameLocal.GetClientByNum(i);
+
+					if (p && (p->entityNumber != player->entityNumber)) {
+						p->GiveInventoryItem( &spawnArgs ); //giving key to all players
+					}
+				}
+			} else if (idStr::FindText(this->GetEntityDefName(), "item_powercell", false) >= 0) {
+				cmdSystem->BufferCommandText( CMD_EXEC_NOW, va( "say '%s^0' picked up Powercell: %s!\n", gameLocal.userInfo[ player->entityNumber ].GetString( "ui_name" ), spawnArgs.GetString( "inv_name" ) ) );
+				for (int i=0; i < gameLocal.numClients; i++) {
+					idPlayer* p = gameLocal.GetClientByNum(i);
+
+					if (p && (p->entityNumber != player->entityNumber)) {
+						p->GiveInventoryItem( &spawnArgs ); //giving key to all players
+					}
+				}
+			}
+		}
+
 		return player->GiveInventoryItem( &spawnArgs );
 	}
 
@@ -378,6 +404,10 @@ ADDED  for coop
 bool idItem::CS_GiveToPlayer( idPlayer *player ) {
 	if ( player == NULL ) {
 		return false;
+	}
+
+	if ( spawnArgs.GetBool( "inv_carry" ) ) {
+		return player->GiveInventoryItem( &spawnArgs );
 	}
 
 	return player->CS_GiveItem( this );

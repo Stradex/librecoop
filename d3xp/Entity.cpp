@@ -121,6 +121,8 @@ const idEventDef EV_StartFx( "startFx", "s" );
 const idEventDef EV_HasFunction( "hasFunction", "s", 'd' );
 const idEventDef EV_CallFunction( "callFunction", "s" );
 const idEventDef EV_SetNeverDormant( "setNeverDormant", "d" );
+const idEventDef EV_SetNetShaderParm( "setNetShaderParm", "df" ); //added for OpenCoop maps compatibility
+const idEventDef EV_StartNetSoundShader( "startNetSndShader", "sdd", 'f' ); //added for OpenCoop maps compatibility
 #ifdef _D3XP
 const idEventDef EV_SetGui ( "setGui", "ds" );
 const idEventDef EV_PrecacheGui ( "precacheGui", "s" );
@@ -195,6 +197,9 @@ ABSTRACT_DECLARATION( idClass, idEntity )
 	EVENT( EV_HasFunction,			idEntity::Event_HasFunction )
 	EVENT( EV_CallFunction,			idEntity::Event_CallFunction )
 	EVENT( EV_SetNeverDormant,		idEntity::Event_SetNeverDormant )
+	EVENT( EV_SafeRemove,			idEntity::Event_SafeRemove ) //added for coop
+	EVENT( EV_SetNetShaderParm,		idEntity::Event_SetNetShaderParm ) //added opencoop maps compatibility
+	EVENT( EV_StartNetSoundShader,	idEntity::Event_StartNetSoundShader ) //added opencoop maps compatibility
 #ifdef _D3XP
 	EVENT( EV_SetGui,				idEntity::Event_SetGui )
 	EVENT( EV_PrecacheGui,			idEntity::Event_PrecacheGui )
@@ -1275,6 +1280,11 @@ idEntity::Hide
 */
 void idEntity::Hide( void ) {
 	if ( !IsHidden() ) {
+
+		for (int i=0; i < MAX_CLIENTS; i++) {
+			firstTimeInClientPVS[i] = true; //To ensure atleast one shapshot after hiding a sync entity
+		}
+
 		fl.hidden = true;
 		FreeModelDef();
 		UpdateVisuals();
@@ -1288,6 +1298,11 @@ idEntity::Show
 */
 void idEntity::Show( void ) {
 	if ( IsHidden() ) {
+
+		for (int i=0; i < MAX_CLIENTS; i++) {
+			firstTimeInClientPVS[i] = true;  //To ensure atleast one shapshot after showing a sync entity
+		}
+
 		fl.hidden = false;
 		UpdateVisuals();
 	}
@@ -4853,6 +4868,46 @@ void idEntity::Event_SetNeverDormant( int enable ) {
 	fl.neverDormant	= ( enable != 0 );
 	dormantStart = 0;
 }
+
+/*
+================
+idEntity::Event_SafeRemove
+================
+*/
+void idEntity::Event_SafeRemove( void ) {
+	// Forces the remove to be done at a safe time
+	if (gameLocal.isClient && fl.coopNetworkSync) //don't dare in trying to delete coop networksync entities while being client
+	{
+		return;
+	}
+	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) {
+		CS_PostEventMS( &EV_Remove, 0 );
+	} else {
+		PostEventMS( &EV_Remove, 0 );
+	}
+}
+
+/*
+================
+idEntity::Event_SetNetShaderParm
+================
+*/
+void idEntity::Event_SetNetShaderParm( int parmnum, float value ) {
+	SetShaderParm( parmnum, value ); //FIXME Stradex: NetSync this later
+}
+
+/*
+================
+idEntity::Event_StartNetSoundShader
+================
+*/
+void idEntity::Event_StartNetSoundShader( const char *soundName, int channel, int netSync ) {
+	int length;
+
+	StartSoundShader( declManager->FindSound( soundName ), (s_channelType)channel, netSync, false, &length );
+	idThread::ReturnFloat( MS2SEC( length ) );
+}
+
 
 #ifdef _D3XP
 /*
