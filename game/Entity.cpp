@@ -407,6 +407,7 @@ idEntity::idEntity() {
 
 	entityNumber	= ENTITYNUM_NONE;
 	entityCoopNumber = ENTITYNUM_NONE;
+	entityTargetNumber = ENTITYNUM_NONE;
 	entityDefNumber = -1;
 
 	spawnNode.SetOwner( this );
@@ -449,6 +450,8 @@ idEntity::idEntity() {
 	readByServer = false; //added by Stradex for Coop netcode optimization
 	snapshotPriority = DEFAULT_SNAPSHOT_PRIORITY;
 	fl.useOldNetcode = false; //added by Stradex for Coop netcode
+	allowClientsideThink = false;
+	canBeCsTarget = false;
 
 	for (int i=0; i < MAX_CLIENTS; i++) {
 		firstTimeInClientPVS[i] = true; //added by Stradex for Coop netcode optimization
@@ -3628,8 +3631,8 @@ have been spawned when the entity is created at map load time, we have to wait
 ===============
 */
 void idEntity::FindTargets( void ) {
-	int			i;
-
+	int			i, j;
+	idEntity *ent;
 	// targets can be a list of multiple names
 	gameLocal.GetTargets( spawnArgs, targets, "target" );
 
@@ -3639,15 +3642,35 @@ void idEntity::FindTargets( void ) {
 			gameLocal.Error( "Entity '%s' is targeting itself", name.c_str() );
 		}
 		//extra for coop: FIXME Search for a clientside workaround for this better
-		if (gameLocal.mpGame.IsGametypeCoopBased() && targets[ i ].GetEntity() && !targets[ i ].GetEntity()->fl.coopNetworkSync && (targets[ i ].GetEntity()->IsType(idAnimated::Type) || targets[ i ].GetEntity()->IsType(idFuncEmitter::Type) )){
+		ent =  targets[ i ].GetEntity();
+
+		if (gameLocal.mpGame.IsGametypeCoopBased() && ent && !ent->fl.coopNetworkSync && (ent->IsType(idAnimated::Type) || ent->IsType(idFuncEmitter::Type) )){
 			//causing pvs areas crash
 			
-			targets[ i ].GetEntity()->forceNetworkSync = false;
-			targets[ i ].GetEntity()->fl.coopNetworkSync = true;
-			gameLocal.RegisterCoopEntity(targets[ i ].GetEntity()); //just lol
-			targets[ i ].SetCoopId(gameLocal.GetCoopId(targets[ i ].GetEntity())); //Dirty dirty hack
-			common->Printf("[COOP] Adding %s to the coopentities array\n", targets[ i ].GetEntity()->GetName());
+			ent->forceNetworkSync = false;
+			ent->fl.coopNetworkSync = true;
+			gameLocal.RegisterCoopEntity(ent); //just lol
+			targets[ i ].SetCoopId(gameLocal.GetCoopId(ent)); //Dirty dirty hack
+			common->Printf("[COOP] Adding %s to the coopentities array\n", ent->GetName());
 			
+		}
+		//new
+		if (!ent) {
+			continue;
+		}
+		if (ent->coopNode.InList()) {
+			ent->canBeCsTarget = false;
+			continue;
+		}
+
+		for ( j = 0; j < MAX_RENDERENTITY_GUI; j++ ) {
+			if ( ent->renderEntity.gui[ j ] ) {
+				ent->canBeCsTarget = true;
+				break;
+			}
+		}
+		if (ent->canBeCsTarget) {
+			gameLocal.RegisterTargetEntity(this);
 		}
 	}
 }
@@ -3678,14 +3701,49 @@ void idEntity::ActivateTargets( idEntity *activator ) const {
 	idEntity	*ent;
 	int			i, j;
 
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && targets.Num() > 0) {
+
+		bool	sendTargetEvent=false;
+
+		for( i = 0; i < targets.Num(); i++ ) {
+			ent = targets[ i ].GetEntity();
+			if ( !ent || ent->coopNode.InList() ) {
+				continue;
+			}
+			sendTargetEvent = true;
+			break;
+		}
+
+		if (entityTargetNumber != ENTITYNUM_NONE && gameLocal.targetentities[entityTargetNumber] && sendTargetEvent) {
+			// send message to the clients
+			idBitMsg	outMsg;
+			byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
+			outMsg.Init( msgBuf, sizeof( msgBuf ) );
+			outMsg.BeginWriting();
+			outMsg.WriteByte( GAME_RELIABLE_MESSAGE_ACTIVATE_TARGET );
+			outMsg.WriteInt( entityTargetNumber );
+	
+			networkSystem->ServerSendReliableMessage( -1, outMsg );
+			common->Printf("[COOP DEBUG] Sending GAME_RELIABLE_MESSAGE_ACTIVATE_TARGET\n");
+		}
+	}
+
 	for( i = 0; i < targets.Num(); i++ ) {
 		ent = targets[ i ].GetEntity();
 		if ( !ent ) {
 			continue;
 		}
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && (ent->coopNode.InList() || !ent->canBeCsTarget)) {
+			continue; //don't try to activate entities that are already coop synced
+		}
 		if ( ent->RespondsTo( EV_Activate ) || ent->HasSignal( SIG_TRIGGER ) ) {
 			ent->Signal( SIG_TRIGGER );
 			ent->ProcessEvent( &EV_Activate, activator );
+			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+				ent->allowClientsideThink = true;
+				ent->BecomeActive( TH_PHYSICS );
+				common->Printf("[COOP DEBUG] Client Activating entity %s\n", ent->GetName());
+			}
 		}
 		for ( j = 0; j < MAX_RENDERENTITY_GUI; j++ ) {
 			if ( ent->renderEntity.gui[ j ] ) {

@@ -1710,6 +1710,13 @@ void idGameLocal::ClientProcessReliableMessage( int clientNum, const idBitMsg &m
 			mpGame.ClientReadWarmupTime( msg );
 			break;
 		}
+		case GAME_RELIABLE_MESSAGE_ACTIVATE_TARGET: {
+			int targetEntity = msg.ReadInt();
+			if (gameLocal.targetentities[targetEntity]) {
+				gameLocal.targetentities[targetEntity]->ActivateTargets(gameLocal.targetentities[targetEntity]);
+			}
+			break;
+		}
 		default: {
 			Error( "Unknown server->client reliable message: %d", id );
 			break;
@@ -2117,7 +2124,12 @@ gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const userc
 			ent->clientSideEntity = true; //this entity is now clientside
 		}
 		ent->thinkFlags |= TH_PHYSICS;
-		ent->ClientPredictionThink();
+		if (ent->allowClientsideThink && !ent->fl.coopNetworkSync) {
+			ent->Think(); //this is maybe a mistake, but who knows
+		} else {
+			ent->ClientPredictionThink();
+		}
+		
 	}
 
 	//FIXME: AVOID UGLY COOP IN BUG START (this code is shit)

@@ -179,7 +179,8 @@ enum {
 	GAME_RELIABLE_MESSAGE_GOTOCHECKPOINT,
 	GAME_RELIABLE_MESSAGE_GLOBALCHECKPOINT,
 	GAME_RELIABLE_MESSAGE_NOCLIP,
-	SERVER_RELIABLE_MESSAGE_SKILL //Dirty hack
+	SERVER_RELIABLE_MESSAGE_SKILL, //Dirty hack
+	GAME_RELIABLE_MESSAGE_ACTIVATE_TARGET //Coop stuff testing
 };
 
 typedef enum {
@@ -284,6 +285,8 @@ public:
 	//start: stradex for coop netcode
 	int						firstFreeCoopIndex;			// first free index in the entities array for coop
 	int						firstFreeCsIndex;		// first free index in the entities array for clientsideEntities
+	int						firstFreeTargetIndex;	// first free index in the targetentities array
+	idEntity *				targetentities[MAX_GENTITIES];	//For coop netcode only by Stradex
 	idEntity *				coopentities[MAX_GENTITIES];	//For coop netcode only by Stradex
 	idEntity *				sortsnapshotentities[MAX_GENTITIES]; //for coop only to sort the priority of snapshot
 	int						coopIds[MAX_GENTITIES];			// for use in idEntityPtr in coop
@@ -450,6 +453,7 @@ public:
 
 	void					RegisterEntity( idEntity *ent );
 	void					RegisterCoopEntity( idEntity *ent ); //added by Stradex for coop
+	void					RegisterTargetEntity( idEntity *ent ); //added by Stradex for coop
 	void					UnregisterEntity( idEntity *ent );
 
 	bool					RequirementMet( idEntity *activator, const idStr &requires, int removeItem );
