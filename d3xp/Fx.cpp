@@ -836,6 +836,12 @@ idTeleporter::Event_DoAction
 ================
 */
 void idTeleporter::Event_DoAction( idEntity *activator ) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && !activator) { 
+		activator = gameLocal.GetCoopPlayer();
+	}
+	if (!activator) {
+		return;
+	}
 	idAngles a( 0, spawnArgs.GetFloat( "angle" ), 0 );
 	activator->Teleport( GetPhysics()->GetOrigin(), a, NULL );
 }

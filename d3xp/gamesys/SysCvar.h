@@ -311,6 +311,7 @@ extern idCVar	g_freezeUntilClientJoins; //If entities can start thinking and scr
 extern idCVar	si_lives; //survival lives
 extern idCVar	net_clientSideMovement; //added by Stradex (experimental, works only with high ping)
 extern idCVar	g_spawnInCheckpoints; //Allow players to spawn in librecoop checkpoints system
+extern idCVar	g_keepItemsAfterRespawn; //Allow players to spawn in librecoop checkpoints system
 //stradex end
 
 extern idCVar	net_clientSelfSmoothing;

@@ -2962,6 +2962,11 @@ void idPlayer::RestorePersistantInfo( void ) {
 
 	inventory.RestoreInventory( this, spawnArgs );
 	health = spawnArgs.GetInt( "health", "100" );
+
+	if (health <= 0) { //to avoid bug
+		health = originalSpawnArgs.GetInt( "health", "100" );
+	}
+
 	if ( !gameLocal.isClient ) {
 		idealWeapon = spawnArgs.GetInt( "current_weapon", "1" );
 	}
@@ -7989,8 +7994,13 @@ void idPlayer::Killed( idEntity *inflictor, idEntity *attacker, int damage, cons
 	if (gameLocal.mpGame.IsGametypeCoopBased()){
 		spawnArgs.Clear();
 		spawnArgs.Copy(originalSpawnArgs);
-		inventory.CoopClear(); 
-		gameLocal.persistentPlayerInfo[entityNumber].Clear(); //reset persistant info
+
+		if (g_keepItemsAfterRespawn.GetBool()) {
+			gameLocal.GetPersistentPlayerInfo(entityNumber);
+		} else {
+			inventory.CoopClear(); 
+			gameLocal.persistentPlayerInfo[entityNumber].Clear();
+		}
 	}
 
 

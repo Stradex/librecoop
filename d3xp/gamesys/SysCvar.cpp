@@ -109,6 +109,7 @@ idCVar g_freezeUntilClientJoins(	"g_freezeUntilClientJoins", "0",			CVAR_GAME | 
 idCVar si_lives(					"si_lives",					"2",			CVAR_GAME | CVAR_ARCHIVE | CVAR_INTEGER, "How many lives can the players have in Survival mode", 1, 100);
 idCVar net_clientSideMovement(		"net_clientSideMovement",	"0",			CVAR_GAME | CVAR_BOOL | CVAR_NOCHEAT, "Clientside movement, use only if you're suffering lag (experimental)" );
 idCVar g_spawnInCheckpoints(		"g_spawnInCheckpoints",		"0",			CVAR_GAME | CVAR_BOOL | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "Players can spawn in user checkpoints" );
+idCVar g_keepItemsAfterRespawn(		"g_keepItemsAfterRespawn",	"0",		CVAR_GAME | CVAR_BOOL | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "Keep items after respawning" );
 //stradex end
 
 #ifdef CTF
