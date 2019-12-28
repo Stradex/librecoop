@@ -65,6 +65,7 @@ idSound::idSound( void ) {
 	wait = 0.0f;
 	timerOn = false;
 	playingUntilTime = 0;
+	canBeCsTarget = true; //added for coop
 }
 
 /*

@@ -2789,14 +2789,14 @@ void idPlayer::SelectInitialSpawnPoint( idVec3 &origin, idAngles &angles ) {
 	// activate the spawn locations targets
 	spot->PostEventMS( &EV_ActivateTargets, 0, this );
 
-	/*
-	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.mpGame.playerUseCheckpoints[this->entityNumber] && gameLocal.isServer) {
+	
+	if (g_spawnInCheckpoints.GetBool() && gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.mpGame.playerUseCheckpoints[this->entityNumber] && gameLocal.isServer) {
 		origin = gameLocal.mpGame.playerCheckpoints[this->entityNumber];
 		origin[2] += 4.0f + CM_BOX_EPSILON;
 		angles = spot->GetPhysics()->GetAxis().ToAngles();
 		return;
 	}
-	*/
+	
 
 	origin = spot->GetPhysics()->GetOrigin();
 	origin[2] += 4.0f + CM_BOX_EPSILON;		// move up to make sure the player is at least an epsilon above the floor

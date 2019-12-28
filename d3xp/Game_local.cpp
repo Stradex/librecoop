@@ -221,10 +221,12 @@ void idGameLocal::Clear( void ) {
 	memset( usercmds, 0, sizeof( usercmds ) );
 	memset( entities, 0, sizeof( entities ) );
 	memset(coopentities, 0, sizeof(coopentities)); //added for coop
+	memset(targetentities, 0, sizeof(targetentities));
 	memset( spawnIds, -1, sizeof( spawnIds ) );
 	memset( coopIds, -1, sizeof( coopIds ) ); //added for coop
 	firstFreeIndex = 0;
 	firstFreeCoopIndex = 0;  //added for coop
+	firstFreeTargetIndex = 0;  //added for coop
 	num_entities = 0;
 	num_coopentities=0;  //added for coop
 	spawnedEntities.Clear();
@@ -1017,6 +1019,7 @@ void idGameLocal::LoadMap( const char *mapName, int randseed ) {
 	firstFreeIndex	= MAX_CLIENTS;
 	firstFreeCoopIndex = MAX_CLIENTS; //added for Coop
 	firstFreeCsIndex = CS_ENTITIES_START; //added for Coop
+	firstFreeTargetIndex = MAX_CLIENTS; //added for Coop
 
 	// reset the random number generator.
 	random.SetSeed( isMultiplayer ? randseed : 0 );
@@ -3482,6 +3485,30 @@ void idGameLocal::RegisterCoopEntity( idEntity *ent ) {
 
 /*
 ===================
+idGameLocal::RegisterTargetEntity
+===================
+*/
+
+void idGameLocal::RegisterTargetEntity( idEntity *ent ) {
+	int target_entnum;
+
+	while( targetentities[firstFreeTargetIndex] && firstFreeTargetIndex < ENTITYNUM_MAX_NORMAL ) {
+		firstFreeTargetIndex++;
+	}
+	if ( firstFreeTargetIndex >= ENTITYNUM_MAX_NORMAL ) {
+		Error( "no free target entities" );
+	}
+
+	common->Printf("Adding %s to the targetentities array...\n", ent->GetName());
+	target_entnum = firstFreeTargetIndex++;
+
+	targetentities[target_entnum] = ent; //added for coop
+	ent->entityTargetNumber = target_entnum;
+}
+
+
+/*
+===================
 idGameLocal::UnregisterEntity
 ===================
 */
@@ -3504,6 +3531,14 @@ void idGameLocal::UnregisterEntity( idEntity *ent ) {
 			firstFreeCsIndex = ent->entityNumber;
 		}
 		ent->entityNumber = ENTITYNUM_NONE;
+
+		if (ent->entityTargetNumber != ENTITYNUM_NONE) {
+			if ( ent->entityTargetNumber >= MAX_CLIENTS && ent->entityTargetNumber < firstFreeTargetIndex ) {
+				firstFreeTargetIndex = ent->entityTargetNumber;
+			}
+			targetentities[ent->entityTargetNumber] = NULL;
+			ent->entityTargetNumber = ENTITYNUM_NONE;
+		}
 
 		if (ent->coopNode.InList()) { //A coop entity then
 			//added by Stradex for coop

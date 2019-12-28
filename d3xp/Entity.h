@@ -123,6 +123,7 @@ public:
 	int						entityNumber;			// index into the entity list
 	int						entityDefNumber;		// index into the entity def list
 	int						entityCoopNumber;		// index into the entity coop list
+	int						entityTargetNumber;		// index into the entity target list
 
 	idLinkList<idEntity>	spawnNode;				// for being linked into spawnedEntities list
 	idLinkList<idEntity>	activeNode;				// for being linked into activeEntities list
@@ -140,6 +141,8 @@ public:
 	int						thinkFlags;				// TH_? flags
 	int						dormantStart;			// time that the entity was first closed off from player
 	bool					cinematic;				// during cinematics, entity will only think if cinematic is set
+	bool					allowClientsideThink;	// added for coop
+	bool					canBeCsTarget;			// added for coop
 
 	renderView_t *			renderView;				// for camera views from this entity
 	idEntity *				cameraTarget;			// any remoteRenderMap shaders will use this

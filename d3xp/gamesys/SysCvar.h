@@ -310,6 +310,7 @@ extern idCVar	net_serverSnapshotLimit; //how many entities are we able to send p
 extern idCVar	g_freezeUntilClientJoins; //If entities can start thinking and scripts executing before or after a first clients join (used only in dedicated servers)
 extern idCVar	si_lives; //survival lives
 extern idCVar	net_clientSideMovement; //added by Stradex (experimental, works only with high ping)
+extern idCVar	g_spawnInCheckpoints; //Allow players to spawn in librecoop checkpoints system
 //stradex end
 
 extern idCVar	net_clientSelfSmoothing;
