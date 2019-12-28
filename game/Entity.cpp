@@ -3636,6 +3636,8 @@ void idEntity::FindTargets( void ) {
 	// targets can be a list of multiple names
 	gameLocal.GetTargets( spawnArgs, targets, "target" );
 
+	bool syncTargetNetwork = false;
+
 	// ensure that we don't target ourselves since that could cause an infinite loop when activating entities
 	for( i = 0; i < targets.Num(); i++ ) {
 		if ( targets[ i ].GetEntity() == this ) {
@@ -3670,8 +3672,11 @@ void idEntity::FindTargets( void ) {
 			}
 		}
 		if (ent->canBeCsTarget) {
-			gameLocal.RegisterTargetEntity(this);
+			syncTargetNetwork = true;
 		}
+	}
+	if (syncTargetNetwork) {
+		gameLocal.RegisterTargetEntity(this);
 	}
 }
 

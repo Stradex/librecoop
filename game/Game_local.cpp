@@ -2065,7 +2065,7 @@ idPlayer *idGameLocal::GetCoopPlayer() const {
 
 			if (isServer) { //for coop while using a dedicated server
 				for (int i=0; i < gameLocal.numClients; i++) {
-					if (entities[i] && entities[i]->IsType(idPlayer::Type)) {
+					if (entities[i] && entities[i]->IsType(idPlayer::Type) && !static_cast<idPlayer *>( entities[i] )->spectating) {
 						return static_cast<idPlayer *>( entities[i] );
 					}
 				}
