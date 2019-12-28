@@ -3675,6 +3675,7 @@ void idEntity::FindTargets( void ) {
 			syncTargetNetwork = true;
 		}
 	}
+
 	if (syncTargetNetwork) {
 		gameLocal.RegisterTargetEntity(this);
 	}
