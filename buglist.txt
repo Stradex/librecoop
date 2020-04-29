@@ -1,0 +1,8 @@
+Bugs:
+
+- Some GUIs are not syncing (Door guis and health station guis neither.)
+- While restarting the map and using net_clientSideMovement 1, the player stays in the position instead of going to the spawn point position (easy to fix)
+- Some lights are not syncing
+- Unable to talk with NPCs
+- Cinematics not working
+- Sentry bot follows only one player and ignore enemies while it is alone
