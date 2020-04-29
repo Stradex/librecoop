@@ -2795,7 +2795,6 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 	entityState_t *base, *newBase;
 	int numSourceAreas, sourceAreas[ idEntity::MAX_PVS_AREAS ];
 
-	//REMINDER TO STRADEX: DELETE EVERYTHING RELATED TO serverPriorityNode. IT'S NOT USED FOR ANYTHING
 	//Used by stradex for netcode optimization
 	int serverSendEntitiesCount=0;
 	int serverEntitiesLimit = net_serverSnapshotLimit.GetInteger();
@@ -2887,23 +2886,7 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 	//bool readingQueue = true; 
 
 	// create the snapshot
-	//for( ent = spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next() ) {
-	//for (int j=0; j < 2; j++) {
-	//for( ent = coopSyncEntities.Next(); ent != NULL; ent = ent->coopNode.Next() ) { //Test for coop
 	for (j=0, ent = sortsnapshotentities[j]; ent != NULL; ent = sortsnapshotentities[++j]) {
-		// if the entity is not in the player PVS
-		/*
-		if ( !ent->PhysicsTeamInPVS( pvsHandle ) && (((ent->entityNumber != clientNum) && !mpGame.IsGametypeCoopBased()) || ((ent->entityCoopNumber != clientNum) && mpGame.IsGametypeCoopBased()))  ) {
-			continue;
-		}
-		
-		//Coop stuff
-		if (!ent->IsActive() && !ent->IsMasterActive() && !ent->firstTimeInClientPVS[clientNum] && !ent->forceNetworkSync) { //ignore inactive entities that the player already saw before
-			continue;
-		}
-		*/
-		//In coop let's ignore static snapshots and ton of other shitty stuff
-		//TryingSomething
 		
 		if (!mpGame.IsGametypeCoopBased()) {
 			// add the entity to the snapshot pvs
@@ -2911,14 +2894,6 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 		}
 		
 		
-		//snapshot->pvs[ ent->entityNumber >> 5 ] |= 1 << ( ent->entityNumber & 31 ); 
-
-		/*
-		// if that entity is not marked for network synchronization
-		if ( !ent->fl.networkSync ) {
-			continue;
-		}
-		*/
 
 		if (serverSendEntitiesCount >= serverEntitiesLimit) {
 			ent->inSnapshotQueue[clientNum] = true;
@@ -2927,16 +2902,6 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 
 		ent->inSnapshotQueue[clientNum] = false;
 		serverSendEntitiesCount++;
-		/*
-		if (mpGame.IsGametypeCoopBased() &&
-			(ent->IsType(idStaticEntity::Type) || ent->IsType(idFuncSmoke::Type) || ent->IsType(idTextEntity::Type) ||
-			ent->IsType(idLocationSeparatorEntity::Type) || ent->IsType(idVacuumSeparatorEntity::Type) ||
-			ent->IsType(idBeam::Type) || ent->IsType(idShaking::Type) || ent->IsType(idEarthQuake::Type) || 
-			ent->IsType(idFuncAASObstacle::Type) || ent->IsType(idTrigger::Type) || ent->IsType(idSound::Type))) {
-			common->Printf("Not sending entity %s to client\n", ent->GetName());
-				continue; //ignore these entities, let the client deal with these client-side
-		}
-		*/
 
 		if (mpGame.IsGametypeCoopBased()) {
 			// add the entity to the snapshot pvs
@@ -3050,20 +3015,6 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 	memcpy( clientInPVS, snapshot->pvs, ( numPVSClients + 7 ) >> 3 );
 	LittleRevBytes( clientInPVS, sizeof( int ), sizeof( clientInPVS ) / sizeof ( int ) );
 
-	//just for coop debug (May a cvar for test would be cool)
-	//common->Printf("Sending %d entities to client number: %d\n", serverSendEntitiesCount, clientNum);
-
-	/*
-	//It was just for DEBUG, it's common and nothing bad with it
-	if (serverSendEntitiesCount >= serverEntitiesLimit) {
-		common->Warning("[COOP] Snapshot overflow... using snapshot queue\n");
-	}
-	*/
-	/*
-	if (iterationsDebug >= MAX_SORT_ITERATIONS) {
-		common->Warning("[COOP] iterations overflow while sorting list!: %d\n", iterationsDebug);
-	}
-	*/
 }
 
 /*
