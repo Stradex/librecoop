@@ -2099,33 +2099,18 @@ idPhysics_Player::ReadFromEvent
 ================
 */
 void idPhysics_Player::ReadFromEvent( const idBitMsg &msg ) {
-	if ((gameLocal.isClient && net_clientSideMovement.GetBool()) || gameLocal.isServer) {
-		current.origin[0] = msg.ReadFloat();
-		current.origin[1] = msg.ReadFloat();
-		current.origin[2] = msg.ReadFloat();
-		current.velocity[0] = msg.ReadFloat( PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
-		current.velocity[1] = msg.ReadFloat( PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
-		current.velocity[2] = msg.ReadFloat( PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
-		current.localOrigin[0] = msg.ReadDeltaFloat( current.origin[0] );
-		current.localOrigin[1] = msg.ReadDeltaFloat( current.origin[1] );
-		current.localOrigin[2] = msg.ReadDeltaFloat( current.origin[2] );
-		current.pushVelocity[0] = msg.ReadDeltaFloat( 0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
-		current.pushVelocity[1] = msg.ReadDeltaFloat( 0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
-		current.pushVelocity[2] = msg.ReadDeltaFloat( 0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
-	} else {
-		msg.ReadFloat();
-		msg.ReadFloat();
-		msg.ReadFloat();
-		msg.ReadFloat( PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
-		msg.ReadFloat( PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
-		msg.ReadFloat( PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
-		msg.ReadDeltaFloat( current.origin[0] );
-		msg.ReadDeltaFloat( current.origin[1] );
-		msg.ReadDeltaFloat( current.origin[2] );
-		msg.ReadDeltaFloat( 0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
-		msg.ReadDeltaFloat( 0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
-		msg.ReadDeltaFloat( 0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
-	}
+	current.origin[0] = msg.ReadFloat();
+	current.origin[1] = msg.ReadFloat();
+	current.origin[2] = msg.ReadFloat();
+	current.velocity[0] = msg.ReadFloat( PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+	current.velocity[1] = msg.ReadFloat( PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+	current.velocity[2] = msg.ReadFloat( PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+	current.localOrigin[0] = msg.ReadDeltaFloat( current.origin[0] );
+	current.localOrigin[1] = msg.ReadDeltaFloat( current.origin[1] );
+	current.localOrigin[2] = msg.ReadDeltaFloat( current.origin[2] );
+	current.pushVelocity[0] = msg.ReadDeltaFloat( 0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+	current.pushVelocity[1] = msg.ReadDeltaFloat( 0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
+	current.pushVelocity[2] = msg.ReadDeltaFloat( 0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
 
 	if ( clipModel ) {
 		clipModel->Link( gameLocal.clip, self, 0, current.origin, clipModel->GetAxis() );
