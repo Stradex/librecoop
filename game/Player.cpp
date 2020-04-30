@@ -2388,6 +2388,20 @@ void idPlayer::SpawnToPoint( const idVec3 &spawn_origin, const idAngles &spawn_a
 		SetOrigin( spec_origin );
 	}
 
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		idBitMsg	msg;
+		byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+		msg.Init( msgBuf, sizeof( msgBuf ) );
+		msg.BeginWriting();
+		msg.WriteFloat(spawn_origin.x);
+		msg.WriteFloat(spawn_origin.y);
+		msg.WriteFloat(spawn_origin.z);
+		msg.WriteDeltaFloat( 0.0f, deltaViewAngles[0] );
+		msg.WriteDeltaFloat( 0.0f, deltaViewAngles[1] );
+		msg.WriteDeltaFloat( 0.0f, deltaViewAngles[2] );
+		ServerSendEvent( EVENT_PLAYERSPAWN, &msg, false, -1);
+	}
+
 	// if this is the first spawn of the map, we don't have a usercmd yet,
 	// so the delta angles won't be correct.  This will be fixed on the first think.
 	viewAngles = ang_zero;
@@ -8650,6 +8664,30 @@ bool idPlayer::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 				return true;
 			}
 			break;
+		}
+		case EVENT_PLAYERSPAWN: {
+			//physicsObj.ReadFromEvent(msg);
+			if (net_clientSideMovement.GetBool()) {
+				allowClientsideMovement = true;
+				nextSendPhysicsInfoTime = gameLocal.clientsideTime; //3segs without clientsidemovement
+				idVec3	tmpOrigin = vec3_zero;
+				tmpOrigin.x = msg.ReadFloat();
+				tmpOrigin.y = msg.ReadFloat();
+				tmpOrigin.z = msg.ReadFloat();
+				deltaViewAngles[0] = msg.ReadDeltaFloat( 0.0f );
+				deltaViewAngles[1] = msg.ReadDeltaFloat( 0.0f );
+				deltaViewAngles[2] = msg.ReadDeltaFloat( 0.0f );
+				SetOrigin(	tmpOrigin );
+				Move();
+			} else {
+				msg.ReadFloat();
+				msg.ReadFloat();
+				msg.ReadFloat();
+				msg.ReadDeltaFloat( 0.0f );
+				msg.ReadDeltaFloat( 0.0f );
+				msg.ReadDeltaFloat( 0.0f );
+			}
+			
 		}
 		default:
 			break;

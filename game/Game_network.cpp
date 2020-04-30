@@ -1026,6 +1026,7 @@ void idGameLocal::ServerProcessReliableMessage( int clientNum, const idBitMsg &m
 			mpGame.WantNoClip(clientNum);
 			break;
 		}
+
 		default: {
 			Warning( "Unknown client->server reliable message: %d", id );
 			break;

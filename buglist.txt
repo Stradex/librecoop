@@ -6,3 +6,6 @@ Bugs:
 - Unable to talk with NPCs
 - Cinematics not working
 - Sentry bot follows only one player and ignore enemies while it is alone
+- Clientside cameras guis are not working
+- Elevators working laggy
+- npc binded light not working

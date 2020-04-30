@@ -239,6 +239,7 @@ public:
 		EVENT_POWERUP,
 		EVENT_SPECTATE,
 		EVENT_PLAYERPHYSICS, //addded by stradex
+		EVENT_PLAYERSPAWN, //addded by stradex
 		EVENT_MAXEVENTS
 	};
 
@@ -556,6 +557,7 @@ public:
 	idDict					originalSpawnArgs;	//used for coop inventory
 	idAngles				GetViewAngles( void ); //added for coop checkpoint teleport
 	bool					allowClientsideMovement; //used to let the server send info for some seconds after spawning, to avoid spawn in void
+	int						nextSendPhysicsInfoTime; // COOP: added for clientside movement code 
 
 	//Client-side stuff for coop
 	bool					CS_Give( const char *statname, const char *value );
@@ -594,8 +596,6 @@ private:
 	int						weaponSwitchTime;
 	bool					weaponEnabled;
 	bool					showWeaponViewModel;
-
-	int						nextSendPhysicsInfoTime; // COOP: added for clientside movement code 
 
 	bool					forceSPSpawnPoint;  // COO
 

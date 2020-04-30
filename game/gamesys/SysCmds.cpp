@@ -2353,6 +2353,10 @@ void Cmd_Checkpoint_f( const idCmdArgs &args ) {
 					outMsg.WriteByte( GAME_RELIABLE_MESSAGE_ADDCHECKPOINT );
 				break;
 				case COOP_CMD_GOTOCHECKPOINT:
+					//little hack while using net_clientsideMovement 1
+					player->allowClientsideMovement = false;
+					player->nextSendPhysicsInfoTime = gameLocal.clientsideTime + 3000; //3segs without clientsidemovement
+					
 					outMsg.WriteByte( GAME_RELIABLE_MESSAGE_GOTOCHECKPOINT );
 				break;
 				case COOP_CMD_GLOBALCHECKPOINT:
