@@ -9253,3 +9253,21 @@ void idPlayer::RunPhysics_RemoteClientCorrection( void )
 		physicsObj.SetLinearVelocity( normalizedVelocity * idMath::Sqrt( clientSpeedSquared ) );
 	}
 }
+
+/*
+================
+idPlayer::Event_GetLinearVelocity
+================
+*/
+void idPlayer::Event_GetLinearVelocity( void ) {
+	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased() && spectating) {
+		for (int i=0; i < gameLocal.numClients; i++) {
+			if (gameLocal.entities[i] && gameLocal.entities[i]->IsType(idPlayer::Type) && !static_cast<idPlayer *>( gameLocal.entities[i] )->spectating) {
+				idThread::ReturnVector(  gameLocal.entities[i]->GetPhysics()->GetLinearVelocity() );
+				break;
+			}
+		}
+	} else {
+		idThread::ReturnVector( GetPhysics()->GetLinearVelocity() );
+	}
+}

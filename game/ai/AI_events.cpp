@@ -398,7 +398,7 @@ void idAI::Event_FindEnemyAI( int useFOV ) {
 	bestDist = idMath::INFINITY;
 	bestEnemy = NULL;
 	for ( ent = gameLocal.activeEntities.Next(); ent != NULL; ent = ent->activeNode.Next() ) {
-		if ( ent->fl.hidden || ent->fl.isDormant || !ent->IsType( idActor::Type ) || !ent->IsType(idPlayer::Type) ) {
+		if ( ent->fl.hidden || ent->fl.isDormant || !ent->IsType( idActor::Type ) ) {
 			continue;
 		}
 
@@ -1356,6 +1356,11 @@ idAI::Event_CanSeeEntity
 =====================
 */
 void idAI::Event_CanSeeEntity( idEntity *ent ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && (idStr::FindText(GetEntityDefName(), "char_sentry") != -1)) {
+		ent = GetClosestPlayer();
+	}
+
 	if ( !ent ) {
 		idThread::ReturnInt( false );
 		return;
@@ -2351,6 +2356,11 @@ idAI::Event_LookAtEntity
 =====================
 */
 void idAI::Event_LookAtEntity( idEntity *ent, float duration ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && (idStr::FindText(GetEntityDefName(), "char_sentry") != -1)) {
+		ent = GetClosestPlayer();
+	}
+
 	if ( ent == this ) {
 		ent = NULL;
 	}
@@ -2675,6 +2685,10 @@ void idAI::Event_CanReachEntity( idEntity *ent ) {
 	int			areaNum;
 	idVec3		pos;
 
+	if (gameLocal.mpGame.IsGametypeCoopBased() && (idStr::FindText(GetEntityDefName(), "char_sentry") != -1)) {
+		ent = GetClosestPlayer();
+	}
+
 	if ( !ent ) {
 		idThread::ReturnInt( false );
 		return;
@@ -2759,6 +2773,10 @@ idAI::Event_GetReachableEntityPosition
 void idAI::Event_GetReachableEntityPosition( idEntity *ent ) {
 	int		toAreaNum;
 	idVec3	pos;
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && (idStr::FindText(GetEntityDefName(), "char_sentry") != -1)) {
+		ent = GetClosestPlayer();
+	}
 
 	if ( move.moveType != MOVETYPE_FLY ) {
 		if ( !ent->GetFloorPos( 64.0f, pos ) ) {

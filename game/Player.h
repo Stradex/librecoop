@@ -741,6 +741,7 @@ private:
 	void					Event_LevelTrigger( void );
 	void					Event_Gibbed( void );
 	void					Event_GetIdealWeapon( void );
+	void					Event_GetLinearVelocity( void ); //for sentry bot coop hack
 };
 
 ID_INLINE bool idPlayer::IsReady( void ) {

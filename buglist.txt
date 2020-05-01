@@ -1,7 +1,7 @@
 Bugs:
 
-- Some GUIs are not syncing (Door guis and health station guis neither.)
-- Some lights are not syncing
+- Some GUIs changes are not syncing (Door guis and health station guis for example.)
+- Some scripted lights are not syncing
 - Unable to talk with NPCs
 - Cinematics not working
 - Sentry bot follows only one player and ignore enemies while it is alone

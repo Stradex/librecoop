@@ -5429,6 +5429,38 @@ idPlayer *idAI::GetClosestPlayerEnemy( void ) {
 }
 
 /*
+================
+idAI::GetClosestPlayer
+================
+*/
+
+idPlayer *idAI::GetClosestPlayer( void ) {
+	idPlayer* closestPlayer = NULL;
+	float shortestDist = idMath::INFINITY;
+	idPlayer *player;
+	float dist;
+	idVec3		delta;
+	for (int i = 0; i < gameLocal.numClients; i++) {
+		player = gameLocal.GetClientByNum(i);
+
+		if (!player || player->spectating || player->health <= 0) {
+			continue;
+		}
+
+		delta = physicsObj.GetOrigin() - player->GetPhysics()->GetOrigin();
+		dist = delta.LengthSqr();
+
+		if (dist < shortestDist) {
+			shortestDist = dist;
+			closestPlayer = player;
+		}
+	}
+
+	return closestPlayer;
+}
+
+
+/*
 =======================
 idAI::CSAnimMove
 ======================
