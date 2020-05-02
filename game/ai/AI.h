@@ -293,6 +293,7 @@ public:
 	void					ClientProcessNetAction(netActionType_t newAction);  //Added for COOP by Stradex
 	idPlayer				*GetClosestPlayerEnemy( void );
 	idPlayer				*GetClosestPlayer( void );
+	idPlayer				*GetFocusPlayer( void ); //for coop with characters AI
 
 	void					TriggerWeaponEffects( const idVec3 &muzzle ); //moved to public by Stradex for COOP
 

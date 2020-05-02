@@ -1552,7 +1552,9 @@ void idPlayer::Spawn( void ) {
 	if ( !gameLocal.isMultiplayer || entityNumber == gameLocal.localClientNum ) {
 
 		// load HUD
-		if ( gameLocal.isMultiplayer ) {
+		if ( gameLocal.isMultiplayer && gameLocal.mpGame.IsGametypeCoopBased() && spawnArgs.GetString( "coophud", "", temp )  ) {
+			hud = uiManager->FindGui( temp, true, false, true );
+		} else if (gameLocal.isMultiplayer) {
 			hud = uiManager->FindGui( "guis/mphud.gui", true, false, true );
 		} else if ( spawnArgs.GetString( "hud", "", temp ) ) {
 			hud = uiManager->FindGui( temp, true, false, true );
@@ -4570,6 +4572,7 @@ void idPlayer::UpdateFocus( void ) {
 	idUserInterface *oldUI;
 	idAI		*oldChar;
 	int			oldTalkCursor;
+	int			oldMPAim; //for coop
 	int			i, j;
 	idVec3		start, end;
 	bool		allowFocus;
@@ -4586,7 +4589,7 @@ void idPlayer::UpdateFocus( void ) {
 
 	// only update the focus character when attack button isn't pressed so players
 	// can still chainsaw NPC's
-	if ( gameLocal.isMultiplayer || ( !focusCharacter && ( usercmd.buttons & BUTTON_ATTACK ) ) ) { //Here to enable Coop players to talk with npcs probably
+	if ( (gameLocal.isMultiplayer && !gameLocal.mpGame.IsGametypeCoopBased()) || ( !focusCharacter && ( usercmd.buttons & BUTTON_ATTACK ) ) ) { //Here to enable Coop players to talk with npcs probably
 		allowFocus = false;
 	} else {
 		allowFocus = true;
@@ -4597,7 +4600,14 @@ void idPlayer::UpdateFocus( void ) {
 	oldChar			= focusCharacter;
 	oldTalkCursor	= talkCursor;
 
-	if ( focusTime <= gameLocal.time ) {
+	int realGameLocalTime;
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		realGameLocalTime = gameLocal.clientsideTime;
+	} else {
+		realGameLocalTime = gameLocal.time;
+	}
+
+	if ( focusTime <= realGameLocalTime) {
 		ClearFocus();
 	}
 
@@ -4611,7 +4621,13 @@ void idPlayer::UpdateFocus( void ) {
 
 	// player identification -> names to the hud
 	if ( gameLocal.isMultiplayer && entityNumber == gameLocal.localClientNum ) {
-		idVec3 end = start + viewAngles.ToForward() * 768.0f;
+		oldMPAim = MPAim;
+		idVec3 end;
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			end = start + viewAngles.ToForward() * 80.0f;
+		} else {
+			end = start + viewAngles.ToForward() * 768.0f;
+		}
 		gameLocal.clip.TracePoint( trace, start, end, MASK_SHOT_BOUNDINGBOX, this );
 		int iclient = -1;
 		if ( ( trace.fraction < 1.0f ) && ( trace.c.entityNum < MAX_CLIENTS ) ) {
@@ -4648,7 +4664,7 @@ void idPlayer::UpdateFocus( void ) {
 						ClearFocus();
 						focusCharacter = static_cast<idAI *>( body );
 						talkCursor = 1;
-						focusTime = gameLocal.time + FOCUS_TIME;
+						focusTime = realGameLocalTime + FOCUS_TIME;
 						break;
 					}
 				}
@@ -4662,7 +4678,7 @@ void idPlayer::UpdateFocus( void ) {
 						ClearFocus();
 						focusCharacter = static_cast<idAI *>( ent );
 						talkCursor = 1;
-						focusTime = gameLocal.time + FOCUS_TIME;
+						focusTime = realGameLocalTime + FOCUS_TIME;
 						break;
 					}
 				}
@@ -4674,7 +4690,7 @@ void idPlayer::UpdateFocus( void ) {
 				if ( ( trace.fraction < 1.0f ) && ( trace.c.entityNum == ent->entityNumber ) ) {
 					ClearFocus();
 					focusVehicle = static_cast<idAFEntity_Vehicle *>( ent );
-					focusTime = gameLocal.time + FOCUS_TIME;
+					focusTime = realGameLocalTime + FOCUS_TIME;
 					break;
 				}
 				continue;
@@ -4764,7 +4780,7 @@ void idPlayer::UpdateFocus( void ) {
 			ev = sys->GenerateMouseMoveEvent( pt.x * SCREEN_WIDTH, pt.y * SCREEN_HEIGHT );
 			command = focusUI->HandleEvent( &ev, gameLocal.time );
 			HandleGuiCommands( focusGUIent, command );
-			focusTime = gameLocal.time + FOCUS_GUI_TIME;
+			focusTime = realGameLocalTime + FOCUS_GUI_TIME;
 			break;
 		}
 	}
@@ -4786,8 +4802,10 @@ void idPlayer::UpdateFocus( void ) {
 	if ( cursor && ( oldTalkCursor != talkCursor ) ) {
 		cursor->SetStateInt( "talkcursor", talkCursor );
 	}
-
-	if ( oldChar != focusCharacter && hud ) {
+	if (entityNumber == gameLocal.localClientNum && MPAim != -1 && oldMPAim != MPAim && gameLocal.mpGame.IsGametypeCoopBased() && hud) {
+		hud->SetStateString( "npc", gameLocal.userInfo[ MPAim ].GetString( "ui_name" ));
+		hud->HandleNamedEvent( "showNPC" );
+	} else if ( oldChar != focusCharacter && hud ) {
 		if ( focusCharacter ) {
 			hud->SetStateString( "npc", focusCharacter->spawnArgs.GetString( "npc_name", "Joe" ) );
 			hud->HandleNamedEvent( "showNPC" );
@@ -4797,6 +4815,9 @@ void idPlayer::UpdateFocus( void ) {
 			hud->SetStateString( "npc", "" );
 			hud->HandleNamedEvent( "hideNPC" );
 		}
+	} else if (entityNumber == gameLocal.localClientNum && MPAim == -1 && oldMPAim != MPAim && gameLocal.mpGame.IsGametypeCoopBased() && hud) {
+		hud->SetStateString( "npc", "" );
+		hud->HandleNamedEvent( "hideNPC" );
 	}
 }
 
@@ -9270,4 +9291,13 @@ void idPlayer::Event_GetLinearVelocity( void ) {
 	} else {
 		idThread::ReturnVector( GetPhysics()->GetLinearVelocity() );
 	}
+}
+
+/*
+================
+idPlayer::GetFocusCharacter
+================
+*/
+idAI* idPlayer::GetFocusCharacter( void ) {
+	return focusCharacter;
 }

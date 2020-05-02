@@ -44,6 +44,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "WorldSpawn.h"
 #include "SmokeParticles.h"
 #include "Misc.h"//added for coop
+#include "ai/AI.h"//added for coop
 
 #include "Entity.h"
 
@@ -596,7 +597,7 @@ void idEntity::Spawn( void ) {
 
 	// setup script object
 	if ( ShouldConstructScriptObjectAtSpawn() && spawnArgs.GetString( "scriptobject", NULL, &scriptObjectName ) ) {
-		if ( !scriptObject.SetType( scriptObjectName ) ) {
+		if ( !scriptObject.SetType( static_cast<const char*>(scriptObjectName) ) ) {
 			gameLocal.Error( "Script object '%s' not found on entity '%s'.", scriptObjectName, name.c_str() );
 		}
 
@@ -4312,7 +4313,16 @@ idEntity::Event_StartSoundShader
 void idEntity::Event_StartSoundShader( const char *soundName, int channel ) {
 	int length;
 
-	StartSoundShader( declManager->FindSound( soundName ), (s_channelType)channel, 0, false, &length );
+	const char* scriptObjectName;
+	spawnArgs.GetString( "scriptobject", NULL, &scriptObjectName ); 
+	
+	bool netSync = false;
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && scriptObjectName && !idStr::Icmp(scriptObjectName, "character")) { //AI talk and noises netsync hack
+		netSync = true;
+	}
+
+	StartSoundShader( declManager->FindSound( soundName ), (s_channelType)channel, 0, netSync, &length );
 	idThread::ReturnFloat( MS2SEC( length ) );
 }
 
@@ -4322,6 +4332,14 @@ idEntity::Event_StopSound
 ================
 */
 void idEntity::Event_StopSound( int channel, int netSync ) {
+
+	const char* scriptObjectName;
+	spawnArgs.GetString( "scriptobject", NULL, &scriptObjectName ); 
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && scriptObjectName && !idStr::Icmp(scriptObjectName, "character")) { //AI talk and noises netsync hack
+		netSync = 1;
+	}
+
 	StopSound( channel, ( netSync != 0 ) );
 }
 
@@ -4332,6 +4350,13 @@ idEntity::Event_StartSound
 */
 void idEntity::Event_StartSound( const char *soundName, int channel, int netSync ) {
 	int time;
+
+	const char* scriptObjectName;
+	spawnArgs.GetString( "scriptobject", NULL, &scriptObjectName ); 
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && scriptObjectName && !idStr::Icmp(scriptObjectName, "character")) { //AI talk and noises netsync hack
+		netSync = 1;
+	}
 
 	StartSound( soundName, ( s_channelType )channel, 0, ( netSync != 0 ), &time );
 	idThread::ReturnFloat( MS2SEC( time ) );

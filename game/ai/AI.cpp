@@ -5458,6 +5458,27 @@ idPlayer *idAI::GetClosestPlayer( void ) {
 
 	return closestPlayer;
 }
+//focusCharacter
+
+/*
+================
+idAI::GetClosestPlayer
+================
+*/
+
+idPlayer *idAI::GetFocusPlayer( void ) {
+	idPlayer *player;
+	for (int i = 0; i < gameLocal.numClients; i++) {
+		player = gameLocal.GetClientByNum(i);
+		if (!player || player->spectating || player->health <= 0) {
+			continue;
+		}
+		if (player->GetFocusCharacter() == this)
+			return player;
+	}
+
+	return NULL;
+}
 
 
 /*
