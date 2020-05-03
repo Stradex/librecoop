@@ -716,7 +716,9 @@ void idAnim::CallFrameCommands( idEntity *ent, int from, int to ) const {
 					bool netSyncSound = false;
 					if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && gameLocal.isNPC(ent)) {
 						netSyncSound = true;
-						gameLocal.Printf("sending audio...\n");
+#ifdef _DEBUG
+						gameLocal.Printf("[COOP DEBUG] FC_SOUND_VOICE...\n");
+#endif
 					}
 
 					if ( !command.soundShader ) {
@@ -733,7 +735,9 @@ void idAnim::CallFrameCommands( idEntity *ent, int from, int to ) const {
 					bool netSyncSound = false;
 					if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && gameLocal.isNPC(ent)) {
 						netSyncSound = true;
-						gameLocal.Printf("sending audio...\n");
+#ifdef _DEBUG
+						gameLocal.Printf("[COOP DEBUG] FC_SOUND_VOICE2...\n");
+#endif
 					}
 
 					if ( !command.soundShader ) {

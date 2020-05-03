@@ -3155,7 +3155,9 @@ void idGameLocal::RegisterTargetEntity( idEntity *ent ) {
 		Error( "no free target entities" );
 	}
 
-	common->Printf("Adding %s to the targetentities array...\n", ent->GetName());
+#ifdef _DEBUG
+	common->Printf("[DEBUG] Adding %s to the targetentities array...\n", ent->GetName());
+#endif
 	target_entnum = firstFreeTargetIndex++;
 
 	targetentities[target_entnum] = ent; //added for coop
@@ -3588,7 +3590,9 @@ void idGameLocal::AddEntityToHash( const char *name, idEntity *ent ) {
 	if ( tmpEnt ) {
 		if (isClient && mpGame.IsGametypeCoopBased() && !tmpEnt->fl.coopNetworkSync) {
 			//nonsync coop enities can avoid this crash but it's kinda dangereous (could lead to deleting a NULL pointer later... or even worse).
+#ifdef _DEBUG
 			common->Warning( "[COOP FATAL] Multiple entities named '%s', deleting the old one...\n", name );
+#endif
 			delete tmpEnt;
 		} else {
 			Error( "Multiple entities named '%s'", name );

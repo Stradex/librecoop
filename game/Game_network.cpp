@@ -3049,7 +3049,9 @@ void idGameLocal::addToServerEventOverFlowList(int eventId, const idBitMsg *msg,
 {
 
 	if (!msg || !ent) {
+#ifdef _DEBUG
 		common->Warning("[COOP FATAL] Trying to add an event with a empty message or from an unknown entity\n");
+#endif
 		return;
 	}
 

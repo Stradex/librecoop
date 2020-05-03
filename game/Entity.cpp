@@ -2027,7 +2027,9 @@ void idEntity::Unbind( void ) {
 	}
 	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
 		if (ent != this) {
+#ifdef _DEBUG
 			common->Warning("[COOP] Fatal! Unable to unbind entity! %s\n ", this->GetName());
+#endif
 			return;
 		}
 	} else {
@@ -3654,7 +3656,9 @@ void idEntity::FindTargets( void ) {
 			ent->fl.coopNetworkSync = true;
 			gameLocal.RegisterCoopEntity(ent); //just lol
 			targets[ i ].SetCoopId(gameLocal.GetCoopId(ent)); //Dirty dirty hack
-			common->Printf("[COOP] Adding %s to the coopentities array\n", ent->GetName());
+#ifdef _DEBUG
+			common->Printf("[DEBUG] Adding %s to the coopentities array\n", ent->GetName());
+#endif
 			
 		}
 		//new
@@ -3731,7 +3735,9 @@ void idEntity::ActivateTargets( idEntity *activator ) const {
 			outMsg.WriteInt( entityTargetNumber );
 	
 			networkSystem->ServerSendReliableMessage( -1, outMsg );
+#ifdef _DEBUG
 			common->Printf("[COOP DEBUG] Sending GAME_RELIABLE_MESSAGE_ACTIVATE_TARGET\n");
+#endif
 		}
 	}
 
@@ -3749,7 +3755,9 @@ void idEntity::ActivateTargets( idEntity *activator ) const {
 			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
 				ent->allowClientsideThink = true;
 				ent->BecomeActive( TH_PHYSICS );
+#ifdef _DEBUG
 				common->Printf("[COOP DEBUG] Client Activating entity %s\n", ent->GetName());
+#endif
 			}
 		}
 		for ( j = 0; j < MAX_RENDERENTITY_GUI; j++ ) {
@@ -4316,8 +4324,11 @@ void idEntity::Event_StartSoundShader( const char *soundName, int channel ) {
 	
 	bool netSync = false;
 
-	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && spawnArgs.GetBool( "talks", false )) { //AI talk and noises netsync hack
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer &&  gameLocal.isNPC(this)) { //AI talk and noises netsync hack
 		netSync = true;
+#ifdef _DEBUG
+	gameLocal.Printf("[COOP DEBUG] Event_StartSoundShader...\n");
+#endif
 	}
 
 	StartSoundShader( declManager->FindSound( soundName ), (s_channelType)channel, 0, netSync, &length );
@@ -4332,8 +4343,11 @@ idEntity::Event_StopSound
 void idEntity::Event_StopSound( int channel, int netSync ) {
 
 
-	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && spawnArgs.GetBool( "talks", false )) { //AI talk and noises netsync hack
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && gameLocal.isNPC(this)) { //AI talk and noises netsync hack
 		netSync = 1;
+#ifdef _DEBUG
+	gameLocal.Printf("[COOP DEBUG] Event_StopSound...\n");
+#endif
 	}
 
 	StopSound( channel, ( netSync != 0 ) );
@@ -4347,7 +4361,10 @@ idEntity::Event_StartSound
 void idEntity::Event_StartSound( const char *soundName, int channel, int netSync ) {
 	int time;
 
-	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && spawnArgs.GetBool( "talks", false )) { //AI talk and noises netsync hack
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && gameLocal.isNPC(this)) { //AI talk and noises netsync hack
+#ifdef _DEBUG
+	gameLocal.Printf("[COOP DEBUG] Event_StartSound...\n");
+#endif
 		netSync = 1;
 	}
 

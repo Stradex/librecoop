@@ -1208,7 +1208,9 @@ bool idClip::Motion( trace_t &results, const idVec3 &start, const idVec3 &end, c
 	const idTraceModel *trm;
 
 	if (gameLocal.mpGame.IsGametypeCoopBased() && (rotation.GetOrigin() != start)) {
+#ifdef _DEBUG
 		common->Printf("[COOP FATAL] assert( rotation.GetOrigin() == start ) at idClip::Motion\n");
+#endif
 		return true; //should return true or false?
 	}
 	assert( rotation.GetOrigin() == start );

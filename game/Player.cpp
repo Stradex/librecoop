@@ -2298,7 +2298,9 @@ void idPlayer::SelectInitialSpawnPoint( idVec3 &origin, idAngles &angles ) {
 		if ( !spot ) {
 			gameLocal.Error( "No info_player_start on map.\n" );
 		}
+#ifdef _DEBUG
 		gameLocal.Printf("[COOP DEBUG] Forcing info_player_start...\n");
+#endif
 		forceSPSpawnPoint = false;
 	} else {
 		spot = gameLocal.SelectInitialSpawnPoint( this );
