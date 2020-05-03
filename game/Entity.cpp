@@ -4313,12 +4313,10 @@ idEntity::Event_StartSoundShader
 void idEntity::Event_StartSoundShader( const char *soundName, int channel ) {
 	int length;
 
-	const char* scriptObjectName;
-	spawnArgs.GetString( "scriptobject", NULL, &scriptObjectName ); 
 	
 	bool netSync = false;
 
-	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && scriptObjectName && !idStr::Icmp(scriptObjectName, "character")) { //AI talk and noises netsync hack
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && spawnArgs.GetBool( "talks", false )) { //AI talk and noises netsync hack
 		netSync = true;
 	}
 
@@ -4333,10 +4331,8 @@ idEntity::Event_StopSound
 */
 void idEntity::Event_StopSound( int channel, int netSync ) {
 
-	const char* scriptObjectName;
-	spawnArgs.GetString( "scriptobject", NULL, &scriptObjectName ); 
 
-	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && scriptObjectName && !idStr::Icmp(scriptObjectName, "character")) { //AI talk and noises netsync hack
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && spawnArgs.GetBool( "talks", false )) { //AI talk and noises netsync hack
 		netSync = 1;
 	}
 
@@ -4351,10 +4347,7 @@ idEntity::Event_StartSound
 void idEntity::Event_StartSound( const char *soundName, int channel, int netSync ) {
 	int time;
 
-	const char* scriptObjectName;
-	spawnArgs.GetString( "scriptobject", NULL, &scriptObjectName ); 
-
-	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && scriptObjectName && !idStr::Icmp(scriptObjectName, "character")) { //AI talk and noises netsync hack
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && spawnArgs.GetBool( "talks", false )) { //AI talk and noises netsync hack
 		netSync = 1;
 	}
 

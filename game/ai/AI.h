@@ -432,6 +432,7 @@ protected:
 	idVec3					turnTowardPos; 
 	bool					thereWasEnemy;
 	int						currentChannelOverride;
+	int						currentHeadAnim;
 
 
 	// script variables

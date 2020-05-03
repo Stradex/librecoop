@@ -528,6 +528,7 @@ public:
 	bool					NeedRestart();
 
 	//specific coop stuff
+	bool					isNPC(idEntity *ent ) const; //added for COOP hack
 	bool					firstClientToSpawn; //used in coop for dedicated server not starting scripts until a player joins
 	bool					coopMapScriptLoad; //used in coop for dedicated server not starting scripts until a player joins
 	spawnSpot_t				spPlayerStartSpot; //added for COOP

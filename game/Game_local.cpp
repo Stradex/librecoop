@@ -4787,3 +4787,34 @@ idGameLocal::GetMapLoadingGUI
 ===============
 */
 void idGameLocal::GetMapLoadingGUI( char gui[ MAX_STRING_CHARS ] ) { }
+
+/*
+===============
+idGameLocal::isNPC (DIRTY HACK for LibreCoop NPC functionality without touching pk4 data
+===============
+*/
+bool idGameLocal::isNPC(idEntity *ent ) const {
+	if (!ent)
+		return false;
+	const idKeyValue	*talksKey;
+	bool entityTalks = false;
+
+	if (ent->IsType(idAI::Type)) {
+		talksKey = ent->spawnArgs.FindKey( "talks" );
+		if (talksKey) {
+			entityTalks = ( atoi( talksKey->GetValue() ) != 0 );
+		}
+	} else if (ent->IsType(idAFAttachment::Type) && static_cast<idAFAttachment*>(ent)->GetBody() && static_cast<idAFAttachment*>(ent)->GetBody() != ent) {
+		idEntity* bodyEnt = static_cast<idAFAttachment*>(ent)->GetBody();
+		return isNPC(bodyEnt);
+	}
+	if (!entityTalks) //last resource: check scriptobject
+	{
+		const char *scriptObjectName;
+		if ( spawnArgs.GetString( "scriptobject", NULL, &scriptObjectName ) && scriptObjectName && !idStr::Icmp( scriptObjectName, "character") ) {
+			entityTalks = true;
+		}
+	}
+
+	return entityTalks;
+}

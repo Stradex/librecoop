@@ -2,7 +2,6 @@ Bugs:
 
 - Some GUIs changes are not syncing (Door guis and health station guis for example.)
 - Some scripted lights are not syncing
-- Unable to talk with NPCs
 - Cinematics not working
 - Clientside cameras guis are not working
 - Elevators working laggy

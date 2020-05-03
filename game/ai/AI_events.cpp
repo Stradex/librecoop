@@ -1377,10 +1377,7 @@ idAI::Event_SetTalkTarget
 */
 void idAI::Event_SetTalkTarget( idEntity *target ) {
 
-	const char* scriptObjectName;
-	spawnArgs.GetString( "scriptobject", NULL, &scriptObjectName );
-
-	if (gameLocal.mpGame.IsGametypeCoopBased() && scriptObjectName && !idStr::Icmp(scriptObjectName, "character")) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isNPC(this)) {
 		target = GetFocusPlayer();
 	}
 
@@ -2365,12 +2362,12 @@ idAI::Event_LookAtEntity
 */
 void idAI::Event_LookAtEntity( idEntity *ent, float duration ) {
 	
-	const char* scriptObjectName;
-	spawnArgs.GetString( "scriptobject", NULL, &scriptObjectName );
-
-	if (gameLocal.mpGame.IsGametypeCoopBased() &&
-	(idStr::FindText(GetEntityDefName(), "char_sentry") != -1 || (scriptObjectName && !idStr::Icmp(scriptObjectName, "character")))) { //Hack for sentrybot and/or npc
-		ent = GetClosestPlayer();
+	if (gameLocal.mpGame.IsGametypeCoopBased()) { //Hack for sentrybot and/or npc
+		if (idStr::FindText(GetEntityDefName(), "char_sentry") != -1) {
+			ent = GetClosestPlayer();
+		} else if ((!focusEntity.GetEntity() || (focusEntity.GetEntity() && ( focusTime < gameLocal.time )))  && gameLocal.isNPC(this)) {
+			ent = GetFocusPlayer();
+		}
 	}
 	if ( ent == this ) {
 		ent = NULL;

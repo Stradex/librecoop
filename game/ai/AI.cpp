@@ -396,6 +396,8 @@ idAI::idAI() {
 	fl.coopNetworkSync		= true;
 	currentTorsoAnim = 0;
 	currentLegsAnim = 0;
+	currentHeadAnim = 0;
+
 	currentNetAction = NETACTION_NONE;
 	forceNetworkSync = true; //added by Stradex for Coop
 	snapshotPriority = 2; //added by Stradex for coop. High priority for this
@@ -1079,6 +1081,9 @@ void idAI::Think( void ) {
 
 	currentTorsoAnim = animator.CurrentAnim( ANIMCHANNEL_TORSO )->AnimNum(); //added by Stradex
 	currentLegsAnim = animator.CurrentAnim( ANIMCHANNEL_LEGS )->AnimNum(); //added by Stradex
+	if (head.GetEntity()) {
+		currentHeadAnim = head.GetEntity()->GetAnimator()->CurrentAnim(ANIMCHANNEL_ALL)->AnimNum();
+	}
 
 	if ( CheckDormant() ) {
 		return;
@@ -5173,6 +5178,19 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteBits( disableGravity, 1 );
 
 	msg.WriteBits( fl.hidden, 1);
+
+	//Head entity info
+	int headEntitySendInfo = head.GetEntity() ? 1 : 0;
+	msg.WriteBits( headEntitySendInfo, 1 );
+	if (headEntitySendInfo) {
+		msg.WriteShort(currentHeadAnim);
+		int focusEntityNum = focusEntity.GetEntity() ? focusEntity.GetEntity()->entityCoopNumber : -1;
+		msg.WriteInt( focusEntityNum );
+		msg.WriteInt( alignHeadTime );
+		msg.WriteInt( forceAlignHeadTime );
+		msg.WriteInt( blink_time );
+		msg.WriteInt( focusTime );
+	}
 }
 
 /*
@@ -5186,8 +5204,8 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		return idEntity::ReadFromSnapshot(msg); //original non-coop 
 	}
 
-	int		i, oldHealth, enemySpawnId, torsoAnimId, legsAnimId, enemyEntityId, goalEntityId;
-	bool	newHitToggle, stateHitch, hasEnemy, isSpawnSnapshot;
+	int		i, oldHealth, enemySpawnId, torsoAnimId, legsAnimId, headAnimId, enemyEntityId, goalEntityId, focusEntityId;
+	bool	newHitToggle, stateHitch, hasEnemy, isSpawnSnapshot, headEntityReceivedInfo;
 	netActionType_t newNetAction;
 	idVec3	tmpOrigin = vec3_zero;
 
@@ -5247,11 +5265,13 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	enemyEntityId = msg.ReadInt();
 	goalEntityId =  msg.ReadInt();
 
-	if (enemyEntityId >= 0 && gameLocal.coopentities[enemyEntityId]) {
-		enemy.SetSpawnId(gameLocal.GetSpawnId(gameLocal.coopentities[enemyEntityId])); //should I use SetSpawnId or better SetCoopId?
+	if (enemyEntityId >= 0 && gameLocal.coopentities[enemyEntityId] && gameLocal.coopentities[enemyEntityId]->IsType(idActor::Type)) {
+		enemy = static_cast<idActor*>(gameLocal.coopentities[enemyEntityId]);
+		//enemy.SetSpawnId(gameLocal.GetSpawnId(gameLocal.coopentities[enemyEntityId])); //should I use SetSpawnId or better SetCoopId?
 	}
 	if (goalEntityId >= 0 && gameLocal.coopentities[goalEntityId]) {
-		move.goalEntity.SetSpawnId(gameLocal.GetSpawnId(gameLocal.coopentities[goalEntityId])); //should I use SetSpawnId or better SetCoopId?
+		move.goalEntity = gameLocal.coopentities[goalEntityId];
+		//move.goalEntity.SetSpawnId(gameLocal.GetSpawnId(gameLocal.coopentities[goalEntityId])); //should I use SetSpawnId or better SetCoopId?
 	}
 
 
@@ -5262,6 +5282,19 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	bool isInvisible=false;
 	isInvisible = msg.ReadBits( 1 ) != 0;
 
+	//Head entity info
+	headEntityReceivedInfo = msg.ReadBits( 1 ) != 0;
+	if (headEntityReceivedInfo) {
+		headAnimId = msg.ReadShort();
+		focusEntityId = msg.ReadInt();
+		if (focusEntityId >= 0 && gameLocal.coopentities[focusEntityId]) {
+			focusEntity = gameLocal.coopentities[focusEntityId];
+		}
+		alignHeadTime =  msg.ReadInt();
+		forceAlignHeadTime = msg.ReadInt();
+		blink_time = msg.ReadInt();
+		focusTime = msg.ReadInt();
+	}
 	//No more msg read from here 
 
 	if (isInvisible && !fl.hidden) {
@@ -5276,8 +5309,12 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	if (legsAnimId != currentLegsAnim ) {
 		animator.CycleAnim(ANIMCHANNEL_LEGS, legsAnimId, gameLocal.time, 2);
 	}
+	if (head.GetEntity() && currentHeadAnim != headAnimId) {
+		head.GetEntity()->GetAnimator()->CycleAnim(ANIMCHANNEL_ALL, headAnimId, gameLocal.time, 2);
+	}
 	currentTorsoAnim = torsoAnimId;
 	currentLegsAnim = legsAnimId;
+	currentHeadAnim = headAnimId;
 
 
 	if ( oldHealth > 0 && health <= 0 ) {

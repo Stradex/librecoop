@@ -714,9 +714,11 @@ void idAnim::CallFrameCommands( idEntity *ent, int from, int to ) const {
 				}
 				case FC_SOUND_VOICE: {
 					bool netSyncSound = false;
-					if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) { //COOP, to force triggerweaponeffects in clients
+					if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && gameLocal.isNPC(ent)) {
 						netSyncSound = true;
+						gameLocal.Printf("sending audio...\n");
 					}
+
 					if ( !command.soundShader ) {
 						if ( !ent->StartSound( command.string->c_str(), SND_CHANNEL_VOICE, 0, netSyncSound, NULL ) ) {
 							gameLocal.Warning( "Framecommand 'sound_voice' on entity '%s', anim '%s', frame %d: Could not find sound '%s'",
@@ -729,8 +731,9 @@ void idAnim::CallFrameCommands( idEntity *ent, int from, int to ) const {
 				}
 				case FC_SOUND_VOICE2: {
 					bool netSyncSound = false;
-					if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) { //COOP, to force triggerweaponeffects in clients
+					if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && gameLocal.isNPC(ent)) {
 						netSyncSound = true;
+						gameLocal.Printf("sending audio...\n");
 					}
 
 					if ( !command.soundShader ) {
