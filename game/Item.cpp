@@ -926,17 +926,22 @@ idVideoCDItem::GiveToPlayer
 ================
 */
 bool idVideoCDItem::GiveToPlayer( idPlayer *player ) {
-
-	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()){ //how the fuck this point is reached?
-		return false;
-	}
-
 	idStr str = spawnArgs.GetString( "video" );
 	if ( player && str.Length() ) {
 		player->GiveVideo( str, &spawnArgs );
 	}
 	return true;
 }
+
+/*
+================
+idVideoCDItem::CS_GiveToPlayer
+================
+*/
+bool idVideoCDItem::CS_GiveToPlayer( idPlayer *player ) {
+	return GiveToPlayer(player); //by now exactly the same
+}
+
 
 /*
 ===============================================================================
@@ -960,7 +965,20 @@ bool idPDAItem::GiveToPlayer(idPlayer *player) {
 	}
 	const char *str = spawnArgs.GetString( "pda_name" );
 	if ( player ) {
-		player->GivePDA( str, &spawnArgs );
+		player->GivePDA( str, &spawnArgs);
+	}
+	return true;
+}
+
+/*
+================
+idPDAItem::CS_GiveToPlayer
+================
+*/
+bool idPDAItem::CS_GiveToPlayer(idPlayer *player) {
+	const char *str = spawnArgs.GetString( "pda_name" );
+	if ( player ) {
+		player->CS_GivePDA( str, &spawnArgs );
 	}
 	return true;
 }
@@ -1323,7 +1341,21 @@ bool idMoveablePDAItem::GiveToPlayer(idPlayer *player) {
 
 	const char *str = spawnArgs.GetString( "pda_name" );
 	if ( player ) {
-		player->GivePDA( str, &spawnArgs );
+		player->GivePDA( str, &spawnArgs);
+	}
+	return true;
+}
+
+
+/*
+================
+idMoveablePDAItem::CS_GiveToPlayer
+================
+*/
+bool idMoveablePDAItem::CS_GiveToPlayer(idPlayer *player) {
+	const char *str = spawnArgs.GetString( "pda_name" );
+	if ( player ) {
+		player->CS_GivePDA( str, &spawnArgs );
 	}
 	return true;
 }

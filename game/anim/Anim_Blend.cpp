@@ -714,11 +714,16 @@ void idAnim::CallFrameCommands( idEntity *ent, int from, int to ) const {
 				}
 				case FC_SOUND_VOICE: {
 					bool netSyncSound = false;
-					if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && gameLocal.isNPC(ent)) {
+					if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isNPC(ent)) {
+						if (gameLocal.isServer) {
 						netSyncSound = true;
 #ifdef _DEBUG
 						gameLocal.Printf("[COOP DEBUG] FC_SOUND_VOICE...\n");
 #endif
+						} else {
+							//don't play any sound because can lead to bug sometimes
+							break;
+						}
 					}
 
 					if ( !command.soundShader ) {
@@ -733,11 +738,16 @@ void idAnim::CallFrameCommands( idEntity *ent, int from, int to ) const {
 				}
 				case FC_SOUND_VOICE2: {
 					bool netSyncSound = false;
-					if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && gameLocal.isNPC(ent)) {
+					if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isNPC(ent)) {
+						if (gameLocal.isServer) {
 						netSyncSound = true;
 #ifdef _DEBUG
-						gameLocal.Printf("[COOP DEBUG] FC_SOUND_VOICE2...\n");
+						gameLocal.Printf("[COOP DEBUG] FC_SOUND_VOICE...\n");
 #endif
+						} else {
+							//don't play any sound because can lead to bug sometimes
+							break;
+						}
 					}
 
 					if ( !command.soundShader ) {

@@ -444,7 +444,7 @@ public:
 	void					RemoveInventoryItem( const char *name );
 	idDict *				FindInventoryItem( const char *name );
 
-	void					GivePDA( const char *pdaName, idDict *item );
+	void					GivePDA( const char *pdaName, idDict *item);
 	void					GiveVideo( const char *videoName, idDict *item );
 	void					GiveEmail( const char *emailName );
 	void					GiveSecurity( const char *security );
@@ -563,6 +563,12 @@ public:
 	//Client-side stuff for coop
 	bool					CS_Give( const char *statname, const char *value );
 	bool					CS_GiveItem( idItem *item );
+	void					CS_GivePDA( const char *pdaName, idDict *item );
+	void					CS_GiveVideo( const char *videoName, idDict *item );
+	void					CS_GiveEmail( const char *emailName );
+	void					CS_GiveSecurity( const char *security );
+	void					CS_GiveObjective( const char *title, const char *text, const char *screenshot );
+	void					CS_CompleteObjective( const char *title );
 
 	//END COOP SPECIFIC
 

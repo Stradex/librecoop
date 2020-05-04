@@ -145,6 +145,7 @@ public:
 
 	void					Spawn();
 	virtual bool			GiveToPlayer( idPlayer *player );
+	virtual bool			CS_GiveToPlayer( idPlayer *player ); //Client-side give to player
 };
 
 class idPDAItem : public idItem {
@@ -152,6 +153,7 @@ public:
 	CLASS_PROTOTYPE( idPDAItem );
 
 	virtual bool			GiveToPlayer( idPlayer *player );
+	virtual bool			CS_GiveToPlayer( idPlayer *player ); //Client-side give to player
 };
 
 class idMoveableItem : public idItem {
@@ -191,6 +193,7 @@ public:
 	CLASS_PROTOTYPE( idMoveablePDAItem );
 
 	virtual bool			GiveToPlayer( idPlayer *player );
+	virtual bool			CS_GiveToPlayer( idPlayer *player ); //Client-side give to player
 };
 
 /*

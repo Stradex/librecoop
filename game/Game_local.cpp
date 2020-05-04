@@ -2653,6 +2653,11 @@ idGameLocal::HandleESC
 */
 escReply_t idGameLocal::HandleESC( idUserInterface **gui ) {
 	if ( isMultiplayer ) {
+		idPlayer *player = GetLocalPlayer();
+		if (gameLocal.mpGame.IsGametypeCoopBased() && player && player->objectiveSystem && player->objectiveSystemOpen) {
+			player->PerformImpulse(IMPULSE_21);
+			return ESC_IGNORE;
+		}
 		*gui = StartMenu();
 		// we may set the gui back to NULL to hide it
 		return ESC_GUI;
@@ -3140,6 +3145,7 @@ bool idGameLocal::CheatsOk( bool requirePlayer ) {
 	return false;
 }
 
+
 /*
 ===================
 idGameLocal::RegisterTargetEntity
@@ -3284,6 +3290,7 @@ void idGameLocal::UnregisterEntity( idEntity *ent ) {
 			targetentities[ent->entityTargetNumber] = NULL;
 			ent->entityTargetNumber = ENTITYNUM_NONE;
 		}
+
 		if (ent->coopNode.InList()) { //probably a coop entity then
 			//added by Stradex for coop
 			ent->coopNode.Remove();

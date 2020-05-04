@@ -443,7 +443,7 @@ void idPlayerView::SingleView( idUserInterface *hud, const renderView_t *view ) 
 	gameSoundWorld->PlaceListener( view->vieworg, view->viewaxis, player->entityNumber + 1, gameLocal.time, hud ? hud->State().GetString( "location" ) : "Undefined" );
 
 	// if the objective system is up, don't do normal drawing
-	if ( player->objectiveSystemOpen ) {
+	if ( player->objectiveSystemOpen && (!gameLocal.mpGame.IsGametypeCoopBased() || player->entityNumber == gameLocal.localClientNum)) {
 		player->objectiveSystem->Redraw( gameLocal.time );
 		return;
 	}
