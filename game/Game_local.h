@@ -269,6 +269,7 @@ public:
 	idDict					userInfo[MAX_CLIENTS];	// client specific settings
 	usercmd_t				usercmds[MAX_CLIENTS];	// client input commands
 	idDict					persistentPlayerInfo[MAX_CLIENTS];
+	idDict					persistentPlayerInfoClientside; //added for Coop (pdas data mostly)
 	idEntity *				entities[MAX_GENTITIES];// index to entities
 	int						spawnIds[MAX_GENTITIES];// for use in idEntityPtr
 	int						firstFreeIndex;			// first free index in the entities array
@@ -529,6 +530,7 @@ public:
 
 	//specific coop stuff
 	bool					isNPC(idEntity *ent ) const; //added for COOP hack
+	const idDict &			CS_SavePersistentPlayerInfo( void );
 	bool					firstClientToSpawn; //used in coop for dedicated server not starting scripts until a player joins
 	bool					coopMapScriptLoad; //used in coop for dedicated server not starting scripts until a player joins
 	spawnSpot_t				spPlayerStartSpot; //added for COOP

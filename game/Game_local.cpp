@@ -181,6 +181,7 @@ void idGameLocal::Clear( void ) {
 		userInfo[i].Clear();
 		persistentPlayerInfo[i].Clear();
 	}
+	persistentPlayerInfoClientside.Clear();
 	memset( usercmds, 0, sizeof( usercmds ) );
 	memset( entities, 0, sizeof( entities ) );
 	memset(coopentities, 0, sizeof(coopentities)); //added for coop
@@ -624,6 +625,28 @@ const idDict &idGameLocal::GetPersistentPlayerInfo( int clientNum ) {
 	}
 
 	return persistentPlayerInfo[ clientNum ];
+}
+
+
+
+/*
+===========
+idGameLocal::CS_SavePersistentPlayerInfo
+============
+*/
+const idDict &idGameLocal::CS_SavePersistentPlayerInfo( void ) {
+
+	assert(this->isClient && localClientNum >= 0);
+
+	idEntity	*ent;
+
+	persistentPlayerInfoClientside.Clear();
+	ent = entities[ localClientNum ];
+	if ( ent && ent->IsType( idPlayer::Type ) ) {
+		static_cast<idPlayer *>(ent)->CS_SavePersistantInfo();
+	}
+
+	return persistentPlayerInfoClientside;
 }
 
 /*

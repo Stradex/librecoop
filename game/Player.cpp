@@ -232,6 +232,8 @@ void idInventory::CoopClear( void ) {
 	nextItemPickup = 0;
 	nextItemNum = 1;
 	onePickupTime = 0;
+	pickupItemNames.Clear();
+	objectiveNames.Clear();
 
 	ammoPredictTime = 0;
 
@@ -438,7 +440,6 @@ void idInventory::RestoreInventory( idPlayer *owner, const idDict &dict ) {
 		for ( i = 0; i < 4; i++ ) {
 			pdasViewed[i] = dict.GetInt(va("pdasViewed_%i", i));
 		}
-
 	}
 
 	selPDA = dict.GetInt( "selPDA" );
@@ -449,7 +450,6 @@ void idInventory::RestoreInventory( idPlayer *owner, const idDict &dict ) {
 	turkeyScore = dict.GetBool( "turkeyScore" );
 
 	if (!gameLocal.mpGame.IsGametypeCoopBased()) {
-
 		// pdas
 		num = dict.GetInt( "pdas" );
 		pdas.SetNum( num );
@@ -475,7 +475,6 @@ void idInventory::RestoreInventory( idPlayer *owner, const idDict &dict ) {
 		}
 
 	}
-
 	// weapons are stored as a number for persistant data, but as strings in the entityDef
 	weapons	= dict.GetInt( "weapon_bits", "0" );
 
@@ -1029,6 +1028,107 @@ void idInventory::UpdateArmor( void ) {
 	}
 }
 
+
+/*
+==============
+idInventory::CS_CoopClear
+==============
+*/
+void idInventory::CS_CoopClear( void ) {
+	memset(pdasViewed, 0, 4 * sizeof( pdasViewed[0] ) );
+	pdas.Clear();
+	videos.Clear();
+	emails.Clear();
+}
+
+
+/*
+==============
+idInventory::CS_GetPersistantData
+==============
+*/
+void idInventory::CS_GetPersistantData( idDict &dict ) {
+	int		i;
+	int		num;
+	idDict	*item;
+	idStr	key;
+	const idKeyValue *kv;
+	const char *name;
+
+
+	// pdas viewed
+	for ( i = 0; i < 4; i++ ) {
+		dict.SetInt( va("pdasViewed_%i", i), pdasViewed[i] );
+	}
+
+	// pdas
+	for ( i = 0; i < pdas.Num(); i++ ) {
+		sprintf( key, "pda_%i", i );
+		dict.Set( key, pdas[ i ] );
+	}
+	dict.SetInt( "pdas", pdas.Num() );
+
+	// video cds
+	for ( i = 0; i < videos.Num(); i++ ) {
+		sprintf( key, "video_%i", i );
+		dict.Set( key, videos[ i ].c_str() );
+	}
+	dict.SetInt( "videos", videos.Num() );
+
+	// emails
+	for ( i = 0; i < emails.Num(); i++ ) {
+		sprintf( key, "email_%i", i );
+		dict.Set( key, emails[ i ].c_str() );
+	}
+	dict.SetInt( "emails", emails.Num() );
+}
+
+/*
+==============
+idInventory::CS_RestoreInventory
+==============
+*/
+void idInventory::CS_RestoreInventory( idPlayer *owner, const idDict &dict ) {
+	int			i;
+	int			num;
+	idDict		*item;
+	idStr		key;
+	idStr		itemname;
+	const idKeyValue *kv;
+	const char	*name;
+
+	CS_CoopClear();
+
+	// pdas viewed
+	for ( i = 0; i < 4; i++ ) {
+		pdasViewed[i] = dict.GetInt(va("pdasViewed_%i", i));
+	}
+
+	// pdas
+	num = dict.GetInt( "pdas" );
+	pdas.SetNum( num );
+	for ( i = 0; i < num; i++ ) {
+		sprintf( itemname, "pda_%i", i );
+		pdas[i] = dict.GetString( itemname, "default" );
+	}
+
+	// videos
+	num = dict.GetInt( "videos" );
+	videos.SetNum( num );
+	for ( i = 0; i < num; i++ ) {
+		sprintf( itemname, "video_%i", i );
+		videos[i] = dict.GetString( itemname, "default" );
+	}
+
+	// emails
+	num = dict.GetInt( "emails" );
+	emails.SetNum( num );
+	for ( i = 0; i < num; i++ ) {
+		sprintf( itemname, "email_%i", i );
+		emails[i] = dict.GetString( itemname, "default" );
+	}
+}
+
 /*
 ==============
 idPlayer::idPlayer
@@ -1347,6 +1447,7 @@ void idPlayer::Init( void ) {
 
 	// restore persistent data
 	RestorePersistantInfo();
+	CS_RestorePersistantInfo();
 
 	bobCycle		= 0;
 	stamina			= 0.0f;
@@ -3462,6 +3563,10 @@ void idPlayer::GiveObjective( const char *title, const char *text, const char *s
 	if ( hud ) {
 		hud->HandleNamedEvent( "newObjective" );
 	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		gameLocal.CS_SavePersistentPlayerInfo(); //maybe save data every random betwen 5 and 10 frames instead per every single frame.
+	}
 }
 
 /*
@@ -3482,6 +3587,10 @@ void idPlayer::CompleteObjective( const char *title ) {
 	if ( hud ) {
 		hud->HandleNamedEvent( "newObjectiveComplete" );
 	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		gameLocal.CS_SavePersistentPlayerInfo(); //maybe save data every random betwen 5 and 10 frames instead per every single frame.
+	}
 }
 
 /*
@@ -3494,10 +3603,6 @@ void idPlayer::GiveVideo( const char *videoName, idDict *item ) {
 		return;
 	}
 
-	/*
-	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
-		return CS_GiveVideo(videoName, item);
-	}*/
 
 	inventory.videos.AddUnique( videoName );
 
@@ -3509,6 +3614,10 @@ void idPlayer::GiveVideo( const char *videoName, idDict *item ) {
 	}
 	if ( hud ) {
 		hud->HandleNamedEvent( "videoPickup" );
+	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		gameLocal.CS_SavePersistentPlayerInfo(); //maybe save data every random betwen 5 and 10 frames instead per every single frame.
 	}
 }
 
@@ -3626,7 +3735,7 @@ void idPlayer::GivePDA( const char *pdaName, idDict *item)
 			hud->HandleNamedEvent( "pdaPickup" );
 		}
 
-		if ( inventory.pdas.Num() == 1 ) {
+		if ( inventory.pdas.Num() == 1 && gameLocal.localClientNum == entityNumber) {
 			GetPDA()->RemoveAddedEmailsAndVideos();
 			if ( !objectiveSystemOpen ) {
 				TogglePDA();
@@ -5831,6 +5940,7 @@ void idPlayer::PerformImpulse( int impulse ) {
 		msg.Init( msgBuf, sizeof( msgBuf ) );
 		msg.BeginWriting();
 		msg.WriteBits( impulse, 6 );
+		msg.WriteShort(inventory.pdas.Num()); //fix pda coop bug
 		ClientSendEvent( EVENT_IMPULSE, &msg );
 	}
 
@@ -8679,6 +8789,11 @@ bool idPlayer::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 	switch( event ) {
 		case EVENT_IMPULSE: {
 			PerformImpulse( msg.ReadBits( 6 ) );
+			int clientPdaCount =  msg.ReadShort();
+			if (clientPdaCount > inventory.pdas.Num()) {
+				inventory.pdas.SetNum(clientPdaCount) ;
+			}
+			
 			return true;
 		}
 		case EVENT_PLAYERPHYSICS: {
@@ -9395,10 +9510,10 @@ void idPlayer::CS_GivePDA( const char *pdaName, idDict *item) {
 			hud->HandleNamedEvent( "pdaPickup" );
 		}
 
-		if ( inventory.pdas.Num() == 1 ) {
+		if ( inventory.pdas.Num() == 1 && !spectating && gameLocal.localClientNum == entityNumber) {
 			GetPDA()->RemoveAddedEmailsAndVideos();
 			if ( !objectiveSystemOpen ) {
-				TogglePDA();
+				PerformImpulse(IMPULSE_21); //coop pda hack
 			}
 			objectiveSystem->HandleNamedEvent( "showPDATip" );
 			//ShowTip( spawnArgs.GetString( "text_infoTitle" ), spawnArgs.GetString( "text_firstPDA" ), true );
@@ -9408,6 +9523,8 @@ void idPlayer::CS_GivePDA( const char *pdaName, idDict *item) {
 			hud->HandleNamedEvent( "videoPickup" );
 		}
 	}
+
+	gameLocal.CS_SavePersistentPlayerInfo(); //maybe save data every random betwen 5 and 10 frames instead per every single frame.
 	return;
 }
 
@@ -9454,4 +9571,40 @@ idPlayer::CS_GiveObjective
 */
 void idPlayer::CS_CompleteObjective( const char *title ) {
 	return;
+}
+
+
+/*
+===============
+idPlayer::CS_SavePersistantInfo
+
+Saves any inventory and player stats when changing levels.
+===============
+*/
+void idPlayer::CS_SavePersistantInfo( void ) {
+	assert(gameLocal.isClient);
+
+	if (spectating)
+		return;
+
+	idDict &playerInfo = gameLocal.persistentPlayerInfoClientside;
+	playerInfo.Clear();
+	inventory.CS_GetPersistantData( playerInfo );
+}
+
+/*
+===============
+idPlayer::CS_RestorePersistantInfo
+
+Restores any inventory and player stats when changing levels.
+===============
+*/
+void idPlayer::CS_RestorePersistantInfo( void ) {
+	if (!gameLocal.mpGame.IsGametypeCoopBased() || gameLocal.isServer || gameLocal.localClientNum != entityNumber)
+		return;
+
+	idDict tmpArgs;
+	tmpArgs.Copy(gameLocal.persistentPlayerInfoClientside);
+
+	inventory.CS_RestoreInventory( this, tmpArgs );
 }

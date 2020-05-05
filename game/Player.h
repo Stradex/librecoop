@@ -212,6 +212,9 @@ public:
 
 	//COOP specific functions
 	bool					CS_Give( idPlayer *owner, const idDict &spawnArgs, const char *statname, const char *value, int *idealWeapon, bool updateHud );
+	void					CS_GetPersistantData( idDict &dict );
+	void					CS_RestoreInventory( idPlayer *owner, const idDict &dict );
+	void					CS_CoopClear( void ); //To keep pda security, keys, etc... (and all related to inv_carry)
 
 	int						nextItemPickup;
 	int						nextItemNum;
@@ -569,6 +572,8 @@ public:
 	void					CS_GiveSecurity( const char *security );
 	void					CS_GiveObjective( const char *title, const char *text, const char *screenshot );
 	void					CS_CompleteObjective( const char *title );
+	void					CS_SavePersistantInfo( void );
+	void					CS_RestorePersistantInfo( void );
 
 	//END COOP SPECIFIC
 
