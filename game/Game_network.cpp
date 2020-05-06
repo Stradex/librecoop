@@ -2120,17 +2120,6 @@ gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const userc
 		
 	}
 
-	//players: Now that players are forceNetworkSync = true this could be deleted I think
-	for (int i=0; i < MAX_CLIENTS; i++) {
-		if (!coopentities[i] || (coopentities[i]->entityCoopNumber == clientPlayer->entityCoopNumber)) {
-			continue;
-		}
-
-		if (!coopentities[i]->fl.hidden && !isSnapshotEntity(coopentities[i]) &&  (coopentities[i]->snapshotMissingCount[gameLocal.localClientNum] >= MAX_MISSING_SNAPSHOTS)) {  //probably outside pvs area and not beign sended by Snapshot
-			coopentities[i]->Hide();
-		}
-	}
-
 	// remove any entities that have stopped thinking
 	if ( numEntitiesToDeactivate ) {
 		idEntity *next_ent;
@@ -2697,7 +2686,7 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 	for( ent = coopSyncEntities.Next(); ent != NULL; ent = ent->coopNode.Next() ) {
 		ent->readByServer = false;
 
-		if (ent->clientsideNode.InList()) { //Stradex: ignore clientside only entities to avoid weird shit
+		if ((ent->entityCoopNumber == clientNum) || ent->clientsideNode.InList() || !ent->fl.coopNetworkSync) { //Stradex: ignore clientside only entities to avoid weird shit
 			continue;
 		}
 
@@ -2708,18 +2697,22 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 			}
 		}
 
-
-		if ( !ent->PhysicsTeamInPVS( pvsHandle ) && (((ent->entityNumber != clientNum) && !mpGame.IsGametypeCoopBased()) || ((ent->entityCoopNumber != clientNum) && mpGame.IsGametypeCoopBased()))  ) {
-			continue;
+		if ( !ent->PhysicsTeamInPVS( pvsHandle ) ) {
+			if (!ent->forceSnapshotUpdateOrigin && ent->PhysicsTeamInPVS_snapshot( pvsHandle, clientNum )) {
+				//ent->ClearPVSAreas_snapshot(clientNum);
+				//ent->lastSnapshotOrigin[clientNum] = ent->GetRenderEntity()->origin;
+				ent->inSnapshotQueue[clientNum]++; //hack?
+				ent->forceSnapshotUpdateOrigin = true;
+				gameLocal.Printf("[COOP] Force update origin hack...\n");
+			} else {
+				continue;
+			}
 		}
+
 		if (!ent->IsActive() && !ent->IsMasterActive() && !ent->firstTimeInClientPVS[clientNum] && !ent->forceNetworkSync && !ent->inSnapshotQueue[clientNum] && !ent->MasterUseOldNetcode()) { //ignore inactive entities that the player already saw before
 			continue;
 		}
 		if (ent->IsHidden() && !ent->firstTimeInClientPVS[clientNum] && !ent->inSnapshotQueue[clientNum] ) { //this shit is really important to improve server netcode
-			continue;
-		}
-		// if that entity is not marked for network synchronization
-		if ( !ent->fl.coopNetworkSync ) {
 			continue;
 		}
 		//Since sorting it's a pretty expensive stuff, let's try to have this list the less filled with entities possible
@@ -2774,10 +2767,13 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 			newBase->next = snapshot->firstEntityState;
 			snapshot->firstEntityState = newBase;
 
+			//Coop specific stuff
 			ent->inSnapshotQueue[clientNum] = 0;
 			serverSendEntitiesCount++;
 			ent->firstTimeInClientPVS[clientNum] = false; //Let the server know that this client already saw this entity for atleast one time
-			ent->spawnSnapShot = false; //used to send spawn data first time an entity is in the snapshot
+			ent->forceSnapshotUpdateOrigin = false;
+			ent->ClearPVSAreas_snapshot(clientNum);
+			ent->lastSnapshotOrigin[clientNum] = ent->GetRenderEntity()->origin;
 #if ASYNC_WRITE_TAGS
 			msg.WriteInt( tagRandom.RandomInt() );
 #endif

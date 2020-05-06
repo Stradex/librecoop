@@ -160,7 +160,8 @@ public:
 	bool					readByServer;			//if the entity was already tried to be sent in the snapshot
 	int						snapshotPriority;		//The priority of this entity (useful when snapshot overflow
 	int						snapshotMissingCount[MAX_CLIENTS];	//Missing snapshots count for coop
-	bool					spawnSnapShot;			 //first snapshot send by server
+	idVec3					lastSnapshotOrigin[MAX_CLIENTS]; // COOP: last origin position sended to a client via snapshot
+	bool					forceSnapshotUpdateOrigin;
 
 	struct entityFlags_s {
 		bool				notarget			:1;	// if true never attack or target this entity
@@ -235,6 +236,10 @@ public:
 	const int *				GetPVSAreas( void );
 	void					ClearPVSAreas( void );
 	bool					PhysicsTeamInPVS( pvsHandle_t pvsHandle );
+	int						GetNumPVSAreas_snapshot(  int clientNum );
+	const int *				GetPVSAreas_snapshot(  int clientNum );
+	void					ClearPVSAreas_snapshot(  int clientNum );
+	bool					PhysicsTeamInPVS_snapshot( pvsHandle_t pvsHandle,  int clientNum ); //dirty code for coop optimization
 
 	// animation
 	virtual bool			UpdateAnimationControllers( void );
@@ -403,6 +408,9 @@ private:
 	int						numPVSAreas;						// number of renderer areas the entity covers
 	int						PVSAreas[MAX_PVS_AREAS];			// numbers of the renderer areas the entity covers
 
+	int						numPVSAreas_snapshot[MAX_CLIENTS];				// COOP: number of renderer areas the entity covers
+	int						PVSAreas_snapshot[MAX_CLIENTS][MAX_PVS_AREAS];	// COOP: numbers of the renderer areas the entity covers
+
 	signalList_t *			signals;
 
 	int						mpGUIState;							// local cache to avoid systematic SetStateInt
@@ -425,6 +433,7 @@ private:
 	void					QuitTeam( void );					// leave the current team
 
 	void					UpdatePVSAreas( void );
+	void					UpdatePVSAreas_snapshot( int clientNum );
 
 	// events
 	void					Event_GetName( void );

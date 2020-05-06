@@ -5118,8 +5118,8 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 		normalizedLastDamageDir = lastDamageDir;
 	}
 
-	msg.WriteBits( spawnSnapShot, 1 );
-	if (spawnSnapShot) {
+	msg.WriteBits( forceSnapshotUpdateOrigin, 1 );
+	if (forceSnapshotUpdateOrigin) {
 		//sending origin position
 		msg.WriteFloat(GetPhysics()->GetOrigin().x);
 		msg.WriteFloat(GetPhysics()->GetOrigin().y);
@@ -5205,15 +5205,15 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	}
 
 	int		i, oldHealth, enemySpawnId, torsoAnimId, legsAnimId, headAnimId, enemyEntityId, goalEntityId, focusEntityId;
-	bool	newHitToggle, stateHitch, hasEnemy, isSpawnSnapshot, headEntityReceivedInfo;
+	bool	newHitToggle, stateHitch, hasEnemy, getOriginInfo, headEntityReceivedInfo;
 	netActionType_t newNetAction;
 	idVec3	tmpOrigin = vec3_zero;
 
 	oldHealth = health;
 
-	isSpawnSnapshot  = msg.ReadBits( 1 ) != 0;
-	if (isSpawnSnapshot) {
-		//sending origin position
+	getOriginInfo  = msg.ReadBits( 1 ) != 0;
+	if (getOriginInfo) {
+		//receiving origin position
 		tmpOrigin.x = msg.ReadFloat();
 		tmpOrigin.y = msg.ReadFloat();
 		tmpOrigin.z = msg.ReadFloat();
@@ -5324,7 +5324,7 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		//AI_PAIN = Pain( NULL, NULL, oldHealth - health, lastDamageDir, lastDamageLocation ); //causing crash.
 	}
 	if ( msg.HasChanged() ) {
-		if (isSpawnSnapshot) { //lets update origin then
+		if (getOriginInfo) { //lets update origin then
 			physicsObj.SetOrigin( tmpOrigin + idVec3( 0, 0, CM_CLIP_EPSILON ) );
 		}
 		ClientProcessNetAction(newNetAction);

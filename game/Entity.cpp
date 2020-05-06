@@ -453,14 +453,16 @@ idEntity::idEntity() {
 	fl.useOldNetcode = false; //added by Stradex for Coop netcode
 	allowClientsideThink = false;
 	canBeCsTarget = false;
+	forceSnapshotUpdateOrigin = true;
 
 	for (int i=0; i < MAX_CLIENTS; i++) {
 		firstTimeInClientPVS[i] = true; //added by Stradex for Coop netcode optimization
 		inSnapshotQueue[i] = 0; //added by Stradex for Coop netcode optimization
 		snapshotMissingCount[i] = 0;  //added by Stradex for Coop netcode optimization
+		lastSnapshotOrigin[i] = vec3_zero; //added by Stradex for Coop netcode optimization
+		numPVSAreas_snapshot[i] = -1;  //added by Stradex for Coop netcode optimization
 	}
 
-	spawnSnapShot = true;
 }
 
 /*
@@ -1391,6 +1393,93 @@ bool idEntity::PhysicsTeamInPVS( pvsHandle_t pvsHandle ) {
 	}
 	return false;
 }
+
+//COOP START
+
+/*
+================
+idEntity::UpdatePVSAreas_snapshot
+================
+*/
+void idEntity::UpdatePVSAreas_snapshot(  int clientNum ) {
+	int localNumPVSAreas, localPVSAreas[32];
+	idBounds modelAbsBounds;
+	int i;
+
+	modelAbsBounds.FromTransformedBounds( renderEntity.bounds, this->lastSnapshotOrigin[clientNum], renderEntity.axis );
+	localNumPVSAreas = gameLocal.pvs.GetPVSAreas( modelAbsBounds, localPVSAreas, sizeof( localPVSAreas ) / sizeof( localPVSAreas[0] ) ); //causing crash in coop
+
+	// FIXME: some particle systems may have huge bounds and end up in many PVS areas
+	// the first MAX_PVS_AREAS may not be visible to a network client and as a result the particle system may not show up when it should
+	if ( localNumPVSAreas > MAX_PVS_AREAS ) {
+		localNumPVSAreas = gameLocal.pvs.GetPVSAreas( idBounds( modelAbsBounds.GetCenter() ).Expand( 64.0f ), localPVSAreas, sizeof( localPVSAreas ) / sizeof( localPVSAreas[0] ) );
+	}
+
+	for ( numPVSAreas_snapshot[clientNum] = 0; numPVSAreas_snapshot[clientNum] < MAX_PVS_AREAS && numPVSAreas_snapshot[clientNum] < localNumPVSAreas; numPVSAreas_snapshot[clientNum]++ ) {
+		PVSAreas_snapshot[clientNum][numPVSAreas_snapshot[clientNum]] = localPVSAreas[numPVSAreas_snapshot[clientNum]];
+	}
+
+	for( i = numPVSAreas_snapshot[clientNum]; i < MAX_PVS_AREAS; i++ ) {
+		PVSAreas_snapshot[clientNum][ i ] = 0;
+	}
+}
+
+/*
+================
+idEntity::GetNumPVSAreas_snapshot
+================
+*/
+int idEntity::GetNumPVSAreas_snapshot( int clientNum ) {
+	if ( numPVSAreas_snapshot[clientNum] < 0 ) {
+		UpdatePVSAreas_snapshot(clientNum);
+	}
+	return numPVSAreas_snapshot[clientNum];
+}
+
+/*
+================
+idEntity::GetPVSAreas
+================
+*/
+const int *idEntity::GetPVSAreas_snapshot( int clientNum  ) {
+	if ( numPVSAreas_snapshot[clientNum] < 0 ) {
+		UpdatePVSAreas_snapshot(clientNum);
+	}
+	return PVSAreas_snapshot[clientNum];
+}
+
+/*
+================
+idEntity::ClearPVSAreas
+================
+*/
+void idEntity::ClearPVSAreas_snapshot( int clientNum ) {
+	numPVSAreas_snapshot[clientNum] = -1;
+}
+
+/*
+================
+idEntity::PhysicsTeamInPVS
+
+  FIXME: for networking also return true if any of the entity shadows is in the PVS
+================
+*/
+bool idEntity::PhysicsTeamInPVS_snapshot( pvsHandle_t pvsHandle, int clientNum ) {
+	idEntity *part;
+
+	if ( teamMaster ) {
+		for ( part = teamMaster; part; part = part->teamChain ) {
+			if ( gameLocal.pvs.InCurrentPVS( pvsHandle, part->GetPVSAreas_snapshot(clientNum), part->GetNumPVSAreas_snapshot(clientNum) ) ) {
+				return true;
+			}
+		}
+	} else {
+		return gameLocal.pvs.InCurrentPVS( pvsHandle, GetPVSAreas_snapshot(clientNum), GetNumPVSAreas_snapshot(clientNum) );
+	}
+	return false;
+}
+
+//COOP ENDS
 
 /*
 ==============
