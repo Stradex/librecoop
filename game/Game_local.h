@@ -642,9 +642,6 @@ private:
 
 	bool					isSnapshotEntity(idEntity* ent); //added for COOP by Stradex
 	idEntity*				getEntityBySpawnId(int spawnId);  //added for COOP by Stradex
-	idEntity*				getEntityByEntityNumber(int entityNum);  //added for COOP by Stradex
-	int						getFreeEntityNumber( void ); //added for COOP by Stradex
-	bool					duplicateEntity(idEntity* ent); //added for Coop by stradex
 
 	virtual void			GetMapLoadingGUI( char gui[ MAX_STRING_CHARS ] );
 };

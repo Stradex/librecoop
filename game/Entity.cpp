@@ -456,7 +456,7 @@ idEntity::idEntity() {
 
 	for (int i=0; i < MAX_CLIENTS; i++) {
 		firstTimeInClientPVS[i] = true; //added by Stradex for Coop netcode optimization
-		inSnapshotQueue[i] = false; //added by Stradex for Coop netcode optimization
+		inSnapshotQueue[i] = 0; //added by Stradex for Coop netcode optimization
 		snapshotMissingCount[i] = 0;  //added by Stradex for Coop netcode optimization
 	}
 
