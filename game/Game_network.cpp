@@ -2703,7 +2703,6 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 				//ent->lastSnapshotOrigin[clientNum] = ent->GetRenderEntity()->origin;
 				ent->inSnapshotQueue[clientNum]++; //hack?
 				ent->forceSnapshotUpdateOrigin = true;
-				gameLocal.Printf("[COOP] Force update origin hack...\n");
 			} else {
 				continue;
 			}
