@@ -1043,6 +1043,8 @@ idThread::Event_Trigger
 void idThread::Event_Trigger( idEntity *ent ) {
 	if ( ent ) {
 		ent->Signal( SIG_TRIGGER );
+		//little hack for coop
+		ent->calledViaScriptThread = true;
 		ent->ProcessEvent( &EV_Activate, gameLocal.GetLocalPlayer() );
 		ent->TriggerGuis();
 	}

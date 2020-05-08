@@ -66,10 +66,15 @@ public:
 
 	bool					AllowStep( void ) const;
 	void					EnableDamage( bool enable, float duration );
+
 	virtual bool			Collide( const trace_t &collision, const idVec3 &velocity );
 	virtual void			Killed( idEntity *inflictor, idEntity *attacker, int damage, const idVec3 &dir, int location );
+
 	virtual void			WriteToSnapshot( idBitMsgDelta &msg ) const;
 	virtual void			ReadFromSnapshot( const idBitMsgDelta &msg );
+
+	void					Event_Bind( idEntity *master );
+	void					Event_Unbind( void );
 
 protected:
 	idPhysics_RigidBody		physicsObj;				// physics object

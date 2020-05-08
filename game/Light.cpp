@@ -959,6 +959,13 @@ idLight::Event_ToggleOnOff
 ================
 */
 void idLight::Event_ToggleOnOff( idEntity *activator ) {
+
+	//hack for coop start
+	bool wasCalledViaScript = calledViaScriptThread;
+	calledViaScriptThread = false;
+	//hack for coop ends 
+
+
 	triggercount++;
 	if ( triggercount < count ) {
 		return;
@@ -974,7 +981,7 @@ void idLight::Event_ToggleOnOff( idEntity *activator ) {
 	}
 
 	if ( !currentLevel ) {
-		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && !this->coopNode.InList()) { //lets sync this event
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && !this->coopNode.InList() && wasCalledViaScript) {
 			ServerSendEvent( EVENT_ON, NULL, true, -1, true );
 		}
 		On();
@@ -982,7 +989,7 @@ void idLight::Event_ToggleOnOff( idEntity *activator ) {
 	else {
 		currentLevel--;
 		if ( !currentLevel ) {
-			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && !this->coopNode.InList()) { //lets sync this event
+			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && !this->coopNode.InList() && wasCalledViaScript) {
 				ServerSendEvent( EVENT_OFF, NULL, true, -1, true );
 			}
 			Off();

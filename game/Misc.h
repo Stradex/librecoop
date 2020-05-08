@@ -334,6 +334,8 @@ public:
 	enum {
 		EVENT_STATIC_ACTIVATE = idEntity::EVENT_MAXEVENTS,
 		EVENT_STATIC_REMOVE,
+		EVENT_STATIC_HIDE,
+		EVENT_STATIC_SHOW,
 		EVENT_MAXEVENTS
 	};
 	//end for coop
@@ -345,6 +347,8 @@ public:
 private:
 	void				Event_Activate( idEntity *activator );
 	void				Event_Remove( void ); //added for coop
+	void				Event_Hide( void ); //added for coop
+	void				Event_Show( void ); //added for coop
 
 	int					spawnTime;
 	bool				active;

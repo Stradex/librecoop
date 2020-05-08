@@ -454,7 +454,7 @@ idEntity::idEntity() {
 	allowClientsideThink = false;
 	canBeCsTarget = false;
 	forceSnapshotUpdateOrigin = true;
-
+	calledViaScriptThread = false;
 	for (int i=0; i < MAX_CLIENTS; i++) {
 		firstTimeInClientPVS[i] = true; //added by Stradex for Coop netcode optimization
 		inSnapshotQueue[i] = 0; //added by Stradex for Coop netcode optimization
@@ -1002,7 +1002,9 @@ void idEntity::BecomeActive( int flags ) {
 
 			//addded for Coop
 			for (int i=0; i < MAX_CLIENTS; i++) {
-				firstTimeInClientPVS[i] = true; //reset this so players who weren't present while this entity was active are forced to receive the changes.
+				if (inSnapshotQueue[i] <= 0) {
+					inSnapshotQueue[i] = 1; //dirty hack
+				}
 			}
 			
 		} else if ( !oldFlags ) {
@@ -1033,6 +1035,10 @@ void idEntity::BecomeInactive( int flags ) {
 	if ( thinkFlags ) {
 		thinkFlags &= ~flags;
 		if ( !thinkFlags && IsActive() ) {
+			//addded for Coop
+			for (int i=0; i < MAX_CLIENTS; i++) {
+				firstTimeInClientPVS[i] = true; //reset this so players who weren't present while this entity was set inactive are forced to receive the changes.
+			}
 			gameLocal.numEntitiesToDeactivate++;
 		}
 	}
@@ -3738,6 +3744,7 @@ void idEntity::FindTargets( void ) {
 		//extra for coop: FIXME Search for a clientside workaround for this better
 		ent =  targets[ i ].GetEntity();
 
+		/*
 		if (gameLocal.mpGame.IsGametypeCoopBased() && ent && !ent->fl.coopNetworkSync && (ent->IsType(idAnimated::Type) || ent->IsType(idFuncEmitter::Type) )){
 			//causing pvs areas crash
 			
@@ -3750,6 +3757,8 @@ void idEntity::FindTargets( void ) {
 #endif
 			
 		}
+		*/
+
 		//new
 		if (!ent) {
 			continue;
@@ -3765,6 +3774,7 @@ void idEntity::FindTargets( void ) {
 				break;
 			}
 		}
+
 		if (ent->canBeCsTarget) {
 			syncTargetNetwork = true;
 		}
@@ -3797,7 +3807,7 @@ idEntity::ActivateTargets
 "activator" should be set to the entity that initiated the firing.
 ==============================
 */
-void idEntity::ActivateTargets( idEntity *activator ) const {
+void idEntity::ActivateTargets( idEntity *activator ) {
 	idEntity	*ent;
 	int			i, j;
 
@@ -3816,16 +3826,19 @@ void idEntity::ActivateTargets( idEntity *activator ) const {
 
 		if (entityTargetNumber != ENTITYNUM_NONE && gameLocal.targetentities[entityTargetNumber] && sendTargetEvent) {
 			// send message to the clients
-			idBitMsg	outMsg;
-			byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
-			outMsg.Init( msgBuf, sizeof( msgBuf ) );
-			outMsg.BeginWriting();
-			outMsg.WriteByte( GAME_RELIABLE_MESSAGE_ACTIVATE_TARGET );
-			outMsg.WriteInt( entityTargetNumber );
+			//idBitMsg	outMsg;
+			//byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
+			//outMsg.Init( msgBuf, sizeof( msgBuf ) );
+			//outMsg.BeginWriting();
+			//outMsg.WriteByte( GAME_RELIABLE_MESSAGE_ACTIVATE_TARGET );
+			//outMsg.WriteInt( entityTargetNumber );
 	
-			networkSystem->ServerSendReliableMessage( -1, outMsg );
+			//networkSystem->ServerSendReliableMessage( -1, outMsg );
+			ServerSendEvent(EVENT_ACTIVATE_TARGETS, NULL, true, -1);
+			//EVENT_ACTIVATE_TARGETS
 #ifdef _DEBUG
-			common->Printf("[COOP DEBUG] Sending GAME_RELIABLE_MESSAGE_ACTIVATE_TARGET\n");
+			//common->Printf("[COOP DEBUG] Sending GAME_RELIABLE_MESSAGE_ACTIVATE_TARGET\n");
+			common->Printf("[COOP DEBUG] Sending EVENT_ACTIVATE_TARGETS\n");
 #endif
 		}
 	}
@@ -5308,6 +5321,10 @@ bool idEntity::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			assert( gameLocal.isNewFrame );
 			channel = (s_channelType)msg.ReadByte();
 			StopSound( channel, false );
+			return true;
+		}
+		case EVENT_ACTIVATE_TARGETS: {
+			ActivateTargets(this);
 			return true;
 		}
 		default:

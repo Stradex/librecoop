@@ -986,6 +986,7 @@ idAnimated::idAnimated() {
 	activator = NULL;
 	current_anim_index = 0;
 	num_anims = 0;
+	canBeCsTarget = true; //added for coop
 
 }
 
@@ -1206,7 +1207,11 @@ void idAnimated::PlayNextAnim( void ) {
 
 	len = animator.CurrentAnim( ANIMCHANNEL_ALL )->PlayLength();
 	if ( len >= 0 ) {
-		PostEventMS( &EV_AnimDone, len, current_anim_index );
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+			CS_PostEventMS( &EV_AnimDone, len, current_anim_index );
+		} else {
+			PostEventMS( &EV_AnimDone, len, current_anim_index );
+		}
 	}
 
 	// offset the start time of the shader to sync it to the game time
@@ -1240,7 +1245,9 @@ void idAnimated::Event_AnimDone( int animindex ) {
 
 	if ( ( animindex >= num_anims ) && spawnArgs.GetBool( "remove" ) ) {
 		Hide();
-		if (gameLocal.isServer || !gameLocal.mpGame.IsGametypeCoopBased()) {
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+			CS_PostEventMS( &EV_Remove, 0 );
+		} else {
 			PostEventMS( &EV_Remove, 0 );
 		}
 	} else if ( spawnArgs.GetBool( "auto_advance" ) ) {
@@ -1306,7 +1313,12 @@ void idAnimated::Event_Start( void ) {
 
 		len = animator.CurrentAnim( ANIMCHANNEL_ALL )->PlayLength();
 		if ( len >= 0 ) {
-			PostEventMS( &EV_AnimDone, len, 1 );
+			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+				CS_PostEventMS( &EV_AnimDone, len, 1 );
+			} else {
+				PostEventMS( &EV_AnimDone, len, 1 );
+			}
+			
 		}
 	}
 
@@ -1531,6 +1543,7 @@ idStaticEntity::idStaticEntity( void ) {
 	fadeStart = 0;
 	fadeEnd	= 0;
 	runGui = false;
+	canBeCsTarget = true;
 }
 
 /*
@@ -1693,6 +1706,12 @@ idStaticEntity::Event_Activate
 ================
 */
 void idStaticEntity::Event_Activate( idEntity *activator ) {
+
+	//hack for coop start
+	bool wasCalledViaScript = calledViaScriptThread;
+	calledViaScriptThread = false;
+	//hack for coop ends 
+
 	idStr activateGui;
 
 	spawnTime = gameLocal.time;
@@ -1705,7 +1724,7 @@ void idStaticEntity::Event_Activate( idEntity *activator ) {
 			Hide();
 		}
 
-		if ( gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased() ) { //extra sync for coop
+		if ( gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased() && wasCalledViaScript ) { //extra sync for coop
 			idBitMsg	msg;
 			byte		msgBuf[MAX_EVENT_PARAM_SIZE];
 
@@ -1776,6 +1795,32 @@ void idStaticEntity::Event_Remove( void ) {
 	delete this;
 }
 
+/*
+================
+idStaticEntity::Event_Hide
+================
+*/
+void idStaticEntity::Event_Hide( void ) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+		ServerSendEvent( EVENT_STATIC_HIDE, NULL, true, -1 , true);
+	}
+	Hide();
+}
+
+
+/*
+================
+idStaticEntity::Event_Show
+================
+*/
+void idStaticEntity::Event_Show( void ) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+		ServerSendEvent( EVENT_STATIC_SHOW, NULL, true, -1 , true);
+	}
+	Show();
+}
+
+
 
 /*
 ================
@@ -1802,6 +1847,16 @@ bool idStaticEntity::ClientReceiveEvent( int event, int time, const idBitMsg &ms
 		}
 		case EVENT_STATIC_REMOVE: {
 			CS_PostEventMS( &EV_Remove, 0 );
+			return true;
+		}
+		case EVENT_STATIC_HIDE: {
+			Event_Hide();
+			gameLocal.Printf("[DEBUG] %s receiving hide...\n", GetName());
+			return true;
+		}
+		case EVENT_STATIC_SHOW: {
+			Event_Show();
+			gameLocal.Printf("[DEBUG] %s receiving show...\n", GetName());
 			return true;
 		}
 		default:
@@ -1833,6 +1888,7 @@ idFuncEmitter::idFuncEmitter
 */
 idFuncEmitter::idFuncEmitter( void ) {
 	hidden = false;
+	canBeCsTarget = true;
 }
 
 /*
@@ -1994,6 +2050,7 @@ idFuncSmoke::idFuncSmoke() {
 	smokeTime = 0;
 	smoke = NULL;
 	restart = false;
+	canBeCsTarget = true;
 }
 
 /*

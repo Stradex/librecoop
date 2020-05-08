@@ -162,6 +162,7 @@ public:
 	int						snapshotMissingCount[MAX_CLIENTS];	//Missing snapshots count for coop
 	idVec3					lastSnapshotOrigin[MAX_CLIENTS]; // COOP: last origin position sended to a client via snapshot
 	bool					forceSnapshotUpdateOrigin;
+	bool					calledViaScriptThread; // Dirty hack for coop
 
 	struct entityFlags_s {
 		bool				notarget			:1;	// if true never attack or target this entity
@@ -360,7 +361,7 @@ public:
 	// targets
 	void					FindTargets( void );
 	void					RemoveNullTargets( void );
-	void					ActivateTargets( idEntity *activator ) const;
+	void					ActivateTargets( idEntity *activator ); //was const, changed for coop
 
 	// misc
 	virtual void			Teleport( const idVec3 &origin, const idAngles &angles, idEntity *destination );
@@ -372,6 +373,7 @@ public:
 	enum {
 		EVENT_STARTSOUNDSHADER,
 		EVENT_STOPSOUNDSHADER,
+		EVENT_ACTIVATE_TARGETS,
 		EVENT_MAXEVENTS
 	};
 
