@@ -45,6 +45,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "SmokeParticles.h"
 #include "Misc.h"//added for coop
 #include "ai/AI.h"//added for coop
+#include "physics/Physics_StaticMulti.h" //added for Coop
 
 #include "Entity.h"
 
@@ -1002,9 +1003,7 @@ void idEntity::BecomeActive( int flags ) {
 
 			//addded for Coop
 			for (int i=0; i < MAX_CLIENTS; i++) {
-				if (inSnapshotQueue[i] <= 0) {
-					inSnapshotQueue[i] = 1; //dirty hack
-				}
+				firstTimeInClientPVS[i] = true;
 			}
 			
 		} else if ( !oldFlags ) {
@@ -1020,6 +1019,17 @@ idEntity::BecomeInactive
 ================
 */
 void idEntity::BecomeInactive( int flags ) {
+
+	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased() && thinkFlags) {
+		if ((fl.useOldNetcode || MasterUseOldNetcode() || IsBoundToMover()) && (fl.coopNetworkSync || IsMasterCoopSync()) && (snapshotNode.InList() || IsMasterInSnapshot())) {
+			idPhysics* p = GetPhysics();
+			if( p != NULL && p->IsType( idPhysics_Static::Type ) == false && p->IsType( idPhysics_StaticMulti::Type ) == false) {
+				//gameLocal.DebugPrintf("Avoiding %s to become inactive\n", GetName());
+				return;
+			}
+		}
+	}
+
 	if ( ( flags & TH_PHYSICS ) ) {
 		// may only disable physics on a team master if no team members are running physics or bound to a joints
 		if ( teamMaster == this ) {
@@ -1037,7 +1047,9 @@ void idEntity::BecomeInactive( int flags ) {
 		if ( !thinkFlags && IsActive() ) {
 			//addded for Coop
 			for (int i=0; i < MAX_CLIENTS; i++) {
-				firstTimeInClientPVS[i] = true; //reset this so players who weren't present while this entity was set inactive are forced to receive the changes.
+				if (inSnapshotQueue[i] <= 0) {
+					inSnapshotQueue[i] = 1; //dirty hack: NEEDS TESTING!
+				}
 			}
 			gameLocal.numEntitiesToDeactivate++;
 		}
@@ -2221,6 +2233,22 @@ bool idEntity::IsBound( void ) const {
 
 /*
 ================
+idEntity::IsBoundToMover
+================
+*/
+bool idEntity::IsBoundToMover( void ) const {
+	if ( !bindMaster ) {
+		return false;
+	} else if (bindMaster->IsType(idMover::Type)) {
+		return true;
+	}
+	return bindMaster->IsBoundToMover();
+}
+
+
+
+/*
+================
 idEntity::IsMasterActive
 Coop stuff
 ================
@@ -2253,6 +2281,44 @@ bool idEntity::MasterUseOldNetcode( void ) const {
 	}
 
 	return bindMaster->MasterUseOldNetcode();
+}
+
+/*
+================
+idEntity::IsMasterCoopSync
+Coop stuff
+================
+*/
+bool idEntity::IsMasterCoopSync( void ) const {
+	if ( !bindMaster ) {
+		return false;
+	}
+	if (bindMaster->entityNumber == this->entityNumber) { //this shouldn't never happen but weird shit can happen in this Coop tech demo
+		return fl.coopNetworkSync;
+	}
+	if (!bindMaster->fl.coopNetworkSync) {
+		return bindMaster->IsMasterCoopSync(); //may the master of our master is active... or the master of the master of the master of the master .... :P
+	}
+	return true;
+}
+
+/*
+================
+idEntity::IsMasterInSnapshot
+Coop stuff
+================
+*/
+bool idEntity::IsMasterInSnapshot( void ) const {
+	if ( !bindMaster ) {
+		return false;
+	}
+	if (bindMaster->entityNumber == this->entityNumber) { //this shouldn't never happen but weird shit can happen in this Coop tech demo
+		return this->snapshotNode.InList();
+	}
+	if (!bindMaster->snapshotNode.InList()) {
+		return bindMaster->IsMasterInSnapshot(); //may the master of our master is active... or the master of the master of the master of the master .... :P
+	}
+	return true;
 }
 
 /*
@@ -3826,20 +3892,8 @@ void idEntity::ActivateTargets( idEntity *activator ) {
 
 		if (entityTargetNumber != ENTITYNUM_NONE && gameLocal.targetentities[entityTargetNumber] && sendTargetEvent) {
 			// send message to the clients
-			//idBitMsg	outMsg;
-			//byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
-			//outMsg.Init( msgBuf, sizeof( msgBuf ) );
-			//outMsg.BeginWriting();
-			//outMsg.WriteByte( GAME_RELIABLE_MESSAGE_ACTIVATE_TARGET );
-			//outMsg.WriteInt( entityTargetNumber );
-	
-			//networkSystem->ServerSendReliableMessage( -1, outMsg );
 			ServerSendEvent(EVENT_ACTIVATE_TARGETS, NULL, true, -1);
-			//EVENT_ACTIVATE_TARGETS
-#ifdef _DEBUG
-			//common->Printf("[COOP DEBUG] Sending GAME_RELIABLE_MESSAGE_ACTIVATE_TARGET\n");
-			common->Printf("[COOP DEBUG] Sending EVENT_ACTIVATE_TARGETS\n");
-#endif
+			gameLocal.DebugPrintf("Sending EVENT_ACTIVATE_TARGETS\n");
 		}
 	}
 
@@ -3857,9 +3911,7 @@ void idEntity::ActivateTargets( idEntity *activator ) {
 			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
 				ent->allowClientsideThink = true;
 				ent->BecomeActive( TH_PHYSICS );
-#ifdef _DEBUG
-				common->Printf("[COOP DEBUG] Client Activating entity %s\n", ent->GetName());
-#endif
+				gameLocal.DebugPrintf("Client Activating entity %s\n", ent->GetName());
 			}
 		}
 		for ( j = 0; j < MAX_RENDERENTITY_GUI; j++ ) {
@@ -4428,9 +4480,7 @@ void idEntity::Event_StartSoundShader( const char *soundName, int channel ) {
 
 	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer &&  gameLocal.isNPC(this)) { //AI talk and noises netsync hack
 		netSync = true;
-#ifdef _DEBUG
-	gameLocal.Printf("[COOP DEBUG] Event_StartSoundShader...\n");
-#endif
+		gameLocal.DebugPrintf("Event_StartSoundShader...\n");
 	}
 
 	StartSoundShader( declManager->FindSound( soundName ), (s_channelType)channel, 0, netSync, &length );
@@ -4447,9 +4497,7 @@ void idEntity::Event_StopSound( int channel, int netSync ) {
 
 	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && gameLocal.isNPC(this)) { //AI talk and noises netsync hack
 		netSync = 1;
-#ifdef _DEBUG
-	gameLocal.Printf("[COOP DEBUG] Event_StopSound...\n");
-#endif
+		gameLocal.DebugPrintf("Event_StopSound...\n");
 	}
 
 	StopSound( channel, ( netSync != 0 ) );
@@ -4464,9 +4512,7 @@ void idEntity::Event_StartSound( const char *soundName, int channel, int netSync
 	int time;
 
 	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && gameLocal.isNPC(this)) { //AI talk and noises netsync hack
-#ifdef _DEBUG
-	gameLocal.Printf("[COOP DEBUG] Event_StartSound...\n");
-#endif
+		gameLocal.DebugPrintf("Event_StartSound...\n");
 		netSync = 1;
 	}
 

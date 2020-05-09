@@ -1501,6 +1501,7 @@ void idMover::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteBits( rot.stage, 3 );
 	WriteBindToSnapshot( msg );
 	WriteGUIToSnapshot( msg );
+	msg.WriteBits( IsHidden(), 1 );
 }
 
 /*
@@ -1517,6 +1518,12 @@ void idMover::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	rot.stage = (moveStage_t) msg.ReadBits( 3 );
 	ReadBindFromSnapshot( msg );
 	ReadGUIFromSnapshot( msg );
+
+	if ( msg.ReadBits( 1 ) ) {
+		Hide();
+	} else {
+		Show();
+	}
 
 	if ( msg.HasChanged() ) {
 		if ( move.stage != oldMoveStage ) {

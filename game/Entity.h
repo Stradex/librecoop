@@ -286,7 +286,10 @@ public:
 	void					GetWorldVelocities( idVec3 &linearVelocity, idVec3 &angularVelocity ) const;
 
 	bool					IsMasterActive ( void ) const; //added for coop netcode
+	bool					IsMasterCoopSync ( void ) const; //added for coop netcode
+	bool					IsMasterInSnapshot ( void ) const; //added for coop netcode
 	bool					MasterUseOldNetcode ( void ) const; //added for coop netcode
+	bool					IsBoundToMover( void ) const; //added for coop netcode
 
 	// physics
 							// set a new physics object to be used by this entity

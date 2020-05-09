@@ -1851,12 +1851,12 @@ bool idStaticEntity::ClientReceiveEvent( int event, int time, const idBitMsg &ms
 		}
 		case EVENT_STATIC_HIDE: {
 			Event_Hide();
-			gameLocal.Printf("[DEBUG] %s receiving hide...\n", GetName());
+			gameLocal.DebugPrintf("%s receiving hide...\n", GetName());
 			return true;
 		}
 		case EVENT_STATIC_SHOW: {
 			Event_Show();
-			gameLocal.Printf("[DEBUG] %s receiving show...\n", GetName());
+			gameLocal.DebugPrintf("%s receiving show...\n", GetName());
 			return true;
 		}
 		default:

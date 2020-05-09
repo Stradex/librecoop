@@ -417,6 +417,7 @@ public:
 
 	void					Printf( const char *fmt, ... ) const id_attribute((format(printf,2,3)));
 	void					DPrintf( const char *fmt, ... ) const id_attribute((format(printf,2,3)));
+	void					DebugPrintf( const char *fmt, ... ) const id_attribute((format(printf,2,3))); //to show in debug only
 	void					Warning( const char *fmt, ... ) const id_attribute((format(printf,2,3)));
 	void					DWarning( const char *fmt, ... ) const id_attribute((format(printf,2,3)));
 	void					Error( const char *fmt, ... ) const id_attribute((format(printf,2,3)));

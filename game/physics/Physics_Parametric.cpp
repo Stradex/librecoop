@@ -103,11 +103,15 @@ idPhysics_Parametric::idPhysics_Parametric( void ) {
 	current.time = gameLocal.time;
 	current.atRest = -1;
 	current.useSplineAngles = false;
+	firstSnapshotReceived = false;
 	current.origin.Zero();
 	current.angles.Zero();
 	current.axis.Identity();
 	current.localOrigin.Zero();
 	current.localAngles.Zero();
+	current.snapshotOrigin.Zero();  //added for coop
+	current.snapshotAngles.Zero();  //added for coop
+	current.snapshotAxis.Identity();  //added for coop
 	current.linearExtrapolation.Init( 0, 0, vec3_zero, vec3_zero, vec3_zero, EXTRAPOLATION_NONE );
 	current.angularExtrapolation.Init( 0, 0, ang_zero, ang_zero, ang_zero, EXTRAPOLATION_NONE );
 	current.linearInterpolation.Init( 0, 0, 0, 0, vec3_zero, vec3_zero );
@@ -624,6 +628,11 @@ bool idPhysics_Parametric::Evaluate( int timeStepMSec, int endTimeMSec ) {
 		}
 	}
 
+	if ( hasMaster && gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && self && self->IsBoundToMover() && self->GetTeamMaster() != self && firstSnapshotReceived) {
+		current.origin = current.snapshotOrigin;  //added for coop
+		current.angles = current.snapshotAngles;  //added for coop
+		current.axis = current.snapshotAxis;  //added for coop
+	}
 	if ( isPusher ) {
 
 		gameLocal.push.ClipPush( pushResults, self, pushFlags, oldOrigin, oldAxis, current.origin, current.axis );
@@ -1039,6 +1048,7 @@ void idPhysics_Parametric::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteFloat( current.angles[0] );
 	msg.WriteFloat( current.angles[1] );
 	msg.WriteFloat( current.angles[2] );
+
 	msg.WriteDeltaFloat( current.origin[0], current.localOrigin[0] );
 	msg.WriteDeltaFloat( current.origin[1], current.localOrigin[1] );
 	msg.WriteDeltaFloat( current.origin[2], current.localOrigin[2] );
@@ -1105,6 +1115,71 @@ void idPhysics_Parametric::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	float startTime, duration, accelTime, decelTime;
 	idVec3 linearStartValue, linearSpeed, linearBaseSpeed, startPos, endPos;
 	idAngles angularStartValue, angularSpeed, angularBaseSpeed, startAng, endAng;
+	
+	if (gameLocal.mpGame.IsGametypeCoopBased() && hasMaster && self &&  self->IsBoundToMover() && self->GetTeamMaster() != self) { //todo perfecto aca
+	current.time = msg.ReadInt();
+	current.atRest = msg.ReadInt();
+	current.origin[0] = msg.ReadFloat();
+	current.origin[1] = msg.ReadFloat();
+	current.origin[2] = msg.ReadFloat();
+	current.angles[0] = msg.ReadFloat();
+	current.angles[1] = msg.ReadFloat();
+	current.angles[2] = msg.ReadFloat();
+
+	current.localOrigin[0] = msg.ReadDeltaFloat( current.origin[0] );
+	current.localOrigin[1] = msg.ReadDeltaFloat( current.origin[1] );
+	current.localOrigin[2] = msg.ReadDeltaFloat( current.origin[2] );
+	current.localAngles[0] = msg.ReadDeltaFloat( current.angles[0] );
+	current.localAngles[1] = msg.ReadDeltaFloat( current.angles[1] );
+	current.localAngles[2] = msg.ReadDeltaFloat( current.angles[2] );
+
+	msg.ReadBits( 8 );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+
+	msg.ReadBits( 8 );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+	msg.ReadDeltaFloat( 0.0f );
+
+	} else {
 
 	current.time = msg.ReadInt();
 	current.atRest = msg.ReadInt();
@@ -1114,6 +1189,7 @@ void idPhysics_Parametric::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	current.angles[0] = msg.ReadFloat();
 	current.angles[1] = msg.ReadFloat();
 	current.angles[2] = msg.ReadFloat();
+
 	current.localOrigin[0] = msg.ReadDeltaFloat( current.origin[0] );
 	current.localOrigin[1] = msg.ReadDeltaFloat( current.origin[1] );
 	current.localOrigin[2] = msg.ReadDeltaFloat( current.origin[2] );
@@ -1172,8 +1248,14 @@ void idPhysics_Parametric::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	endAng[1] = msg.ReadDeltaFloat( 0.0f );
 	endAng[2] = msg.ReadDeltaFloat( 0.0f );
 	current.angularInterpolation.Init( startTime, accelTime, decelTime, duration, startAng, endAng );
+	}
 
 	current.axis = current.angles.ToMat3();
+
+	firstSnapshotReceived = true; //shitty hack
+	current.snapshotOrigin = current.origin;  //added for coop
+	current.snapshotAngles = current.angles;  //added for coop
+	current.snapshotAxis = current.axis;  //added for coop
 
 	if ( clipModel ) {
 		clipModel->Link( gameLocal.clip, self, 0, current.origin, current.axis );

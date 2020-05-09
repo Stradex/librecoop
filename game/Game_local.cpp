@@ -696,6 +696,24 @@ void idGameLocal::DPrintf( const char *fmt, ... ) const {
 
 /*
 ============
+idGameLocal::DPrintf
+============
+*/
+void idGameLocal::DebugPrintf( const char *fmt, ... ) const {
+#ifdef _DEBUG
+	va_list		argptr;
+	char		text[MAX_STRING_CHARS];
+
+	va_start( argptr, fmt );
+	idStr::vsnPrintf( text, sizeof( text ), fmt, argptr );
+	va_end( argptr );
+
+	common->Printf( "[DEBUG] %s", text );
+#endif
+}
+
+/*
+============
 idGameLocal::Warning
 ============
 */
@@ -3184,9 +3202,8 @@ void idGameLocal::RegisterTargetEntity( idEntity *ent ) {
 		Error( "no free target entities" );
 	}
 
-#ifdef _DEBUG
-	common->Printf("[DEBUG] Adding %s to the targetentities array...\n", ent->GetName());
-#endif
+	DebugPrintf("Adding %s to the targetentities array...\n", ent->GetName());
+
 	target_entnum = firstFreeTargetIndex++;
 
 	targetentities[target_entnum] = ent; //added for coop
@@ -3260,7 +3277,7 @@ void idGameLocal::RegisterEntity( idEntity *ent ) {
 
 	if (ent->fl.coopNetworkSync || spawnArgs.GetInt( "coop_entnum", "0")) {
 		if (ent->IsType(idWeapon::Type)) {
-			common->Printf("Registering weapon....\n");
+			DebugPrintf("Registering weapon....\n");
 		}
 		RegisterCoopEntity(ent); //for coop only
 	}
@@ -4182,7 +4199,7 @@ void idGameLocal::ProjectDecal( const idVec3 &origin, const idVec3 &dir, float d
 	};
 
 	if (mpGame.IsGametypeCoopBased() && (FLOAT_IS_NAN(dir.x) || FLOAT_IS_NAN(dir.y) || FLOAT_IS_NAN(dir.z) || FLOAT_IS_NAN(origin.x)  || FLOAT_IS_NAN(origin.y) || FLOAT_IS_NAN(origin.z))) {
-		common->Printf("[COOP FATAL] FLOAT_IS_NAN at idGameLocal::ProjectDecal\n");
+		common->Warning("[COOP FATAL] FLOAT_IS_NAN at idGameLocal::ProjectDecal\n");
 		return;
 	}
 
