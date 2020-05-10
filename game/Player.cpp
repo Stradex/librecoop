@@ -8864,8 +8864,8 @@ bool idPlayer::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 		case EVENT_PLAYERSPAWN: {
 			//physicsObj.ReadFromEvent(msg);
 			if (net_clientSideMovement.GetBool()) {
-				allowClientsideMovement = false;  //hack for clientsidemovement
-				nextSendPhysicsInfoTime = gameLocal.clientsideTime + 2000; //hack for clientsidemovement
+				allowClientsideMovement = true;  //hack for clientsidemovement
+				nextSendPhysicsInfoTime = gameLocal.clientsideTime; //hack for clientsidemovement
 				idVec3	tmpOrigin = vec3_zero;
 				tmpOrigin.x = msg.ReadFloat();
 				tmpOrigin.y = msg.ReadFloat();
