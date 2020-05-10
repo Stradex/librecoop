@@ -36,6 +36,7 @@ Various utility objects and functions.
 
 #include "gamesys/SysCvar.h"
 #include "script/Script_Thread.h"
+#include "framework/async/NetworkSystem.h" //added for coop
 #include "ai/AI.h"
 #include "Player.h"
 #include "Camera.h"
@@ -202,12 +203,7 @@ void idPlayerStart::TeleportPlayer( idPlayer *player ) {
 	idEntity *ent = viewName ? gameLocal.FindEntity( viewName ) : NULL;
 
 	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) { //create a new global checkpoint at this position for Coop
-		if ( f && ent ) {
-			gameLocal.mpGame.CreateNewCheckpoint(ent->GetPhysics()->GetOrigin());
-		} else {
-			gameLocal.mpGame.CreateNewCheckpoint(GetPhysics()->GetOrigin());
-		}
-		
+		gameLocal.mpGame.CreateNewCheckpoint(GetPhysics()->GetOrigin());
 	}
 
 	if ( f && ent ) {
@@ -3271,6 +3267,7 @@ idFuncRadioChatter::idFuncRadioChatter
 */
 idFuncRadioChatter::idFuncRadioChatter() {
 	time = 0.0;
+	canBeCsTarget = true;
 }
 
 /*
@@ -3307,32 +3304,52 @@ idFuncRadioChatter::Event_Activate
 */
 void idFuncRadioChatter::Event_Activate( idEntity *activator ) {
 
-	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-		return; //No radio chatter in coop
-	}
+
+	//hack for coop start
+	bool wasCalledViaScript = calledViaScriptThread;
+	calledViaScriptThread = false;
+	//hack for coop ends 
 
 	idPlayer *player;
 	const char	*sound;
 	const idSoundShader *shader;
 	int length;
 
-	if ( activator->IsType( idPlayer::Type ) ) {
+	if (activator && activator->IsType( idPlayer::Type ) && !gameLocal.isClient ) {
 		player = static_cast<idPlayer *>( activator );
+	} else if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+		player = gameLocal.GetCoopPlayer();
 	} else {
-		player = gameLocal.GetLocalPlayer();
+		player = gameLocal.GetLocalPlayer(); // for this for clients in coop
 	}
 
-	player->hud->HandleNamedEvent( "radioChatterUp" );
+	if (player->hud) {
+		player->hud->HandleNamedEvent( "radioChatterUp" );
+	}
 
 	sound = spawnArgs.GetString( "snd_radiochatter", "" );
 	if ( sound && *sound ) {
 		shader = declManager->FindSound( sound );
 		player->StartSoundShader( shader, SND_CHANNEL_RADIO, SSF_GLOBAL, false, &length );
 		time = MS2SEC( length + 150 );
+
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && wasCalledViaScript) {
+			idBitMsg outMsg;
+			byte msgBuf[1024];
+			outMsg.Init( msgBuf, sizeof( msgBuf ) );
+			outMsg.WriteByte( GAME_RELIABLE_MESSAGE_SOUND_INDEX );
+			outMsg.WriteInt( gameLocal.ServerRemapDecl( -1, DECL_SOUND, shader->Index() ) );
+			networkSystem->ServerSendReliableMessage( -1, outMsg );
+			gameLocal.DebugPrintf("Sending idFuncRadioChatter::Event_Activate\n");
+		}
 	}
 	// we still put the hud up because this is used with no sound on
 	// certain frame commands when the chatter is triggered
-	PostEventSec( &EV_ResetRadioHud, time, player );
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		CS_PostEventSec( &EV_ResetRadioHud, time, player );
+	} else {
+		PostEventSec( &EV_ResetRadioHud, time, player );
+	}
 
 }
 
@@ -3342,8 +3359,23 @@ idFuncRadioChatter::Event_ResetRadioHud
 ================
 */
 void idFuncRadioChatter::Event_ResetRadioHud( idEntity *activator ) {
-	idPlayer *player = ( activator->IsType( idPlayer::Type ) ) ? static_cast<idPlayer *>( activator ) : gameLocal.GetLocalPlayer();
-	player->hud->HandleNamedEvent( "radioChatterDown" );
+	idPlayer *player;
+
+	if (activator && activator->IsType( idPlayer::Type ) && !gameLocal.isClient ) {
+		player = static_cast<idPlayer *>( activator );
+	} else if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+		player = gameLocal.GetCoopPlayer();
+	} else {
+		player = gameLocal.GetLocalPlayer(); // for this for clients in coop
+	}
+
+	if (player->hud) {
+		player->hud->HandleNamedEvent( "radioChatterDown" );
+	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) 
+		return;
+
 	ActivateTargets( activator );
 }
 

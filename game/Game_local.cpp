@@ -2115,9 +2115,7 @@ idPlayer *idGameLocal::GetCoopPlayer() const {
 			return NULL;
 		}
 	} else {
-		if ( localClientNum < 0) {
-			return NULL;
-		}
+		return GetLocalPlayer();
 	}
 
 	return static_cast<idPlayer *>( entities[ localClientNum ] );

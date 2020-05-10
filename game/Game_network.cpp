@@ -1709,7 +1709,14 @@ void idGameLocal::ClientProcessReliableMessage( int clientNum, const idBitMsg &m
 		case GAME_RELIABLE_MESSAGE_PORTAL: {
 			qhandle_t portal = msg.ReadInt();
 			int blockingBits = msg.ReadBits( NUM_RENDER_PORTAL_BITS );
-			assert( portal > 0 && portal <= gameRenderWorld->NumPortals() );
+			if (gameLocal.mpGame.IsGametypeCoopBased()) {
+				if (portal <= 0 || portal > gameRenderWorld->NumPortals()) {
+					gameLocal.Warning("[FATAL] assertion avoided at GAME_RELIABLE_MESSAGE_PORTAL\n");
+					return;
+				}
+			} else {
+				assert( portal > 0 && portal <= gameRenderWorld->NumPortals() );
+			}
 			gameRenderWorld->SetPortalState( portal, blockingBits );
 			break;
 		}

@@ -2392,19 +2392,31 @@ use normal spawn selection.
 */
 void idPlayer::SelectInitialSpawnPoint( idVec3 &origin, idAngles &angles ) {
 	idEntity *spot;
+	idEntity *infoPlayerStartSpot;
 	idStr skin;
 
+	infoPlayerStartSpot = gameLocal.FindEntityUsingDef( NULL, "info_player_start" );
+
 	if (forceSPSpawnPoint && !spectating) { //added to ensure that info_player_start it is used atleast once
-		spot = gameLocal.FindEntityUsingDef( NULL, "info_player_start" );
+		spot = infoPlayerStartSpot;
 		if ( !spot ) {
 			gameLocal.Error( "No info_player_start on map.\n" );
 		}
+
+		// activate the spawn locations targets
+		spot->PostEventMS( &EV_ActivateTargets, 0, this );
+
+		forceSPSpawnPoint = false;
+
 #ifdef _DEBUG
 		gameLocal.Printf("[COOP DEBUG] Forcing info_player_start...\n");
 #endif
-		forceSPSpawnPoint = false;
 	} else {
 		spot = gameLocal.SelectInitialSpawnPoint( this );
+
+		if (infoPlayerStartSpot->entityNumber != spot->entityNumber ) {
+			spot->PostEventMS( &EV_ActivateTargets, 0, this ); //do not activate this again is this is a info_player_start spawn and it was activated already.
+		}
 	}
 
 	// set the player skin from the spawn location
@@ -2412,18 +2424,14 @@ void idPlayer::SelectInitialSpawnPoint( idVec3 &origin, idAngles &angles ) {
 		spawnArgs.Set( "spawn_skin", skin );
 	}
 
-	// activate the spawn locations targets
-	spot->PostEventMS( &EV_ActivateTargets, 0, this );
-
-	/*
-	//Disable checkpoint spawn now that we can play OpenCoop maps
-	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.mpGame.playerUseCheckpoints[this->entityNumber] && gameLocal.isServer) {
+	//Use g_spawnInCheckpoints only when you are playing maps that are not prepared for coop and you want to 
+	if (g_spawnInCheckpoints.GetBool() && gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.mpGame.playerUseCheckpoints[this->entityNumber] && gameLocal.isServer) {
 		origin = gameLocal.mpGame.playerCheckpoints[this->entityNumber];
 		origin[2] += 4.0f + CM_BOX_EPSILON;
 		angles = spot->GetPhysics()->GetAxis().ToAngles();
 		return;
 	}
-	*/
+	
 	
 
 	origin = spot->GetPhysics()->GetOrigin();
@@ -5992,6 +6000,10 @@ void idPlayer::PerformImpulse( int impulse ) {
 		}
 		case IMPULSE_21: {
 			if (gameLocal.mpGame.IsGametypeCoopBased()) { //COOP PDA
+
+			allowClientsideMovement = false;
+			nextSendPhysicsInfoTime = gameLocal.clientsideTime + 3000; //3segs without clientsidemovement
+
 				if ( objectiveSystemOpen ) {
 					TogglePDA();
 				} else if ( weapon_pda >= 0 ) {
@@ -8852,8 +8864,8 @@ bool idPlayer::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 		case EVENT_PLAYERSPAWN: {
 			//physicsObj.ReadFromEvent(msg);
 			if (net_clientSideMovement.GetBool()) {
-				allowClientsideMovement = true;
-				nextSendPhysicsInfoTime = gameLocal.clientsideTime; //3segs without clientsidemovement
+				allowClientsideMovement = false;  //hack for clientsidemovement
+				nextSendPhysicsInfoTime = gameLocal.clientsideTime + 2000; //hack for clientsidemovement
 				idVec3	tmpOrigin = vec3_zero;
 				tmpOrigin.x = msg.ReadFloat();
 				tmpOrigin.y = msg.ReadFloat();

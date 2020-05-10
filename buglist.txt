@@ -4,16 +4,13 @@ Bugs:
 - Some scripted lights are not syncing
 - Cinematics not working
 - Clientside cameras guis are not working
-- Elevators working laggy
+- Elevators working laggy (improved but still laggy)
 - npc binded light not working
 - PDA tip message is empty
-- Obejctive missions are not working
 - Closing pda shows the wrong anim (raise instead of lower)
 - Entities when they become inactive are shown in the last position saw by the client player instead of the current position
 - Downloading emails does not work clientside
 - NPCs keep talking if you just look at them (focus) without pressing click to talk again
-- All PDAs, videos and emails are lost after going into a new map
-- Radio chatter not working
 
 PER MAP:
 
@@ -22,7 +19,6 @@ PER MAP:
 
 - Mars city underground:
   + Part when lights should shut down so you must use the flashlight is not working
-  + Moveable construction objects that should fall into the stairs are not netsync
 
 - Mars city 2:
   + Kelly video not playing
@@ -32,3 +28,4 @@ PER MAP:
 
 - Alpha labs sector 2
 	+ GUI cameras not working
+
