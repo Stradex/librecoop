@@ -523,7 +523,7 @@ void idMultiplayerGame::UpdateScoreboard( idUserInterface *scoreBoard, idPlayer 
 
 	// clear remaining lines (empty slots)
 	iline++;
-	while ( iline < 5 ) {
+	while ( iline < MAX_CLIENTS ) { //Max players is now 8
 		scoreBoard->SetStateString( va( "player%i", iline ), "" );
 		scoreBoard->SetStateString( va( "player%i_score", iline ), "" );
 		scoreBoard->SetStateString( va( "player%i_tdm_tscore", iline ), "" );
@@ -2100,7 +2100,7 @@ void idMultiplayerGame::UpdateHud( idPlayer *player, idUserInterface *hud ) {
 			}
 		}
 	}
-	for ( i = ( gameState == GAMEON ? numRankedPlayers : 0 ) ; i < 5; i++ ) {
+	for ( i = ( gameState == GAMEON ? numRankedPlayers : 0 ) ; i < MAX_CLIENTS; i++ ) {
 		hud->SetStateString( va( "player%i", i+1 ), "" );
 		hud->SetStateString( va( "player%i_score", i+1 ), "" );
 		hud->SetStateInt( va( "rank%i", i+1 ), 0 );
