@@ -256,6 +256,7 @@ void idGameLocal::Clear( void ) {
 	lastGUI = 0;
 
 	//added for coop
+	isRestartingMap = false;
 	spPlayerStartSpot.ent = NULL;
 	firstClientToSpawn = false;
 	coopMapScriptLoad = false;
@@ -1028,6 +1029,8 @@ void idGameLocal::LocalMapRestart( ) {
 
 	Printf( "----- Game Map Restart -----\n" );
 
+	isRestartingMap = true; //COOP
+
 	gamestate = GAMESTATE_SHUTDOWN;
 
 	for ( i = 0; i < MAX_CLIENTS; i++ ) {
@@ -1098,6 +1101,23 @@ void idGameLocal::LocalMapRestart( ) {
 	}
 
 	gamestate = GAMESTATE_ACTIVE;
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		world->InitializateMapScript(); //COOP, to fix a bug while doing serverMapRestart (or any kind of map restart while playing coop)
+		idEntity* ent;
+		for( ent = spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next() ) {
+			if (ent == world) {
+				continue; //ignore the world entity, of course.
+			}
+			if (!ent->findTargetsAlreadyCalled) {
+				ent->Call_FindTargets();
+			}
+			if (!ent->scriptAlreadyConstructed) {
+				ent->Call_ConstructScriptObject();
+			}
+		}
+	}
+	isRestartingMap = false; //COOP
 }
 
 /*
@@ -2482,14 +2502,18 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 						ent->GetPhysics()->UpdateTime( time );
 						continue;
 					}
-					ent->Think();
-					num++;
+					if (!gameLocal.mpGame.IsGametypeCoopBased() || !isRestartingMap) { //avoid thinking while localMapRestart in coop
+						ent->Think();
+						num++;
+					}
 				}
 			} else {
 				num = 0;
 				for( ent = activeEntities.Next(); ent != NULL; ent = ent->activeNode.Next() ) {
-					ent->Think();
-					num++;
+					if (!gameLocal.mpGame.IsGametypeCoopBased() || !isRestartingMap) { //avoid thinking while localMapRestart in coop
+						ent->Think();
+						num++;
+					}
 				}
 			}
 		}

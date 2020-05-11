@@ -1,0 +1,105 @@
+// DEFINES to be used in our scripts
+#define BERSERK 0
+#define INVISIBILITY 1
+#define MEGAHEALTH 2
+#define ADRENALINE 3
+#define INVULNERABILITY 4
+#define HELLTIME 5
+#define ENVIROSUIT 6
+#define ENVIROTIME 7
+
+//
+// attack flags
+//
+#define ATTACK_DODGE_LEFT	1
+#define ATTACK_DODGE_RIGHT	2
+#define ATTACK_COMBAT_NODE	4
+#define ATTACK_MELEE		8
+#define ATTACK_LEAP			16
+#define ATTACK_MISSILE		32
+#define ATTACK_SPECIAL1		64
+#define ATTACK_SPECIAL2		128
+#define ATTACK_SPECIAL3		256
+#define ATTACK_SPECIAL4		512
+
+//
+// move types
+//
+#define MOVETYPE_DEAD					0				// no enemy tracking or steering.  just runs physics and script.
+#define MOVETYPE_ANIM					1				// movement based on animation deltas
+#define MOVETYPE_SLIDE					2				// movement based on velocity.  set speed using setFlySpeed.
+#define MOVETYPE_FLY					3				// flying monsters.
+#define MOVETYPE_STATIC					4				// no movement or gravity.
+
+//
+// move results
+//
+#define MOVE_STATUS_DONE				0				// move succeeded, or not moving
+#define MOVE_STATUS_MOVING				1				// move in progress
+#define MOVE_STATUS_WAITING				2				//
+#define MOVE_STATUS_DEST_NOT_FOUND		3				// destination doesn't exist
+#define MOVE_STATUS_DEST_UNREACHABLE	4				//
+#define MOVE_STATUS_BLOCKED_BY_WALL		5
+#define MOVE_STATUS_BLOCKED_BY_OBJECT	6
+#define MOVE_STATUS_BLOCKED_BY_ENEMY	7
+#define MOVE_STATUS_BLOCKED_BY_MONSTER	8
+
+//
+// talk states
+//
+#define TALK_NEVER						0
+#define TALK_DEAD						1
+#define TALK_OK							2
+#define TALK_BUSY						3
+
+
+//Events
+#include "script/d3xp_events.script"
+#include "script/d3xp_oc_events.script" //added for OpenCoop maps compatibility
+
+//Weapons
+#include "script/weapon_bloodstone_passive.script"
+#include "script/weapon_bloodstone_active1.script"
+#include "script/weapon_bloodstone_active2.script"
+#include "script/weapon_bloodstone_active3.script"
+#include "script/weapon_shotgun_double.script"
+#include "script/weapon_grabber.script"
+
+//Monsters
+#include "script/ai_monster_hunter_helltime.script"
+#include "script/ai_monster_hunter_berserk.script"
+#include "script/ai_monster_hunter_invul.script"
+#include "script/ai_monster_boss_maledict.script"
+#include "script/ai_monster_demon_vulgar.script"
+#include "script/ai_monster_demon_d3xp_bruiser.script"
+#include "script/ai_monster_dummy_target.script"
+#include "script/ai_monster_dummy.script"
+#include "script/ai_monster_demon_sentry.script"
+#include "script/ai_monster_demon_trite_jump.script"
+#include "script/ai_monster_turret_ancient.script"
+#include "script/ai_monster_flying_forgotten.script"
+#include "script/ai_character_erebus3.script"
+
+//Global Scripts
+#include "script/d3xp_airlock.script"
+#include "script/d3xp_bloodstone.script"
+
+//Map Scripts
+//#include "script/map_icecap1.script"
+#include "script/map_erebus1.script"
+#include "script/map_erebus2_helltime.script"
+#include "script/map_erebus2.script"
+#include "script/map_erebus3.script"
+#include "script/map_erebus4.script"
+#include "script/map_erebus5.script"
+#include "script/map_erebus5_cloud.script"
+#include "script/map_erebus6.script"
+#include "script/map_erebus6_berzerk.script"
+#include "script/map_phobos1.script"
+#include "script/map_phobos2.script"
+#include "script/map_phobos2_invul.script"
+#include "script/map_phobos3.script"
+#include "script/map_phobos4.script"
+#include "script/map_deltax.script"
+#include "script/map_hell.script"
+#include "script/map_maledict.script"

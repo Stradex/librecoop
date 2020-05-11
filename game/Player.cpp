@@ -2,7 +2,7 @@
 ===========================================================================
 
 Doom 3 GPL Source Code
-Copyright (C) 1999-2011 id Software LLC, a ZeniMax Media company.
+Copyright (C) 1999-2011 id Software LLC, a ZeniMax Media company.MPAim
 
 This file is part of the Doom 3 GPL Source Code ("Doom 3 Source Code").
 
@@ -4937,10 +4937,15 @@ void idPlayer::UpdateFocus( void ) {
 	if ( cursor && ( oldTalkCursor != talkCursor ) ) {
 		cursor->SetStateInt( "talkcursor", talkCursor );
 	}
-	if (entityNumber == gameLocal.localClientNum && MPAim != -1 && oldMPAim != MPAim && gameLocal.mpGame.IsGametypeCoopBased() && hud) {
+	/*
+	if (entityNumber == gameLocal.localClientNum && MPAim != -1 && lastMPAim != MPAim && gameLocal.mpGame.IsGametypeCoopBased() && hud) {
 		hud->SetStateString( "npc", gameLocal.userInfo[ MPAim ].GetString( "ui_name" ));
 		hud->HandleNamedEvent( "showNPC" );
-	} else if ( oldChar != focusCharacter && hud ) {
+	} else if (entityNumber == gameLocal.localClientNum && MPAim == -1 && lastMPAim != MPAim && gameLocal.mpGame.IsGametypeCoopBased() && hud) {
+		hud->SetStateString( "npc", "" );
+		hud->HandleNamedEvent( "hideNPC" );
+	} */
+	if ( oldChar != focusCharacter && hud ) {
 		if ( focusCharacter ) {
 			hud->SetStateString( "npc", focusCharacter->spawnArgs.GetString( "npc_name", "Joe" ) );
 			hud->HandleNamedEvent( "showNPC" );
@@ -4950,9 +4955,6 @@ void idPlayer::UpdateFocus( void ) {
 			hud->SetStateString( "npc", "" );
 			hud->HandleNamedEvent( "hideNPC" );
 		}
-	} else if (entityNumber == gameLocal.localClientNum && MPAim == -1 && oldMPAim != MPAim && gameLocal.mpGame.IsGametypeCoopBased() && hud) {
-		hud->SetStateString( "npc", "" );
-		hud->HandleNamedEvent( "hideNPC" );
 	}
 }
 
@@ -6512,15 +6514,37 @@ void idPlayer::UpdateHud( void ) {
 				hud->HandleNamedEvent( "aim_flash" );
 				MPAimHighlight = true;
 				MPAimFadeTime = 0;	// no fade till loosing focus
+		} else if (MPAim != -1 && gameLocal.mpGame.IsGametypeCoopBased()
+			&& gameLocal.entities[ MPAim ]  && gameLocal.entities[ MPAim ]->IsType( idPlayer::Type )) {
+				MPAimHighlight = true;
+				MPAimFadeTime = 0;	// no fade till loosing focus
+				hud->SetStateString( "npc", gameLocal.userInfo[ MPAim ].GetString( "ui_name" ));
+				hud->HandleNamedEvent( "showNPC" );
 		} else if ( MPAimHighlight ) {
+			if (gameLocal.mpGame.IsGametypeCoopBased()) {
+				hud->SetStateString( "npc", "" ); //added for coop
+			}
 			hud->HandleNamedEvent( "aim_fade" );
 			MPAimFadeTime = gameLocal.realClientTime;
 			MPAimHighlight = false;
 		}
 	}
 	if ( MPAimFadeTime ) {
+		
 		assert( !MPAimHighlight );
-		if ( gameLocal.realClientTime - MPAimFadeTime > 2000 ) {
+
+		int aimFadeTimeLength;
+
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			aimFadeTimeLength = 200;
+		} else {
+			aimFadeTimeLength = 2000;
+		}
+
+		if ( gameLocal.realClientTime - MPAimFadeTime > aimFadeTimeLength ) {
+			if (gameLocal.mpGame.IsGametypeCoopBased()) {
+				hud->HandleNamedEvent( "hideNPC" ); //added for coop
+			}
 			MPAimFadeTime = 0;
 		}
 	}

@@ -1,0 +1,10 @@
+
+/***********************************************************************
+
+	system events (called via 'sys.')
+
+***********************************************************************/
+
+// give an item to all the players playing
+// Stradex: added
+scriptEvent void giveItemToPlayers( string itemName );

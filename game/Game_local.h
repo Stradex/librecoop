@@ -296,11 +296,13 @@ public:
 	idLinkList<idEntity>	serverPriorityEntities;			// coopSyncEnities but sort by snapshotPriority (used by Coop only)
 	int						serverEventsCount;				//just to debug delete later
 	int						clientEventsCount;				//just to debug, delete later
+	bool					isRestartingMap;				//added for coop to fix a script bug after serverMapRestart
 	serverEvent_t			serverOverflowEvents[SERVER_EVENTS_QUEUE_SIZE]; //To avoid server reliabe messages overflow
 	void					addToServerEventOverFlowList(int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient, int eventTime, idEntity* ent, bool saveLastOnly=false); //To avoid server reliabe messages overflow
 	void					addToServerEventOverFlowList(entityNetEvent_t* event, int clientNum); //To avoid server reliabe messages overflow
 	void					sendServerOverflowEvents( void ); //to send the overflow events that are in queue to avoid event overflow
 	int						overflowEventCountdown; //FIXME: Not pretty way I I think
+
 	//end: stradex for coop netcode
 
 	// can be used to automatically effect every material in the world that references globalParms

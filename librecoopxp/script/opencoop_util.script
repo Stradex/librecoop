@@ -1,0 +1,116 @@
+/***********************************************************************
+
+	Nicemice: This defines opencoop utility functions for scripts
+
+***********************************************************************/
+
+/*
+==================
+hasKey
+
+Nicemice: checks if a spawnarg is present
+==================
+*/
+float hasKey( entity self, string key ) {
+	string value = self.getKey( key );
+	float len = sys.strLength( value );
+	if ( len > 0 ) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+/*
+==================
+waitForAllIn
+
+Nicemice: Used for checking if all players are in the location "location"
+*location has to be an "info_location" entity
+*tics: number of seconds until the next message is printed, if zero no messages are printed
+==================
+*/
+void waitForAllIn( entity location, float tics ) {
+
+	if ( tics > 0 ) {
+		float saySeconds = tics;
+		string location_name = location.getKey( "location" );
+
+		while ( !location.allPlayersIn() ) {
+			if ( saySeconds >= tics ) {
+				sys.say( "Waiting for players at the " + location_name + "." );
+				saySeconds = 0;
+			}
+			sys.wait( 1 );
+			saySeconds++;
+		}
+
+	} else {
+		while ( !location.allPlayersIn() ) {
+			sys.wait( 1 );
+		}
+	}
+}
+
+/*
+==================
+waitForNumIn
+
+Nicemice: Used for checking if a given number of players are in the location "location"
+*location has to be an "info_location" entity
+*tics: number of seconds until the next message is printed, if zero no messages are printed
+*num: number of players required
+==================
+*/
+void waitForNumIn( entity location, float tics, float num ) {
+
+	if ( tics > 0 ) {
+		float saySeconds = tics;
+		string location_name = location.getKey( "location" );
+
+		while ( location.numPlayers() < num ) {
+			if (num > 0){
+				if ( saySeconds >= tics ) {
+					sys.say( "Waiting for players at the " + location_name + "." );
+					saySeconds = 0;
+				}
+				saySeconds++;
+			}
+			sys.wait( 1 );
+		}
+	} else {
+		while ( location.numPlayers() < num ) {
+			sys.wait( 1 );
+		}
+	}
+}
+
+/*
+==================
+ChangeBloomForAllPlayers
+
+Klonsemann: Used for change view bloom for all players
+*bloomParm1: Parm1 for bloom
+*bloomParm2: Parm2 for bloom
+*bloomState: 1/0 indecates de- or activating bloom
+==================
+*/
+void ChangeBloomForAllPlayers(float bloomParm1, float bloomParm2, float bloomState){
+	float player_count;
+	entity 	currPlayer;
+	
+
+	for( player_count = 1; player_count <= 16; player_count++ ) {
+		currPlayer = sys.getEntity("player" + player_count );
+		/*
+		//Do nothing by now
+		if (currPlayer != $null_entity){
+
+			if ( bloomState == 1 ){
+				currPlayer.setBloomParms( bloomParm1, bloomParm2 );
+			}
+			currPlayer.toggleBloom( bloomState );
+		}
+		*/
+	}
+}

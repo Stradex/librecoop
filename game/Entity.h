@@ -163,6 +163,8 @@ public:
 	idVec3					lastSnapshotOrigin[MAX_CLIENTS]; // COOP: last origin position sended to a client via snapshot
 	bool					forceSnapshotUpdateOrigin;
 	bool					calledViaScriptThread; // Dirty hack for coop
+	bool					scriptAlreadyConstructed; //to fix a bug at localMapRestart
+	bool					findTargetsAlreadyCalled; //to fix a bug at localMapRestart
 
 	struct entityFlags_s {
 		bool				notarget			:1;	// if true never attack or target this entity
@@ -290,6 +292,8 @@ public:
 	bool					IsMasterInSnapshot ( void ) const; //added for coop netcode
 	bool					MasterUseOldNetcode ( void ) const; //added for coop netcode
 	bool					IsBoundToMover( void ) const; //added for coop netcode
+	void					Call_ConstructScriptObject( void ); //added by stradex to fix a bug at localMapRestart
+	void					Call_FindTargets( void ); //added by stradex to fix a bug at localMapRestart
 
 	// physics
 							// set a new physics object to be used by this entity

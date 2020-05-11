@@ -406,7 +406,6 @@ idEntity::idEntity
 ================
 */
 idEntity::idEntity() {
-
 	entityNumber	= ENTITYNUM_NONE;
 	entityCoopNumber = ENTITYNUM_NONE;
 	entityTargetNumber = ENTITYNUM_NONE;
@@ -446,12 +445,14 @@ idEntity::idEntity() {
 	memset( &refSound, 0, sizeof( refSound ) );
 
 	mpGUIState = -1;
+	scriptAlreadyConstructed = false; //added by Stradex for coop
 	spawnedByServer = false; //added by Stradex for Coop
 	clientSideEntity = false; //added by Stradex for Coop
 	forceNetworkSync = false; //added by Stradex for Coop
 	readByServer = false; //added by Stradex for Coop netcode optimization
 	snapshotPriority = DEFAULT_SNAPSHOT_PRIORITY;
 	fl.useOldNetcode = false; //added by Stradex for Coop netcode
+	findTargetsAlreadyCalled = false; //added by Stradex for coop
 	allowClientsideThink = false;
 	canBeCsTarget = false;
 	forceSnapshotUpdateOrigin = true;
@@ -492,7 +493,6 @@ void idEntity::Spawn( void ) {
 	idMat3				axis;
 	const idKeyValue	*networkSync, *coopNetworkSync;
 	const char			*classname;
-	const char			*scriptObjectName;
 
 	networkSync = spawnArgs.FindKey( "networkSync" );
 	if ( networkSync ) {
@@ -567,14 +567,8 @@ void idEntity::Spawn( void ) {
 	temp = spawnArgs.GetString( "name", va( "%s_%s_%d", GetClassname(), spawnArgs.GetString( "classname" ), entityNumber ) );
 	SetName( temp );
 
-	// if we have targets, wait until all entities are spawned to get them
-	if ( spawnArgs.MatchPrefix( "target" ) || spawnArgs.MatchPrefix( "guiTarget" ) ) {
-		if ( gameLocal.GameState() == GAMESTATE_STARTUP ) {
-			PostEventMS( &EV_FindTargets, 0 );
-		} else {
-			// not during spawn, so it's ok to get the targets
-			FindTargets();
-		}
+	if (!gameLocal.mpGame.IsGametypeCoopBased() || !gameLocal.isRestartingMap) {
+		Call_FindTargets();  //Don't call this if the gametype is coop or survival and if the map is restarting!
 	}
 
 	health = spawnArgs.GetInt( "health" );
@@ -598,6 +592,20 @@ void idEntity::Spawn( void ) {
 		StartSoundShader( refSound.shader, SND_CHANNEL_ANY, 0, false, NULL );
 	}
 
+	if (!gameLocal.mpGame.IsGametypeCoopBased() || !gameLocal.isRestartingMap) {
+		Call_ConstructScriptObject(); //Don't call this if the gametype is coop or survival and if the map is restarting!
+	}
+
+}
+
+/*
+================
+idEntity::Call_ConstructScriptObject
+================
+*/
+
+void idEntity::Call_ConstructScriptObject( void ) {
+	const char			*scriptObjectName;
 	// setup script object
 	if ( ShouldConstructScriptObjectAtSpawn() && spawnArgs.GetString( "scriptobject", NULL, &scriptObjectName ) ) {
 		if ( !scriptObject.SetType( static_cast<const char*>(scriptObjectName) ) ) {
@@ -605,6 +613,25 @@ void idEntity::Spawn( void ) {
 		}
 
 		ConstructScriptObject();
+	}
+}
+
+/*
+================
+idEntity::Call_FindTargets
+================
+*/
+
+void idEntity::Call_FindTargets(void) {
+	findTargetsAlreadyCalled = true;
+	// if we have targets, wait until all entities are spawned to get them
+	if ( spawnArgs.MatchPrefix( "target" ) || spawnArgs.MatchPrefix( "guiTarget" ) ) {
+		if ( gameLocal.GameState() == GAMESTATE_STARTUP ) {
+			PostEventMS( &EV_FindTargets, 0 );
+		} else {
+			// not during spawn, so it's ok to get the targets
+			FindTargets();
+		}
 	}
 }
 
@@ -3383,6 +3410,8 @@ Can be overridden by subclasses when a thread doesn't need to be allocated.
 ================
 */
 idThread *idEntity::ConstructScriptObject( void ) {
+
+	scriptAlreadyConstructed = true; //added for coop
 	idThread *thread;
 	const function_t *constructor;
 
@@ -3795,6 +3824,7 @@ have been spawned when the entity is created at map load time, we have to wait
 ===============
 */
 void idEntity::FindTargets( void ) {
+	findTargetsAlreadyCalled = true;
 	int			i, j;
 	idEntity *ent;
 	// targets can be a list of multiple names

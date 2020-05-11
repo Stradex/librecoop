@@ -1,0 +1,75 @@
+
+/***********************************************************************
+
+	Nicemice: Additional events,
+	defined by the OpenCoop game.dll
+
+***********************************************************************/
+
+/***********************************************************************
+
+	system events (called via 'sys.')
+
+***********************************************************************/
+
+// returns the current skill level
+// Nicemice: added
+scriptEvent float	getSkill();
+
+// returns the number of players currently playing. Spectators are ignored.
+// Nicemice: added
+scriptEvent float	numPlayers();
+
+// returns the closest player
+// Nicemice: added
+scriptEvent entity	getClosestPlayer( vector position );
+
+// removes all entities using that key/value pair
+// Nicemice: added
+scriptEvent void	killEntities( string key, string value );
+
+/***********************************************************************
+
+	all entities
+	Stradex: Not yet
+
+***********************************************************************/
+
+// Sets the value of the specified shader parm and transmits it over the network
+// Nicemice: added
+scriptEvent	void 	setNetShaderParm( float parm, float value );
+
+// Plays a specific sound shader on the channel and returns the length of the sound in
+// seconds. This is not the prefered method of playing a sound since you must ensure
+// that the sound is loaded and transmits it over the network is netSync is true.
+// Nicemice: added
+scriptEvent	float	startNetSndShader( string shaderName, float channel, float netSync );
+
+/***********************************************************************
+
+	location entities
+	Nicemice: added
+
+***********************************************************************/
+
+// Nicemice: Returns the number of players, definition for sys. already formulated above
+//scriptEvent float numPlayers();
+
+// Nicemice: Returns true, if all players are in this location, false otherwise
+scriptEvent float allPlayersIn();
+
+// Nicemice: Returns true, if no players are in this location, false otherwise
+scriptEvent float noPlayersIn();
+
+/***********************************************************************
+
+	spawnpoints
+	Nicemice: added
+
+***********************************************************************/
+
+// Enables the spawn. Already defined for the doors.
+//scriptEvent	void 	enable();
+
+// Disables the spawn. Already defined for the doors.
+//scriptEvent	void 	disable();

@@ -13,6 +13,7 @@ entityDef info_player_coop {
 
 entityDef player_doommarine_coop {
 	"inherit"							"player_base"
+	"coophud"							"guis/hud.gui"
 	"model"								"model_mp_marine"
 	"bleed"								"1"
 	"gib"								"1"
