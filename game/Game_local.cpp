@@ -1083,7 +1083,19 @@ void idGameLocal::LocalMapRestart( ) {
 	for (i=0; i < MAX_CLIENTS; i++) {
 		mpGame.playerUseCheckpoints[i] = false;
 		mpGame.playerCheckpoints[i] = vec3_zero;
+		//entities[ i ]->name.c_str()
+		/*
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			if (entities[ i ]) {
+				program.SetEntity( entities[ i ]->name.c_str(), NULL );
+			} else {
+				program.SetEntity( va("player%d", i), NULL );
+			}
+		}*/
 	}
+	
+	
+	
 	//COOP END
 	MapPopulate();
 
@@ -1103,10 +1115,18 @@ void idGameLocal::LocalMapRestart( ) {
 	gamestate = GAMESTATE_ACTIVE;
 
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+
+		/*
+		if (!EntityFromHashExists("player1")) {
+			gameLocal.DebugPrintf("player1 does not exist\n");
+		} else {
+			gameLocal.DebugPrintf("player1 exists!\n");
+		}
+		*/
 		world->InitializateMapScript(); //COOP, to fix a bug while doing serverMapRestart (or any kind of map restart while playing coop)
 		idEntity* ent;
 		for( ent = spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next() ) {
-			if (ent == world) {
+			if ((ent == world) || ent->IsType(idPlayer::Type)) {
 				continue; //ignore the world entity, of course.
 			}
 			if (!ent->findTargetsAlreadyCalled) {
@@ -1114,9 +1134,17 @@ void idGameLocal::LocalMapRestart( ) {
 			}
 			if (!ent->scriptAlreadyConstructed) {
 				ent->Call_ConstructScriptObject();
+				if (ent->IsType(idAI::Type)) {
+					static_cast<idAI*>(ent)->Init_CoopScriptFix();
+				}
 			}
 		}
 	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) { 
+		idEvent::ServiceEvents();
+	}
+
 	isRestartingMap = false; //COOP
 }
 
@@ -1288,7 +1316,9 @@ void idGameLocal::MapPopulate( void ) {
 	// this makes sure the map script main() function is called
 	// before the physics are run so entities can bind correctly
 	Printf( "==== Processing events ====\n" );
-	idEvent::ServiceEvents();
+	if (!gameLocal.mpGame.IsGametypeCoopBased() || !gameLocal.isRestartingMap) {
+		idEvent::ServiceEvents();
+	}
 }
 
 /*
@@ -1571,16 +1601,17 @@ void idGameLocal::MapClear( bool clearClients ) {
 	int i;
 
 	for( i = ( clearClients ? 0 : MAX_CLIENTS ); i < MAX_GENTITIES; i++ ) {
-		if (entities[i])
+		/*if (entities[i])
 		{
 			coopIds[ entities[i]->entityCoopNumber ] = -1;
 		}
+		*/
 		delete entities[ i ];
 		// ~idEntity is in charge of setting the pointer to NULL
 		// it will also clear pending events for this entity
 		assert( !entities[ i ] );
 		spawnIds[ i ] = -1;
-
+		coopIds[ i ] = -1;
 	}
 
 	entityHash.Clear( 1024, MAX_GENTITIES );
@@ -1605,6 +1636,31 @@ void idGameLocal::MapClear( bool clearClients ) {
 
 	delete[] locationEntities;
 	locationEntities = NULL;
+
+	//testing
+	activeEntities.Clear();
+	numEntitiesToDeactivate = 0;
+	sortTeamMasters = false;
+	sortPushers = false;
+	lastGUIEnt = NULL;
+	lastGUI = 0;
+
+	// always leave room for the max number of clients,
+	// even if they aren't all used, so numbers inside that
+	// range are NEVER anything but clients
+	num_entities	= MAX_CLIENTS;
+	num_coopentities = MAX_CLIENTS;
+	firstFreeIndex	= MAX_CLIENTS;
+	firstFreeCoopIndex = MAX_CLIENTS; //added for Coop
+	firstFreeTargetIndex = MAX_CLIENTS; //added for Coop
+	firstFreeCsIndex = CS_ENTITIES_START; //added for Coop
+
+	lastAIAlertEntity = NULL;
+	lastAIAlertTime = 0;
+
+	nextGibTime		= 0;
+
+	vacuumAreaNum = -1;		// if an info_vacuum is spawned, it will set this
 }
 
 /*
@@ -2502,7 +2558,7 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 						ent->GetPhysics()->UpdateTime( time );
 						continue;
 					}
-					if (!gameLocal.mpGame.IsGametypeCoopBased() || !isRestartingMap) { //avoid thinking while localMapRestart in coop
+					if (!gameLocal.mpGame.IsGametypeCoopBased() || !isRestartingMap || ent->IsType(idPlayer::Type)) { //avoid thinking while localMapRestart in coop
 						ent->Think();
 						num++;
 					}
@@ -2510,7 +2566,7 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 			} else {
 				num = 0;
 				for( ent = activeEntities.Next(); ent != NULL; ent = ent->activeNode.Next() ) {
-					if (!gameLocal.mpGame.IsGametypeCoopBased() || !isRestartingMap) { //avoid thinking while localMapRestart in coop
+					if (!gameLocal.mpGame.IsGametypeCoopBased() || !isRestartingMap  || ent->IsType(idPlayer::Type)) { //avoid thinking while localMapRestart in coop
 						ent->Think();
 						num++;
 					}
@@ -3688,6 +3744,24 @@ bool idGameLocal::RemoveEntityFromHash( const char *name, idEntity *ent ) {
 	}
 	return false;
 }
+
+/*
+================
+idGameLocalEntityFromHashExists
+================
+*/
+bool idGameLocal::EntityFromHashExists( const char *name )  {
+	int hash, i;
+
+	hash = entityHash.GenerateKey( name, true );
+	for ( i = entityHash.First( hash ); i != -1; i = entityHash.Next( i ) ) {
+		if (entities[i] && entities[i]->name.Icmp( name ) == 0 ) {
+			return true;
+		}
+	}
+	return false;
+}
+
 
 /*
 ================

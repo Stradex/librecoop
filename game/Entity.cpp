@@ -567,7 +567,7 @@ void idEntity::Spawn( void ) {
 	temp = spawnArgs.GetString( "name", va( "%s_%s_%d", GetClassname(), spawnArgs.GetString( "classname" ), entityNumber ) );
 	SetName( temp );
 
-	if (!gameLocal.mpGame.IsGametypeCoopBased() || !gameLocal.isRestartingMap) {
+	if (!gameLocal.mpGame.IsGametypeCoopBased() || !gameLocal.isRestartingMap || this->IsType(idPlayer::Type)) {
 		Call_FindTargets();  //Don't call this if the gametype is coop or survival and if the map is restarting!
 	}
 
@@ -592,7 +592,7 @@ void idEntity::Spawn( void ) {
 		StartSoundShader( refSound.shader, SND_CHANNEL_ANY, 0, false, NULL );
 	}
 
-	if (!gameLocal.mpGame.IsGametypeCoopBased() || !gameLocal.isRestartingMap) {
+	if (!gameLocal.mpGame.IsGametypeCoopBased() || !gameLocal.isRestartingMap  || this->IsType(idPlayer::Type)) {
 		Call_ConstructScriptObject(); //Don't call this if the gametype is coop or survival and if the map is restarting!
 	}
 

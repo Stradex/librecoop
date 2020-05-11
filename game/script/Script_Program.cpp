@@ -1616,8 +1616,13 @@ void idProgram::SetEntity( const char *name, idEntity *ent ) {
 
 	def = GetDef( &type_entity, defName, &def_namespace );
 	if ( def && ( def->initialized != idVarDef::stackVariable ) ) {
+		def->value.useCoopPlayerHack = false;
 		// 0 is reserved for NULL entity
 		if ( !ent ) {
+			if (!idStr::Icmp(name, "player1") && gameLocal.mpGame.IsGametypeCoopBased()) {
+				common->Error("Using coop ugly player1 hack\n");
+				def->value.useCoopPlayerHack = true;
+			}
 			*def->value.entityNumberPtr = 0;
 		} else {
 			*def->value.entityNumberPtr = ent->entityNumber + 1;

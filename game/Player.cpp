@@ -9489,12 +9489,14 @@ void idPlayer::Event_GetLinearVelocity( void ) {
 		for (int i=0; i < gameLocal.numClients; i++) {
 			if (gameLocal.entities[i] && gameLocal.entities[i]->IsType(idPlayer::Type) && !static_cast<idPlayer *>( gameLocal.entities[i] )->spectating) {
 				idThread::ReturnVector(  gameLocal.entities[i]->GetPhysics()->GetLinearVelocity() );
+				gameLocal.DebugPrintf("This is good: %s\n",  gameLocal.entities[i]->GetPhysics()->GetLinearVelocity().ToString());
 				break;
 			}
 		}
 	} else {
 		idThread::ReturnVector( GetPhysics()->GetLinearVelocity() );
 	}
+	gameLocal.DebugPrintf("Aca llego: %s\n", GetPhysics()->GetLinearVelocity().ToString());
 }
 
 /*

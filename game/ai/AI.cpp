@@ -778,7 +778,9 @@ void idAI::Spawn( void ) {
 	spawnArgs.GetInt(	"num_cinematics",		"0",		num_cinematics );
 	current_cinematic = 0;
 
-	LinkScriptVariables();
+	if (!gameLocal.mpGame.IsGametypeCoopBased() || !gameLocal.isRestartingMap) { //fix for coop
+		LinkScriptVariables();
+	}
 
 	fl.takedamage		= !spawnArgs.GetBool( "noDamage" );
 	enemy				= NULL;
@@ -936,7 +938,9 @@ void idAI::Spawn( void ) {
 		fl.takedamage = false;
 		physicsObj.SetContents( 0 );
 		physicsObj.GetClipModel()->Unlink();
-		Hide();
+		if (!gameLocal.mpGame.IsGametypeCoopBased() || !gameLocal.isRestartingMap) { //fix for coop
+			Hide();
+		}
 	} else {
 		// play a looping ambient sound if we have one
 		StartSound( "snd_ambient", SND_CHANNEL_AMBIENT, 0, false, NULL );
@@ -957,7 +961,24 @@ void idAI::Spawn( void ) {
 		af.GetPhysics()->EnableClip();
 	}
 
-	// init the move variables
+	if (!gameLocal.mpGame.IsGametypeCoopBased() || !gameLocal.isRestartingMap) { //fix for coop
+		// init the move variables
+		StopMove( MOVE_STATUS_DONE );
+	}
+}
+
+/*
+===================
+idAI::Init_CoopScriptFix
+Ugly shitty hack to fix something related to script and localMapRestart in coop
+===================
+*/
+
+void idAI::Init_CoopScriptFix( void ) {
+	LinkScriptVariables();
+	if ( num_cinematics || spawnArgs.GetBool( "hide" ) || spawnArgs.GetBool( "teleport" ) || spawnArgs.GetBool( "trigger_anim" ) || gameLocal.isClient ) {
+		Hide();
+	} 
 	StopMove( MOVE_STATUS_DONE );
 }
 
@@ -3567,7 +3588,6 @@ Notifies the script that a monster has been activated by a trigger or flashlight
 */
 void idAI::Activate( idEntity *activator ) {
 	idPlayer *player;
-
 	if ( AI_DEAD ) {
 		// ignore it when they're dead
 		return;
@@ -3582,7 +3602,7 @@ void idAI::Activate( idEntity *activator ) {
 		AI_ACTIVATED = true;
 		if ( !activator || !activator->IsType( idPlayer::Type ) ) {
 			if (gameLocal.mpGame.IsGametypeCoopBased()) {
-				player = GetClosestPlayerEnemy();
+				player = GetClosestPlayer();
 			} else {
 				player = gameLocal.GetLocalPlayer();
 			}

@@ -1096,9 +1096,14 @@ idAI::Event_MoveToEntity
 =====================
 */
 void idAI::Event_MoveToEntity( idEntity *ent ) {
+	if (idStr::FindText(GetEntityDefName(), "comm1_sentry") != -1) { //UGLY hack hack hcack
+		gameLocal.DebugPrintf("Trying to move to path by entity %s\n", this->GetName());
+	}
 	StopMove( MOVE_STATUS_DEST_NOT_FOUND );
 	if ( ent ) {
 		MoveToEntity( ent );
+	} else if (idStr::FindText(GetEntityDefName(), "comm1_sentry") != -1) {  //UGLY hack hack hcack
+		gameLocal.DebugPrintf("Path not found for entity %s\n", this->GetName());
 	}
 }
 
@@ -1357,7 +1362,7 @@ idAI::Event_CanSeeEntity
 */
 void idAI::Event_CanSeeEntity( idEntity *ent ) {
 
-	if (gameLocal.mpGame.IsGametypeCoopBased() && (idStr::FindText(GetEntityDefName(), "char_sentry") != -1)) {
+	if (!ent && gameLocal.mpGame.IsGametypeCoopBased() && ((idStr::FindText(GetEntityDefName(), "char_sentry") != -1) || (idStr::FindText(GetEntityDefName(), "comm1_sentry") != -1))) {
 		ent = GetClosestPlayer();
 	}
 
@@ -2363,7 +2368,7 @@ idAI::Event_LookAtEntity
 void idAI::Event_LookAtEntity( idEntity *ent, float duration ) {
 	
 	if (gameLocal.mpGame.IsGametypeCoopBased()) { //Hack for sentrybot and/or npc
-		if (idStr::FindText(GetEntityDefName(), "char_sentry") != -1) {
+		if (!ent && ((idStr::FindText(GetEntityDefName(), "char_sentry") != -1) || (idStr::FindText(GetEntityDefName(), "comm1_sentry") != -1))) {
 			ent = GetClosestPlayer();
 		} else if ((!focusEntity.GetEntity() || (focusEntity.GetEntity() && ( focusTime < gameLocal.time )))  && gameLocal.isNPC(this)) {
 			ent = GetFocusPlayer();
@@ -2693,7 +2698,7 @@ void idAI::Event_CanReachEntity( idEntity *ent ) {
 	int			areaNum;
 	idVec3		pos;
 
-	if (gameLocal.mpGame.IsGametypeCoopBased() && (idStr::FindText(GetEntityDefName(), "char_sentry") != -1)) {
+	if (!ent && gameLocal.mpGame.IsGametypeCoopBased() && ((idStr::FindText(GetEntityDefName(), "char_sentry") != -1) || (idStr::FindText(GetEntityDefName(), "comm1_sentry") != -1))) {
 		ent = GetClosestPlayer();
 	}
 
@@ -2782,21 +2787,32 @@ void idAI::Event_GetReachableEntityPosition( idEntity *ent ) {
 	int		toAreaNum;
 	idVec3	pos;
 
-	if (gameLocal.mpGame.IsGametypeCoopBased() && (idStr::FindText(GetEntityDefName(), "char_sentry") != -1)) {
+	if (!ent && gameLocal.mpGame.IsGametypeCoopBased() && ((idStr::FindText(GetEntityDefName(), "char_sentry") != -1) || (idStr::FindText(GetEntityDefName(), "comm1_sentry") != -1))) {
 		ent = GetClosestPlayer();
 	}
+
+	bool returnStatus=true;
 
 	if ( move.moveType != MOVETYPE_FLY ) {
 		if ( !ent->GetFloorPos( 64.0f, pos ) ) {
 			// NOTE: not a good way to return 'false'
-			return idThread::ReturnVector( vec3_zero );
-		}
-		if ( ent->IsType( idActor::Type ) && static_cast<idActor *>( ent )->OnLadder() ) {
+			returnStatus = false;
+		} else if ( ent->IsType( idActor::Type ) && static_cast<idActor *>( ent )->OnLadder() ) {
 			// NOTE: not a good way to return 'false'
-			return idThread::ReturnVector( vec3_zero );
+			returnStatus = false;
 		}
 	} else {
 		pos = ent->GetPhysics()->GetOrigin();
+	}
+
+	if (!returnStatus) {
+		if (ent->IsType(idPlayer::Type)  && ((idStr::FindText(GetEntityDefName(), "char_sentry") != -1) || (idStr::FindText(GetEntityDefName(), "comm1_sentry") != -1))) {
+			//UGLY ugly ugly hack
+			pos = ent->GetPhysics()->GetOrigin();
+		} else {
+			// NOTE: not a good way to return 'false'
+			return idThread::ReturnVector( vec3_zero );
+		}
 	}
 
 	if ( aas ) {

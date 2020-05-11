@@ -1045,7 +1045,11 @@ void idThread::Event_Trigger( idEntity *ent ) {
 		ent->Signal( SIG_TRIGGER );
 		//little hack for coop
 		ent->calledViaScriptThread = true;
-		ent->ProcessEvent( &EV_Activate, gameLocal.GetLocalPlayer() );
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && !gameLocal.GetLocalPlayer()) {
+			ent->ProcessEvent( &EV_Activate, gameLocal.GetCoopPlayer() ); //little hack for coop
+		} else {
+			ent->ProcessEvent( &EV_Activate, gameLocal.GetLocalPlayer() );
+		}
 		ent->TriggerGuis();
 	}
 }
