@@ -2196,20 +2196,17 @@ idGameLocal::GetCoopPlayerScriptHack
 */
 idEntity *idGameLocal::GetCoopPlayerScriptHack() const {
 
-	//try to see if we can get a non-spectator player first
-	for (int i=0; i < MAX_CLIENTS; i++) {
-		if (entities[i] && entities[i]->IsType(idPlayer::Type) && !static_cast<idPlayer *>( entities[i] )->spectating) {
-			return entities[i];
-		}
-	}
-	//if that fails, try with a player no matter if it is spectator
+	idEntity* p=NULL;
 	for (int i=0; i < MAX_CLIENTS; i++) {
 		if (entities[i] && entities[i]->IsType(idPlayer::Type)) {
-			return entities[i];
+			p = entities[i];
+			if (!static_cast<idPlayer *>( entities[i] )->spectating) {
+				return p;
+			}
 		}
 	}
 
-	return NULL;
+	return p;
 }
 
 
