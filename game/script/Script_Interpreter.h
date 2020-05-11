@@ -256,6 +256,11 @@ ID_INLINE idEntity *idInterpreter::GetEntity( int entnum ) const{
 	if ( ( entnum > 0 ) && ( entnum <= MAX_GENTITIES ) ) {
 		return gameLocal.entities[ entnum - 1 ];
 	}
+
+	if (entnum == -1) { //DIRTY HACK for coop
+		return gameLocal.GetCoopPlayerScriptHack();
+	}
+
 	return NULL;
 }
 

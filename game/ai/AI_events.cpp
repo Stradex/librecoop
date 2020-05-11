@@ -1096,14 +1096,9 @@ idAI::Event_MoveToEntity
 =====================
 */
 void idAI::Event_MoveToEntity( idEntity *ent ) {
-	if (idStr::FindText(GetEntityDefName(), "comm1_sentry") != -1) { //UGLY hack hack hcack
-		gameLocal.DebugPrintf("Trying to move to path by entity %s\n", this->GetName());
-	}
 	StopMove( MOVE_STATUS_DEST_NOT_FOUND );
 	if ( ent ) {
 		MoveToEntity( ent );
-	} else if (idStr::FindText(GetEntityDefName(), "comm1_sentry") != -1) {  //UGLY hack hack hcack
-		gameLocal.DebugPrintf("Path not found for entity %s\n", this->GetName());
 	}
 }
 

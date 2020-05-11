@@ -769,34 +769,9 @@ void idInterpreter::CallEvent( const function_t *func, int argsize ) {
 			var.intPtr = ( int * )&localstack[ start + pos ];
 			( *( idEntity ** )&data[ i ] ) = GetEntity( *var.entityNumberPtr );
 			if ( !( *( idEntity ** )&data[ i ] ) ) {
-				bool killCurrentThread = false;
-				if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && var.useCoopPlayerHack) {
-					Warning( "[COOP] Entity not found for event '%s'. Trying dirty hack.", evdef->GetName() );
-					bool entityFound = false;
-					for (int k = 0; k < MAX_CLIENTS; k++ ) {
-						if ( gameLocal.entities[ k ] && gameLocal.entities[ k ]->IsType( idPlayer::Type ) &&
-							!static_cast< idPlayer * >( gameLocal.entities[ k ] )->spectating) {
-								( *( idEntity ** )&data[ i ] ) = gameLocal.entities[ k ];
-								if ( !( *( idEntity ** )&data[ i ] ) ) {
-									Warning( "[COOP] Even after ugly hack entity not found for event '%s'. Terminating thread.", evdef->GetName() );
-									killCurrentThread = true;
-								} else {
-									entityFound = true;
-								}
-							break;
-						}
-					}
-					if (!entityFound) {
-						killCurrentThread = true;
-					}
-				} else {
-					Warning( "Entity not found for event '%s'. Terminating thread.", evdef->GetName() );
-					killCurrentThread = true;
-				}
-				if (killCurrentThread) {
-					threadDying = true;
-					PopParms( argsize );
-				}
+				Warning( "Entity not found for event '%s'. Terminating thread.", evdef->GetName() );
+				threadDying = true;
+				PopParms( argsize );
 				return;
 			}
 			break;

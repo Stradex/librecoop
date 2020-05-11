@@ -513,6 +513,7 @@ public:
 
 	idPlayer *				GetLocalPlayer() const;
 	idPlayer *				GetCoopPlayer() const; //added for Coop
+	idEntity *				GetCoopPlayerScriptHack() const; //added for Coop
 
 	void					SpreadLocations();
 	idLocationEntity *		LocationForPoint( const idVec3 &point );	// May return NULL

@@ -309,7 +309,6 @@ typedef union varEval_s {
 	int						argSize;
 	varEval_s				*evalPtr;
 	int						ptrOffset;
-	bool					useCoopPlayerHack; //Workaround for $player1 definition at scripts
 } varEval_t;
 
 class idVarDefName;

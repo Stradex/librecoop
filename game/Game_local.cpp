@@ -1084,14 +1084,13 @@ void idGameLocal::LocalMapRestart( ) {
 		mpGame.playerUseCheckpoints[i] = false;
 		mpGame.playerCheckpoints[i] = vec3_zero;
 		//entities[ i ]->name.c_str()
-		/*
 		if (gameLocal.mpGame.IsGametypeCoopBased()) {
 			if (entities[ i ]) {
 				program.SetEntity( entities[ i ]->name.c_str(), NULL );
 			} else {
 				program.SetEntity( va("player%d", i), NULL );
 			}
-		}*/
+		}
 	}
 	
 	
@@ -1116,13 +1115,6 @@ void idGameLocal::LocalMapRestart( ) {
 
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
 
-		/*
-		if (!EntityFromHashExists("player1")) {
-			gameLocal.DebugPrintf("player1 does not exist\n");
-		} else {
-			gameLocal.DebugPrintf("player1 exists!\n");
-		}
-		*/
 		world->InitializateMapScript(); //COOP, to fix a bug while doing serverMapRestart (or any kind of map restart while playing coop)
 		idEntity* ent;
 		for( ent = spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next() ) {
@@ -2196,6 +2188,30 @@ idPlayer *idGameLocal::GetCoopPlayer() const {
 
 	return static_cast<idPlayer *>( entities[ localClientNum ] );
 }
+
+/*
+================
+idGameLocal::GetCoopPlayerScriptHack
+================
+*/
+idEntity *idGameLocal::GetCoopPlayerScriptHack() const {
+
+	//try to see if we can get a non-spectator player first
+	for (int i=0; i < MAX_CLIENTS; i++) {
+		if (entities[i] && entities[i]->IsType(idPlayer::Type) && !static_cast<idPlayer *>( entities[i] )->spectating) {
+			return entities[i];
+		}
+	}
+	//if that fails, try with a player no matter if it is spectator
+	for (int i=0; i < MAX_CLIENTS; i++) {
+		if (entities[i] && entities[i]->IsType(idPlayer::Type)) {
+			return entities[i];
+		}
+	}
+
+	return NULL;
+}
+
 
 /*
 ================
