@@ -1737,7 +1737,7 @@ void idPlayer::Spawn( void ) {
 	// trigger playtesting item gives, if we didn't get here from a previous level
 	// the devmap key will be set on the first devmap, but cleared on any level
 	// transitions
-	if (!gameLocal.isMultiplayer && gameLocal.serverInfo.FindKey( "devmap" )) { //FIXME: Would be cool to have this working in coop
+	if ((!gameLocal.isMultiplayer && gameLocal.serverInfo.FindKey( "devmap" )) || (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer)) { //FIXME: Would be cool to have this working in coop
 		
 		// fire a trigger with the name "devmap"
 		idEntity *ent = gameLocal.FindEntity( "devmap" );

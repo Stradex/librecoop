@@ -1737,12 +1737,7 @@ void idStaticEntity::Event_Activate( idEntity *activator ) {
 	// with trigger parms.. it MIGHT break things so need to keep an eye on it
 	renderEntity.shaderParms[ SHADERPARM_MODE ] = ( renderEntity.shaderParms[ SHADERPARM_MODE ] ) ?  0.0f : 1.0f;
 	
-	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
-		gameLocal.DebugPrintf("%s calling idStaticEntity::Event_Activate\n", GetName());
-		UpdateVisuals(); 
-	} else {
-		BecomeActive( TH_UPDATEVISUALS );
-	}
+	BecomeActive( TH_UPDATEVISUALS );
 }
 
 /*
