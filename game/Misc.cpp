@@ -3330,6 +3330,10 @@ void idFuncRadioChatter::Event_Activate( idEntity *activator ) {
 		player = gameLocal.GetLocalPlayer(); // for this for clients in coop
 	}
 
+	if (!player && gameLocal.mpGame.IsGametypeCoopBased()) { //ERROR!
+		common->Warning("[COOP] No player detected at idFuncRadioChatter::Event_Activate!\n");
+	}
+
 	if (player->hud) {
 		player->hud->HandleNamedEvent( "radioChatterUp" );
 	}
