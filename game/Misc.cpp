@@ -1725,7 +1725,7 @@ void idStaticEntity::Event_Activate( idEntity *activator ) {
 			byte		msgBuf[MAX_EVENT_PARAM_SIZE];
 
 			msg.Init( msgBuf, sizeof( msgBuf ) );
-			msg.WriteBits( IsHidden()?1:0, 1 );
+			msg.WriteBits( IsHidden(), 1 );
 			ServerSendEvent( EVENT_STATIC_ACTIVATE, &msg, true, -1, true ); //saveLastOnly  = true to only save the last event from this entity
 		}
 	}
@@ -1736,7 +1736,22 @@ void idStaticEntity::Event_Activate( idEntity *activator ) {
 	// lights etc.. when triggered so that does not have to be specifically done
 	// with trigger parms.. it MIGHT break things so need to keep an eye on it
 	renderEntity.shaderParms[ SHADERPARM_MODE ] = ( renderEntity.shaderParms[ SHADERPARM_MODE ] ) ?  0.0f : 1.0f;
-	BecomeActive( TH_UPDATEVISUALS );
+	
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		gameLocal.DebugPrintf("%s calling idStaticEntity::Event_Activate\n", GetName());
+		UpdateVisuals(); 
+	} else {
+		BecomeActive( TH_UPDATEVISUALS );
+	}
+}
+
+/*
+================
+idStaticEntity::ClientPredictionThink
+================
+*/
+void idStaticEntity::ClientPredictionThink( void ) {
+	Think();
 }
 
 /*
@@ -1829,16 +1844,13 @@ bool idStaticEntity::ClientReceiveEvent( int event, int time, const idBitMsg &ms
 	}
 	switch( event ) {
 		case EVENT_STATIC_ACTIVATE: {
-			bool hidden = (msg.ReadBits( 1 ) != 0);
-			if ( hidden != IsHidden() ) {
-				if ( hidden ) {
-					Hide();
-				} else {
-					Show();
-				}
-				
-				UpdateVisuals();
+
+			if ( msg.ReadBits( 1 ) ) {
+				Hide();
+			} else {
+				Show();
 			}
+			UpdateVisuals();
 			return true;
 		}
 		case EVENT_STATIC_REMOVE: {
@@ -2666,7 +2678,7 @@ void idBeam::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 /*
 ================
-idStaticEntity::Event_Remove
+idBeam:::Event_Remove
 ================
 */
 void idBeam::Event_Remove( void ) {

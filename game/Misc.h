@@ -343,6 +343,7 @@ public:
 	virtual void		WriteToSnapshot( idBitMsgDelta &msg ) const;
 	virtual void		ReadFromSnapshot( const idBitMsgDelta &msg );
 	virtual bool		ClientReceiveEvent( int event, int time, const idBitMsg &msg ); //added for coop
+	virtual void		ClientPredictionThink( void ); //added for COOP
 
 private:
 	void				Event_Activate( idEntity *activator );
