@@ -837,16 +837,17 @@ idTeleporter::Event_DoAction
 */
 void idTeleporter::Event_DoAction( idEntity *activator ) {
 
-	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && activator->IsType(idPlayer::Type)) { //create a new global checkpoint at this position for Coop
-		gameLocal.mpGame.CreateNewCheckpoint(GetPhysics()->GetOrigin());
-	}
-
 	if (gameLocal.mpGame.IsGametypeCoopBased() && !activator) { 
 		activator = gameLocal.GetCoopPlayer();
 	}
 	if (!activator) {
 		return;
 	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && activator->IsType(idPlayer::Type)) { //create a new global checkpoint at this position for Coop
+		gameLocal.mpGame.CreateNewCheckpoint(GetPhysics()->GetOrigin());
+	}
+
 	idAngles a( 0, spawnArgs.GetFloat( "angle" ), 0 );
 	activator->Teleport( GetPhysics()->GetOrigin(), a, NULL );
 }

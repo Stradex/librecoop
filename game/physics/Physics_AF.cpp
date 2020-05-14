@@ -5413,6 +5413,11 @@ bool idPhysics_AF::CollisionImpulse( float timeStep, idAFBody *body, trace_t &co
 	impactInfo_t info;
 	idEntity *ent;
 
+	if (collision.c.entityNum < 0 || collision.c.entityNum >= MAX_GENTITIES || !gameLocal.entities[collision.c.entityNum]) {
+		common->Warning("[COOP FATAL] invalid entity at idPhysics_AF::CollisionImpulse\n");
+		return false;
+	}
+
 	ent = gameLocal.entities[collision.c.entityNum];
 	if ( ent == self ) {
 		return false;
