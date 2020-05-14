@@ -4358,11 +4358,8 @@ bool idPlayer::GiveInventoryItem( idDict *item ) {
 				powerCellCount++;
 			}
 		}
-		gameLocal.DebugPrintf("idPlayer::GiveInventoryItem - powercell_count: %d\n", powerCellCount);
 		focusUI->SetStateInt( "powercell_count", powerCellCount );
-	} else if (item->GetInt("inv_powercell")) {
-		gameLocal.DebugPrintf("WARNING, not focus UI while giving inv_powercell: %d\n");
-	}
+	} 
 #endif
 
 	return true;
@@ -4651,7 +4648,6 @@ void idPlayer::RemoveInventoryItem( idDict *item ) {
 				powerCellCount++;
 			}
 		}
-		gameLocal.DebugPrintf("idPlayer::RemoveInventoryItem - powercell_count: %d\n", powerCellCount);
 		focusUI->SetStateInt( "powercell_count", powerCellCount );
 	}
 #endif
@@ -5855,7 +5851,6 @@ void idPlayer::UpdateFocus( void ) {
 						powerCellCount++;
 					}
 				}
-				gameLocal.DebugPrintf("idPlayer::UpdateFocus - powercell_count: %d\n", powerCellCount);
 				focusUI->SetStateInt( "powercell_count", powerCellCount );
 #endif
 
