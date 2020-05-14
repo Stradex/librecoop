@@ -4328,10 +4328,11 @@ bool idPlayer::GiveInventoryItem( idDict *item ) {
 	}
 
 	if ( gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
-		return true;
+		return false;
 	}
 
 	inventory.items.Append( new idDict( *item ) );
+
 	idItemInfo info;
 	const char* itemName = item->GetString( "inv_name" );
 	if ( idStr::Cmpn( itemName, STRTABLE_ID, STRTABLE_ID_LENGTH ) == 0 ) {
@@ -4347,6 +4348,7 @@ bool idPlayer::GiveInventoryItem( idDict *item ) {
 	}
 
 #ifdef _D3XP //Added to support powercells
+
 	if(item->GetInt("inv_powercell") && focusUI) {
 		//Reset the powercell count
 		int powerCellCount = 0;
@@ -4356,7 +4358,10 @@ bool idPlayer::GiveInventoryItem( idDict *item ) {
 				powerCellCount++;
 			}
 		}
+		gameLocal.DebugPrintf("idPlayer::GiveInventoryItem - powercell_count: %d\n", powerCellCount);
 		focusUI->SetStateInt( "powercell_count", powerCellCount );
+	} else if (item->GetInt("inv_powercell")) {
+		gameLocal.DebugPrintf("WARNING, not focus UI while giving inv_powercell: %d\n");
 	}
 #endif
 
@@ -4646,6 +4651,7 @@ void idPlayer::RemoveInventoryItem( idDict *item ) {
 				powerCellCount++;
 			}
 		}
+		gameLocal.DebugPrintf("idPlayer::RemoveInventoryItem - powercell_count: %d\n", powerCellCount);
 		focusUI->SetStateInt( "powercell_count", powerCellCount );
 	}
 #endif
@@ -5849,6 +5855,7 @@ void idPlayer::UpdateFocus( void ) {
 						powerCellCount++;
 					}
 				}
+				gameLocal.DebugPrintf("idPlayer::UpdateFocus - powercell_count: %d\n", powerCellCount);
 				focusUI->SetStateInt( "powercell_count", powerCellCount );
 #endif
 

@@ -5172,6 +5172,18 @@ void idEntity::Event_SetGui( int guiNum, const char *guiName) {
 		UpdateChangeableSpawnArgs( NULL );
 		gameRenderWorld->UpdateEntityDef(modelDefHandle, &renderEntity);
 
+		if ( gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased() ) {
+			idBitMsg	msg;
+			byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+
+			msg.Init( msgBuf, sizeof( msgBuf ) );
+			msg.BeginWriting();
+			msg.WriteInt( guiNum );
+			msg.WriteString(guiName);
+			ServerSendEvent( EVENT_SETGUI, &msg, true, -1, true );
+		}
+
+
 	} else {
 		gameLocal.Error( "Entity '%s' doesn't have a GUI %d", name.c_str(), guiNum );
 	}
@@ -5207,6 +5219,16 @@ void idEntity::Event_GetGuiParmFloat(int guiNum, const char *key) {
 
 void idEntity::Event_GuiNamedEvent(int guiNum, const char *event) {
 	if(renderEntity.gui[guiNum-1]) {
+		if ( gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased() ) {
+			idBitMsg	msg;
+			byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+
+			msg.Init( msgBuf, sizeof( msgBuf ) );
+			msg.BeginWriting();
+			msg.WriteInt( guiNum );
+			msg.WriteString(event);
+			ServerSendEvent( EVENT_GUINAMEDEVENT, &msg, true, -1, true );
+		}
 		renderEntity.gui[guiNum-1]->HandleNamedEvent(event);
 	}
 }
@@ -5538,6 +5560,22 @@ bool idEntity::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			ActivateTargets(this);
 			return true;
 		}
+#ifdef _D3XP
+		case EVENT_SETGUI: {
+			int guiNum = msg.ReadInt();
+			char guiName[MAX_STRING_CHARS];
+			msg.ReadString( guiName, MAX_STRING_CHARS );
+			Event_SetGui(guiNum , static_cast<const char*>(guiName));
+			return true;
+		}
+		case EVENT_GUINAMEDEVENT: {
+			int guiNum = msg.ReadInt();
+			char eventName[MAX_STRING_CHARS];
+			msg.ReadString( eventName, MAX_STRING_CHARS );
+			this->Event_GuiNamedEvent(guiNum , static_cast<const char*>(eventName));
+			return true;
+		}
+#endif
 		default:
 			break;
 	}
