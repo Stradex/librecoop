@@ -836,6 +836,11 @@ idTeleporter::Event_DoAction
 ================
 */
 void idTeleporter::Event_DoAction( idEntity *activator ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && activator->IsType(idPlayer::Type)) { //create a new global checkpoint at this position for Coop
+		gameLocal.mpGame.CreateNewCheckpoint(GetPhysics()->GetOrigin());
+	}
+
 	if (gameLocal.mpGame.IsGametypeCoopBased() && !activator) { 
 		activator = gameLocal.GetCoopPlayer();
 	}

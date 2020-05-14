@@ -263,6 +263,8 @@ void idInventory::CoopClear( void ) {
 	nextItemPickup = 0;
 	nextItemNum = 1;
 	onePickupTime = 0;
+	pickupItemNames.Clear();
+	objectiveNames.Clear();
 
 	ammoPredictTime = 0;
 
@@ -1280,6 +1282,107 @@ bool idInventory::CanGive( idPlayer *owner, const idDict &spawnArgs, const char 
 
 /*
 ==============
+idInventory::CS_CoopClear
+==============
+*/
+void idInventory::CS_CoopClear( void ) {
+	memset(pdasViewed, 0, 4 * sizeof( pdasViewed[0] ) );
+	pdas.Clear();
+	videos.Clear();
+	emails.Clear();
+}
+
+
+/*
+==============
+idInventory::CS_GetPersistantData
+==============
+*/
+void idInventory::CS_GetPersistantData( idDict &dict ) {
+	int		i;
+	int		num;
+	idDict	*item;
+	idStr	key;
+	const idKeyValue *kv;
+	const char *name;
+
+
+	// pdas viewed
+	for ( i = 0; i < 4; i++ ) {
+		dict.SetInt( va("pdasViewed_%i", i), pdasViewed[i] );
+	}
+
+	// pdas
+	for ( i = 0; i < pdas.Num(); i++ ) {
+		sprintf( key, "pda_%i", i );
+		dict.Set( key, pdas[ i ] );
+	}
+	dict.SetInt( "pdas", pdas.Num() );
+
+	// video cds
+	for ( i = 0; i < videos.Num(); i++ ) {
+		sprintf( key, "video_%i", i );
+		dict.Set( key, videos[ i ].c_str() );
+	}
+	dict.SetInt( "videos", videos.Num() );
+
+	// emails
+	for ( i = 0; i < emails.Num(); i++ ) {
+		sprintf( key, "email_%i", i );
+		dict.Set( key, emails[ i ].c_str() );
+	}
+	dict.SetInt( "emails", emails.Num() );
+}
+
+/*
+==============
+idInventory::CS_RestoreInventory
+==============
+*/
+void idInventory::CS_RestoreInventory( idPlayer *owner, const idDict &dict ) {
+	int			i;
+	int			num;
+	idDict		*item;
+	idStr		key;
+	idStr		itemname;
+	const idKeyValue *kv;
+	const char	*name;
+
+	CS_CoopClear();
+
+	// pdas viewed
+	for ( i = 0; i < 4; i++ ) {
+		pdasViewed[i] = dict.GetInt(va("pdasViewed_%i", i));
+	}
+
+	// pdas
+	num = dict.GetInt( "pdas" );
+	pdas.SetNum( num );
+	for ( i = 0; i < num; i++ ) {
+		sprintf( itemname, "pda_%i", i );
+		pdas[i] = dict.GetString( itemname, "default" );
+	}
+
+	// videos
+	num = dict.GetInt( "videos" );
+	videos.SetNum( num );
+	for ( i = 0; i < num; i++ ) {
+		sprintf( itemname, "video_%i", i );
+		videos[i] = dict.GetString( itemname, "default" );
+	}
+
+	// emails
+	num = dict.GetInt( "emails" );
+	emails.SetNum( num );
+	for ( i = 0; i < num; i++ ) {
+		sprintf( itemname, "email_%i", i );
+		emails[i] = dict.GetString( itemname, "default" );
+	}
+}
+
+
+/*
+==============
 idPlayer::idPlayer
 ==============
 */
@@ -1641,6 +1744,7 @@ void idPlayer::Init( void ) {
 
 	// restore persistent data
 	RestorePersistantInfo();
+	CS_RestorePersistantInfo();
 
 	bobCycle		= 0;
 	stamina			= 0.0f;
@@ -1850,7 +1954,9 @@ void idPlayer::Spawn( void ) {
 	if ( !gameLocal.isMultiplayer || entityNumber == gameLocal.localClientNum ) {
 
 		// load HUD
-		if ( gameLocal.isMultiplayer ) {
+		if ( gameLocal.isMultiplayer && gameLocal.mpGame.IsGametypeCoopBased() && spawnArgs.GetString( "coophud", "", temp )  ) {
+			hud = uiManager->FindGui( temp, true, false, true );
+		} else if (gameLocal.isMultiplayer) {
 			hud = uiManager->FindGui( "guis/mphud.gui", true, false, true );
 		} else if ( spawnArgs.GetString( "hud", "", temp ) ) {
 			hud = uiManager->FindGui( temp, true, false, true );
@@ -1938,7 +2044,7 @@ void idPlayer::Spawn( void ) {
 	// trigger playtesting item gives, if we didn't get here from a previous level
 	// the devmap key will be set on the first devmap, but cleared on any level
 	// transitions
-	if ( !gameLocal.isMultiplayer && gameLocal.serverInfo.FindKey( "devmap" ) ) {
+	if ((!gameLocal.isMultiplayer && gameLocal.serverInfo.FindKey( "devmap" )) || (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer)) { //FIXME: Would be cool to have this working in coop
 		// fire a trigger with the name "devmap"
 		idEntity *ent = gameLocal.FindEntity( "devmap" );
 		if ( ent ) {
@@ -2768,26 +2874,32 @@ use normal spawn selection.
 */
 void idPlayer::SelectInitialSpawnPoint( idVec3 &origin, idAngles &angles ) {
 	idEntity *spot;
+	idEntity *infoPlayerStartSpot;
 	idStr skin;
 
+	infoPlayerStartSpot = gameLocal.FindEntityUsingDef( NULL, "info_player_start" );
+
 	if (forceSPSpawnPoint && !spectating) { //added to ensure that info_player_start it is used atleast once
-		spot = gameLocal.FindEntityUsingDef( NULL, "info_player_start" );
+		spot = infoPlayerStartSpot;
 		if ( !spot ) {
 			gameLocal.Error( "No info_player_start on map.\n" );
 		}
-		gameLocal.Printf("[COOP DEBUG] Forcing info_player_start...\n");
+
+		// activate the spawn locations targets
+		spot->PostEventMS( &EV_ActivateTargets, 0, this );
+
 		forceSPSpawnPoint = false;
 	} else {
 		spot = gameLocal.SelectInitialSpawnPoint( this );
+		if (infoPlayerStartSpot->entityNumber != spot->entityNumber ) {
+			spot->PostEventMS( &EV_ActivateTargets, 0, this ); //do not activate this again is this is a info_player_start spawn and it was activated already.
+		}
 	}
 
 	// set the player skin from the spawn location
 	if ( spot->spawnArgs.GetString( "skin", NULL, skin ) ) {
 		spawnArgs.Set( "spawn_skin", skin );
 	}
-
-	// activate the spawn locations targets
-	spot->PostEventMS( &EV_ActivateTargets, 0, this );
 
 	
 	if (g_spawnInCheckpoints.GetBool() && gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.mpGame.playerUseCheckpoints[this->entityNumber] && gameLocal.isServer) {
@@ -2863,6 +2975,20 @@ void idPlayer::SpawnToPoint( const idVec3 &spawn_origin, const idAngles &spawn_a
 		spec_origin[ 2 ] += pm_normalheight.GetFloat();
 		spec_origin[ 2 ] += SPECTATE_RAISE;
 		SetOrigin( spec_origin );
+	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		idBitMsg	msg;
+		byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+		msg.Init( msgBuf, sizeof( msgBuf ) );
+		msg.BeginWriting();
+		msg.WriteFloat(spawn_origin.x);
+		msg.WriteFloat(spawn_origin.y);
+		msg.WriteFloat(spawn_origin.z);
+		msg.WriteDeltaFloat( 0.0f, deltaViewAngles[0] );
+		msg.WriteDeltaFloat( 0.0f, deltaViewAngles[1] );
+		msg.WriteDeltaFloat( 0.0f, deltaViewAngles[2] );
+		ServerSendEvent( EVENT_PLAYERSPAWN, &msg, false, -1);
 	}
 
 	// if this is the first spawn of the map, we don't have a usercmd yet,
@@ -4289,6 +4415,10 @@ void idPlayer::GiveObjective( const char *title, const char *text, const char *s
 	if ( hud ) {
 		hud->HandleNamedEvent( "newObjective" );
 	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		gameLocal.CS_SavePersistentPlayerInfo(); //maybe save data every random betwen 5 and 10 frames instead per every single frame.
+	}
 }
 
 /*
@@ -4308,6 +4438,10 @@ void idPlayer::CompleteObjective( const char *title ) {
 
 	if ( hud ) {
 		hud->HandleNamedEvent( "newObjectiveComplete" );
+	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		gameLocal.CS_SavePersistentPlayerInfo(); //maybe save data every random betwen 5 and 10 frames instead per every single frame.
 	}
 }
 
@@ -4333,6 +4467,10 @@ void idPlayer::GiveVideo( const char *videoName, idDict *item ) {
 	if ( hud ) {
 		hud->HandleNamedEvent( "videoPickup" );
 	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		gameLocal.CS_SavePersistentPlayerInfo(); //maybe save data every random betwen 5 and 10 frames instead per every single frame.
+	}
 }
 
 /*
@@ -4342,8 +4480,8 @@ idPlayer::GiveSecurity
 */
 void idPlayer::GiveSecurity( const char *security ) {
 
-	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-		return; //disable this in  coop
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		return CS_GiveSecurity(security);
 	}
 
 	GetPDA()->SetSecurity( security );
@@ -4364,8 +4502,8 @@ void idPlayer::GiveEmail( const char *emailName ) {
 		return;
 	}
 
-	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-		return; //disable this in  coop
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		return CS_GiveEmail(emailName);
 	}
 
 	inventory.emails.AddUnique( emailName );
@@ -4384,6 +4522,9 @@ idPlayer::GivePDA
 void idPlayer::GivePDA( const char *pdaName, idDict *item )
 {
 	if ( gameLocal.isMultiplayer && (spectating || gameLocal.isClient) ) {
+		if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) {
+			return CS_GivePDA(pdaName, item);
+		}
 		return;
 	}
 
@@ -4406,10 +4547,6 @@ void idPlayer::GivePDA( const char *pdaName, idDict *item )
 				p->inventory.pdaSecurity.AddUnique( item->GetString( "inv_name" ) );
 			}
 		}
-	}
-
-	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-		return; //No PDAs in Coop yet
 	}
 
 	if ( pdaName == NULL || *pdaName == 0 ) {
@@ -4441,12 +4578,14 @@ void idPlayer::GivePDA( const char *pdaName, idDict *item )
 			hud->HandleNamedEvent( "pdaPickup" );
 		}
 
-		if ( inventory.pdas.Num() == 1 ) {
+		if ( inventory.pdas.Num() == 1 && gameLocal.localClientNum == entityNumber) {
 			GetPDA()->RemoveAddedEmailsAndVideos();
 			if ( !objectiveSystemOpen ) {
 				TogglePDA();
 			}
-			objectiveSystem->HandleNamedEvent( "showPDATip" );
+			if (objectiveSystem) { //fix bug in coop
+				objectiveSystem->HandleNamedEvent( "showPDATip" );
+			}
 			//ShowTip( spawnArgs.GetString( "text_infoTitle" ), spawnArgs.GetString( "text_firstPDA" ), true );
 		}
 
@@ -4738,7 +4877,7 @@ void idPlayer::SelectWeapon( int num, bool force ) {
 		return;
 	}
 
-	if ( gameLocal.isClient ) {
+	if ( gameLocal.isClient && (!gameLocal.mpGame.IsGametypeCoopBased() || num != weapon_pda) ) {
 		return;
 	}
 
@@ -4827,6 +4966,10 @@ void idPlayer::SelectWeapon( int num, bool force ) {
 			idealWeapon = num;
 		}
 		UpdateHudWeapon();
+	}
+
+	if ( num == weapon_pda ) {
+		gameLocal.Printf("[DEBUG] pda weapon selected\n");
 	}
 }
 
@@ -5153,7 +5296,7 @@ void idPlayer::Weapon_GUI( void ) {
 	}
 
 	// disable click prediction for the GUIs. handy to check the state sync does the right thing
-	if ( gameLocal.isClient && !net_clientPredictGUI.GetBool() ) {
+	if ( gameLocal.isClient && !net_clientPredictGUI.GetBool() && (!gameLocal.mpGame.IsGametypeCoopBased() || (entityNumber != gameLocal.localClientNum)) ) {
 		return;
 	}
 
@@ -5170,7 +5313,7 @@ void idPlayer::Weapon_GUI( void ) {
 				focusGUIent->UpdateVisuals();
 			}
 		}
-		if ( gameLocal.isClient ) {
+		if ( gameLocal.isClient && (!gameLocal.mpGame.IsGametypeCoopBased() || (entityNumber != gameLocal.localClientNum) || !ui || (ui != objectiveSystem) ||  !objectiveSystemOpen)) {
 			// we predict enough, but don't want to execute commands
 			return;
 		}
@@ -5511,6 +5654,7 @@ void idPlayer::UpdateFocus( void ) {
 	idUserInterface *oldUI;
 	idAI		*oldChar;
 	int			oldTalkCursor;
+	int			oldMPAim; //for coop
 	int			i, j;
 	idVec3		start, end;
 	bool		allowFocus;
@@ -5527,7 +5671,7 @@ void idPlayer::UpdateFocus( void ) {
 
 	// only update the focus character when attack button isn't pressed so players
 	// can still chainsaw NPC's
-	if ( gameLocal.isMultiplayer || ( !focusCharacter && ( usercmd.buttons & BUTTON_ATTACK ) ) ) {
+	if ( (gameLocal.isMultiplayer && !gameLocal.mpGame.IsGametypeCoopBased()) || ( !focusCharacter && ( usercmd.buttons & BUTTON_ATTACK ) ) ) { //Here to enable Coop players to talk with npcs probably
 		allowFocus = false;
 	} else {
 		allowFocus = true;
@@ -5537,6 +5681,13 @@ void idPlayer::UpdateFocus( void ) {
 	oldUI			= focusUI;
 	oldChar			= focusCharacter;
 	oldTalkCursor	= talkCursor;
+
+	int realGameLocalTime;
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		realGameLocalTime = gameLocal.clientsideTime;
+	} else {
+		realGameLocalTime = gameLocal.time;
+	}
 
 	if ( focusTime <= gameLocal.time ) {
 		ClearFocus();
@@ -5552,7 +5703,13 @@ void idPlayer::UpdateFocus( void ) {
 
 	// player identification -> names to the hud
 	if ( gameLocal.isMultiplayer && entityNumber == gameLocal.localClientNum ) {
-		idVec3 end = start + viewAngles.ToForward() * 768.0f;
+		oldMPAim = MPAim;
+		idVec3 end;
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			end = start + viewAngles.ToForward() * 80.0f;
+		} else {
+			end = start + viewAngles.ToForward() * 768.0f;
+		}
 		gameLocal.clip.TracePoint( trace, start, end, MASK_SHOT_BOUNDINGBOX, this );
 		int iclient = -1;
 		if ( ( trace.fraction < 1.0f ) && ( trace.c.entityNum < MAX_CLIENTS ) ) {
@@ -5589,7 +5746,7 @@ void idPlayer::UpdateFocus( void ) {
 						ClearFocus();
 						focusCharacter = static_cast<idAI *>( body );
 						talkCursor = 1;
-						focusTime = gameLocal.time + FOCUS_TIME;
+						focusTime = realGameLocalTime + FOCUS_TIME;
 						break;
 					}
 				}
@@ -5603,7 +5760,7 @@ void idPlayer::UpdateFocus( void ) {
 						ClearFocus();
 						focusCharacter = static_cast<idAI *>( ent );
 						talkCursor = 1;
-						focusTime = gameLocal.time + FOCUS_TIME;
+						focusTime = realGameLocalTime + FOCUS_TIME;
 						break;
 					}
 				}
@@ -5615,7 +5772,7 @@ void idPlayer::UpdateFocus( void ) {
 				if ( ( trace.fraction < 1.0f ) && ( trace.c.entityNum == ent->entityNumber ) ) {
 					ClearFocus();
 					focusVehicle = static_cast<idAFEntity_Vehicle *>( ent );
-					focusTime = gameLocal.time + FOCUS_TIME;
+					focusTime = realGameLocalTime + FOCUS_TIME;
 					break;
 				}
 				continue;
@@ -5716,7 +5873,7 @@ void idPlayer::UpdateFocus( void ) {
 			ev = sys->GenerateMouseMoveEvent( pt.x * SCREEN_WIDTH, pt.y * SCREEN_HEIGHT );
 			command = focusUI->HandleEvent( &ev, gameLocal.time );
 			HandleGuiCommands( focusGUIent, command );
-			focusTime = gameLocal.time + FOCUS_GUI_TIME;
+			focusTime = realGameLocalTime + FOCUS_GUI_TIME;
 			break;
 		}
 	}
@@ -6603,10 +6760,14 @@ idPlayer::TogglePDA
 */
 void idPlayer::TogglePDA( void ) {
 	if ( objectiveSystem == NULL ) {
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && entityNumber != gameLocal.localClientNum) {
+			objectiveSystemOpen ^= 1;
+		}
 		return;
 	}
 
 	if ( inventory.pdas.Num() == 0 ) {
+		gameLocal.Printf("[COOP] no pdas to use..\n");
 		ShowTip( spawnArgs.GetString( "text_infoTitle" ), spawnArgs.GetString( "text_noPDA" ), true );
 		return;
 	}
@@ -6666,7 +6827,10 @@ void idPlayer::TogglePDA( void ) {
 		inventory.selEMail = objectiveSystem->State().GetInt( "listPDAEmail_sel_0" );
 		objectiveSystem->Activate( false, gameLocal.time );
 	}
-	objectiveSystemOpen ^= 1;
+	gameLocal.Printf("[COOP] Client TogglePDA: %d\n", objectiveSystemOpen);
+	if (!gameLocal.mpGame.IsGametypeCoopBased() || gameLocal.isServer) {
+		objectiveSystemOpen ^= 1;
+	}
 }
 
 /*
@@ -6801,6 +6965,7 @@ void idPlayer::PerformImpulse( int impulse ) {
 		msg.Init( msgBuf, sizeof( msgBuf ) );
 		msg.BeginWriting();
 		msg.WriteBits( impulse, 6 );
+		msg.WriteShort(inventory.pdas.Num()); //fix pda coop bug
 		ClientSendEvent( EVENT_IMPULSE, &msg );
 	}
 
@@ -6847,6 +7012,20 @@ void idPlayer::PerformImpulse( int impulse ) {
 		case IMPULSE_20: {
 			if ( gameLocal.isClient || entityNumber == gameLocal.localClientNum ) {
 				gameLocal.mpGame.ToggleTeam();
+			}
+			break;
+		}
+		case IMPULSE_21: {
+			if (gameLocal.mpGame.IsGametypeCoopBased()) { //COOP PDA
+
+			allowClientsideMovement = false;
+			nextSendPhysicsInfoTime = gameLocal.clientsideTime + 3000; //3segs without clientsidemovement
+
+				if ( objectiveSystemOpen ) {
+					TogglePDA();
+				} else if ( weapon_pda >= 0 ) {
+					SelectWeapon( weapon_pda, true );
+				}
 			}
 			break;
 		}
@@ -7410,7 +7589,16 @@ void idPlayer::UpdateHud( void ) {
 				hud->HandleNamedEvent( "aim_flash" );
 				MPAimHighlight = true;
 				MPAimFadeTime = 0;	// no fade till loosing focus
+		} else if (MPAim != -1 && gameLocal.mpGame.IsGametypeCoopBased()
+			&& gameLocal.entities[ MPAim ]  && gameLocal.entities[ MPAim ]->IsType( idPlayer::Type )) {
+				MPAimHighlight = true;
+				MPAimFadeTime = 0;	// no fade till loosing focus
+				hud->SetStateString( "npc", gameLocal.userInfo[ MPAim ].GetString( "ui_name" ));
+				hud->HandleNamedEvent( "showNPC" );
 		} else if ( MPAimHighlight ) {
+			if (gameLocal.mpGame.IsGametypeCoopBased()) {
+				hud->SetStateString( "npc", "" ); //added for coop
+			}
 			hud->HandleNamedEvent( "aim_fade" );
 			MPAimFadeTime = gameLocal.realClientTime;
 			MPAimHighlight = false;
@@ -7418,7 +7606,18 @@ void idPlayer::UpdateHud( void ) {
 	}
 	if ( MPAimFadeTime ) {
 		assert( !MPAimHighlight );
-		if ( gameLocal.realClientTime - MPAimFadeTime > 2000 ) {
+		int aimFadeTimeLength;
+
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			aimFadeTimeLength = 200;
+		} else {
+			aimFadeTimeLength = 2000;
+		}
+
+		if ( gameLocal.realClientTime - MPAimFadeTime > aimFadeTimeLength ) {
+			if (gameLocal.mpGame.IsGametypeCoopBased()) {
+				hud->HandleNamedEvent( "hideNPC" ); //added for coop
+			}
 			MPAimFadeTime = 0;
 		}
 	}
@@ -9450,7 +9649,7 @@ idPlayer::Event_OpenPDA
 ==================
 */
 void idPlayer::Event_OpenPDA( void ) {
-	if ( !gameLocal.isMultiplayer ) {
+	if ( !gameLocal.isMultiplayer || gameLocal.mpGame.IsGametypeCoopBased()) {
 		TogglePDA();
 	}
 }
@@ -9584,6 +9783,13 @@ void idPlayer::ClientPredictionThink( void ) {
 		smoothedAngles = viewAngles;
 	}
 	smoothedOriginUpdated = false;
+
+	// if we have an active gui, we will unrotate the view angles as
+	// we turn the mouse movements into gui events
+	idUserInterface *gui = ActiveGui();
+	if ( gui && gui != focusUI ) {
+		RouteGuiMouse( gui );
+	}
 
 	if ( !af.IsActive() ) {
 		AdjustBodyAngles();
@@ -9856,6 +10062,7 @@ void idPlayer::WriteToSnapshot( idBitMsgDelta &msg ) const {
 #endif
 	//extra added for coop
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		msg.WriteBits( objectiveSystemOpen, 1);
 		msg.WriteBits( noclip, 1 );
 		msg.WriteBits( fl.hidden, 1);
 	}
@@ -9922,6 +10129,7 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 	bool shouldHide=false;
 
+	objectiveSystemOpen = msg.ReadBits( 1 ) != 0;
 	noclip = msg.ReadBits( 1 ) != 0;
 	shouldHide = msg.ReadBits( 1 ) != 0;
 	if ( entityNumber != gameLocal.localClientNum ) {
@@ -10032,6 +10240,10 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		if ( stateHitch ) {
 			weaponCatchup = true;
 		}
+
+		if (newIdealWeapon == weapon_pda) {
+			gameLocal.Printf("[DEBUG] PDA weapon selected...\n");
+		}
 		idealWeapon = newIdealWeapon;
 		UpdateHudWeapon();
 	}
@@ -10115,6 +10327,10 @@ bool idPlayer::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 	switch( event ) {
 		case EVENT_IMPULSE: {
 			PerformImpulse( msg.ReadBits( 6 ) );
+			int clientPdaCount =  msg.ReadShort();
+			if (clientPdaCount > inventory.pdas.Num()) {
+				inventory.pdas.SetNum(clientPdaCount) ;
+			}
 			return true;
 		}
 		case EVENT_PLAYERPHYSICS: {
@@ -10123,6 +10339,30 @@ bool idPlayer::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			deltaViewAngles[1] = msg.ReadDeltaFloat( 0.0f );
 			deltaViewAngles[2] = msg.ReadDeltaFloat( 0.0f );
 			return true;
+		}
+		case EVENT_PLAYERSPAWN: {
+			if (net_clientSideMovement.GetBool()) {
+				allowClientsideMovement = true;  //hack for clientsidemovement
+				nextSendPhysicsInfoTime = gameLocal.clientsideTime; //hack for clientsidemovement
+				idVec3	tmpOrigin = vec3_zero;
+				tmpOrigin.x = msg.ReadFloat();
+				tmpOrigin.y = msg.ReadFloat();
+				tmpOrigin.z = msg.ReadFloat();
+				deltaViewAngles[0] = msg.ReadDeltaFloat( 0.0f );
+				deltaViewAngles[1] = msg.ReadDeltaFloat( 0.0f );
+				deltaViewAngles[2] = msg.ReadDeltaFloat( 0.0f );
+				SetOrigin(	tmpOrigin );
+				Move();
+			} else {
+				msg.ReadFloat();
+				msg.ReadFloat();
+				msg.ReadFloat();
+				msg.ReadDeltaFloat( 0.0f );
+				msg.ReadDeltaFloat( 0.0f );
+				msg.ReadDeltaFloat( 0.0f );
+			}
+			return true;
+
 		}
 		default: {
 			return false;
@@ -10242,14 +10482,18 @@ idPlayer::ShowTip
 ===============
 */
 void idPlayer::ShowTip( const char *title, const char *tip, bool autoHide ) {
-	if ( tipUp ) {
+	if ( tipUp || !hud ) {
 		return;
 	}
 	hud->SetStateString( "tip", tip );
 	hud->SetStateString( "tiptitle", title );
 	hud->HandleNamedEvent( "tipWindowUp" );
 	if ( autoHide ) {
-		PostEventSec( &EV_Player_HideTip, 5.0f );
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+			CS_PostEventSec( &EV_Player_HideTip, 5.0f );
+		} else {
+			PostEventSec( &EV_Player_HideTip, 5.0f );
+		}
 	}
 	tipUp = true;
 }
@@ -10786,3 +11030,169 @@ void idPlayer::RunPhysics_RemoteClientCorrection( void )
 		physicsObj.SetLinearVelocity( normalizedVelocity * idMath::Sqrt( clientSpeedSquared ) );
 	}
 }
+
+/*
+================
+idPlayer::Event_GetLinearVelocity
+================
+*/
+void idPlayer::Event_GetLinearVelocity( void ) {
+	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased() && spectating) {
+		for (int i=0; i < gameLocal.numClients; i++) {
+			if (gameLocal.entities[i] && gameLocal.entities[i]->IsType(idPlayer::Type) && !static_cast<idPlayer *>( gameLocal.entities[i] )->spectating) {
+				idThread::ReturnVector(  gameLocal.entities[i]->GetPhysics()->GetLinearVelocity() );
+				gameLocal.DebugPrintf("This is good: %s\n",  gameLocal.entities[i]->GetPhysics()->GetLinearVelocity().ToString());
+				break;
+			}
+		}
+	} else {
+		idThread::ReturnVector( GetPhysics()->GetLinearVelocity() );
+	}
+	gameLocal.DebugPrintf("Aca llego: %s\n", GetPhysics()->GetLinearVelocity().ToString());
+}
+
+/*
+================
+idPlayer::GetFocusCharacter
+================
+*/
+idAI* idPlayer::GetFocusCharacter( void ) {
+	return focusCharacter;
+}
+
+/*
+================
+idPlayer::CS_GivePDA
+================
+*/
+void idPlayer::CS_GivePDA( const char *pdaName, idDict *item) {
+
+	if ( item ) {
+		inventory.pdaSecurity.AddUnique( item->GetString( "inv_name" ) );
+	}
+
+	if ( pdaName == NULL || *pdaName == 0 ) {
+		pdaName = "personal";
+	}
+
+	const idDeclPDA *pda = static_cast< const idDeclPDA* >( declManager->FindType( DECL_PDA, pdaName ) );
+
+	inventory.pdas.AddUnique( pdaName );
+
+	// Copy any videos over
+	for ( int i = 0; i < pda->GetNumVideos(); i++ ) {
+		const idDeclVideo *video = pda->GetVideoByIndex( i );
+		if ( video ) {
+			inventory.videos.AddUnique( video->GetName() );
+		}
+	}
+
+	// This is kind of a hack, but it works nicely
+	// We don't want to display the 'you got a new pda' message during a map load
+	if ( gameLocal.GetFrameNum() > 10 ) {
+		if ( pda && hud ) {
+			idStr pdaName = pda->GetPdaName();
+			pdaName.RemoveColors();
+			hud->SetStateString( "pda", "1" );
+			hud->SetStateString( "pda_text", pdaName );
+			const char *sec = pda->GetSecurity();
+			hud->SetStateString( "pda_security", ( sec && *sec ) ? "1" : "0" );
+			hud->HandleNamedEvent( "pdaPickup" );
+		}
+
+		if ( inventory.pdas.Num() == 1 && !spectating && gameLocal.localClientNum == entityNumber) {
+			GetPDA()->RemoveAddedEmailsAndVideos();
+			if ( !objectiveSystemOpen ) {
+				PerformImpulse(IMPULSE_21); //coop pda hack
+			}
+			objectiveSystem->HandleNamedEvent( "showPDATip" );
+			//ShowTip( spawnArgs.GetString( "text_infoTitle" ), spawnArgs.GetString( "text_firstPDA" ), true );
+		}
+
+		if ( inventory.pdas.Num() > 1 && pda->GetNumVideos() > 0 && hud ) {
+			hud->HandleNamedEvent( "videoPickup" );
+		}
+	}
+
+	gameLocal.CS_SavePersistentPlayerInfo(); //maybe save data every random betwen 5 and 10 frames instead per every single frame.
+	return;
+}
+
+/*
+================
+idPlayer::CS_GiveVideo
+================
+*/
+void idPlayer::CS_GiveVideo( const char *videoName, idDict *item ) {
+	return;
+}
+
+/*
+================
+idPlayer::CS_GiveEmail
+================
+*/
+void idPlayer::CS_GiveEmail( const char *emailName ) {
+	return;
+}
+
+/*
+================
+idPlayer::CS_GiveSecurity
+================
+*/
+void idPlayer::CS_GiveSecurity( const char *security ) {
+	return;
+}
+
+/*
+================
+idPlayer::CS_GiveObjective
+================
+*/
+void idPlayer::CS_GiveObjective( const char *title, const char *text, const char *screenshot ) {
+	return;
+}
+
+/*
+================
+idPlayer::CS_GiveObjective
+================
+*/
+void idPlayer::CS_CompleteObjective( const char *title ) {
+	return;
+}
+
+
+/*
+===============
+idPlayer::CS_SavePersistantInfo
+Saves any inventory and player stats when changing levels.
+===============
+*/
+void idPlayer::CS_SavePersistantInfo( void ) {
+	assert(gameLocal.isClient);
+
+	if (spectating)
+		return;
+
+	idDict &playerInfo = gameLocal.persistentPlayerInfoClientside;
+	playerInfo.Clear();
+	inventory.CS_GetPersistantData( playerInfo );
+}
+
+/*
+===============
+idPlayer::CS_RestorePersistantInfo
+Restores any inventory and player stats when changing levels.
+===============
+*/
+void idPlayer::CS_RestorePersistantInfo( void ) {
+	if (!gameLocal.mpGame.IsGametypeCoopBased() || gameLocal.isServer || gameLocal.localClientNum != entityNumber)
+		return;
+
+	idDict tmpArgs;
+	tmpArgs.Copy(gameLocal.persistentPlayerInfoClientside);
+
+	inventory.CS_RestoreInventory( this, tmpArgs );
+} 

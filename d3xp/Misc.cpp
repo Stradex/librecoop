@@ -36,6 +36,7 @@ Various utility objects and functions.
 
 #include "gamesys/SysCvar.h"
 #include "script/Script_Thread.h"
+#include "framework/async/NetworkSystem.h" //added for coop
 #include "ai/AI.h"
 #include "Player.h"
 #include "Camera.h"
@@ -206,12 +207,7 @@ void idPlayerStart::TeleportPlayer( idPlayer *player ) {
 #endif
 
 	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) { //create a new global checkpoint at this position for Coop
-		if ( f && ent ) {
-			gameLocal.mpGame.CreateNewCheckpoint(ent->GetPhysics()->GetOrigin());
-		} else {
-			gameLocal.mpGame.CreateNewCheckpoint(GetPhysics()->GetOrigin());
-		}
-
+		gameLocal.mpGame.CreateNewCheckpoint(GetPhysics()->GetOrigin());
 	}
 
 	if ( f && ent ) {
@@ -1018,6 +1014,7 @@ idAnimated::idAnimated() {
 	activator = NULL;
 	current_anim_index = 0;
 	num_anims = 0;
+	canBeCsTarget = true; //added for coop
 
 }
 
@@ -1238,7 +1235,11 @@ void idAnimated::PlayNextAnim( void ) {
 
 	len = animator.CurrentAnim( ANIMCHANNEL_ALL )->PlayLength();
 	if ( len >= 0 ) {
-		PostEventMS( &EV_AnimDone, len, current_anim_index );
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+			CS_PostEventMS( &EV_AnimDone, len, current_anim_index );
+		} else {
+			PostEventMS( &EV_AnimDone, len, current_anim_index );
+		}
 	}
 
 	// offset the start time of the shader to sync it to the game time
@@ -1272,7 +1273,9 @@ void idAnimated::Event_AnimDone( int animindex ) {
 
 	if ( ( animindex >= num_anims ) && spawnArgs.GetBool( "remove" ) ) {
 		Hide();
-		if (gameLocal.isServer || !gameLocal.mpGame.IsGametypeCoopBased()) {
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+			CS_PostEventMS( &EV_Remove, 0 );
+		} else {
 			PostEventMS( &EV_Remove, 0 );
 		}
 	} else if ( spawnArgs.GetBool( "auto_advance" ) ) {
@@ -1338,7 +1341,11 @@ void idAnimated::Event_Start( void ) {
 
 		len = animator.CurrentAnim( ANIMCHANNEL_ALL )->PlayLength();
 		if ( len >= 0 ) {
-			PostEventMS( &EV_AnimDone, len, 1 );
+			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+				CS_PostEventMS( &EV_AnimDone, len, 1 );
+			} else {
+				PostEventMS( &EV_AnimDone, len, 1 );
+			}
 		}
 	}
 
@@ -1596,6 +1603,7 @@ idStaticEntity::idStaticEntity( void ) {
 	fadeStart = 0;
 	fadeEnd	= 0;
 	runGui = false;
+	canBeCsTarget = true;
 }
 
 /*
@@ -1758,6 +1766,13 @@ idStaticEntity::Event_Activate
 ================
 */
 void idStaticEntity::Event_Activate( idEntity *activator ) {
+
+	//hack for coop start
+	bool wasCalledViaScript = calledViaScriptThread;
+	calledViaScriptThread = false;
+	//hack for coop ends 
+
+
 	idStr activateGui;
 
 	spawnTime = gameLocal.time;
@@ -1771,12 +1786,12 @@ void idStaticEntity::Event_Activate( idEntity *activator ) {
 			Hide();
 		}
 
-		if ( gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased() ) { //extra sync for coop
+		if ( gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()  && wasCalledViaScript ) { //extra sync for coop
 			idBitMsg	msg;
 			byte		msgBuf[MAX_EVENT_PARAM_SIZE];
 
 			msg.Init( msgBuf, sizeof( msgBuf ) );
-			msg.WriteBits( IsHidden()?1:0, 1 );
+			msg.WriteBits( IsHidden(), 1 );
 			ServerSendEvent( EVENT_STATIC_ACTIVATE, &msg, true, -1, true ); //saveLastOnly  = true to only save the last event from this entity
 		}
 
@@ -1789,6 +1804,15 @@ void idStaticEntity::Event_Activate( idEntity *activator ) {
 	// with trigger parms.. it MIGHT break things so need to keep an eye on it
 	renderEntity.shaderParms[ SHADERPARM_MODE ] = ( renderEntity.shaderParms[ SHADERPARM_MODE ] ) ?  0.0f : 1.0f;
 	BecomeActive( TH_UPDATEVISUALS );
+}
+
+/*
+================
+idStaticEntity::ClientPredictionThink
+================
+*/
+void idStaticEntity::ClientPredictionThink( void ) {
+	Think();
 }
 
 /*
@@ -1846,6 +1870,32 @@ void idStaticEntity::Event_Remove( void ) {
 
 /*
 ================
+idStaticEntity::Event_Hide
+================
+*/
+void idStaticEntity::Event_Hide( void ) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+		ServerSendEvent( EVENT_STATIC_HIDE, NULL, true, -1 , true);
+	}
+	Hide();
+}
+
+
+/*
+================
+idStaticEntity::Event_Show
+================
+*/
+void idStaticEntity::Event_Show( void ) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+		ServerSendEvent( EVENT_STATIC_SHOW, NULL, true, -1 , true);
+	}
+	Show();
+}
+
+
+/*
+================
 idStaticEntity::ClientReceiveEvent
 ================
 */
@@ -1855,20 +1905,24 @@ bool idStaticEntity::ClientReceiveEvent( int event, int time, const idBitMsg &ms
 	}
 	switch( event ) {
 		case EVENT_STATIC_ACTIVATE: {
-			bool hidden = (msg.ReadBits( 1 ) != 0);
-			if ( hidden != IsHidden() ) {
-				if ( hidden ) {
-					Hide();
-				} else {
-					Show();
-				}
-
-				UpdateVisuals();
+			if ( msg.ReadBits( 1 ) ) {
+				Hide();
+			} else {
+				Show();
 			}
+			UpdateVisuals();
 			return true;
 		}
 		case EVENT_STATIC_REMOVE: {
 			CS_PostEventMS( &EV_Remove, 0 );
+			return true;
+		}
+		case EVENT_STATIC_HIDE: {
+			Event_Hide();
+			return true;
+		}
+		case EVENT_STATIC_SHOW: {
+			Event_Show();
 			return true;
 		}
 		default:
@@ -1900,6 +1954,7 @@ idFuncEmitter::idFuncEmitter
 */
 idFuncEmitter::idFuncEmitter( void ) {
 	hidden = false;
+	canBeCsTarget = true;
 }
 
 /*
@@ -3435,6 +3490,7 @@ idFuncRadioChatter::idFuncRadioChatter
 */
 idFuncRadioChatter::idFuncRadioChatter() {
 	time = 0.0;
+	canBeCsTarget = true;
 }
 
 /*
@@ -3471,32 +3527,56 @@ idFuncRadioChatter::Event_Activate
 */
 void idFuncRadioChatter::Event_Activate( idEntity *activator ) {
 
-	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-		return; //No radio chatter in coop
-	}
+	//hack for coop start
+	bool wasCalledViaScript = calledViaScriptThread;
+	calledViaScriptThread = false;
+	//hack for coop ends 
 
 	idPlayer *player;
 	const char	*sound;
 	const idSoundShader *shader;
 	int length;
 
-	if ( activator->IsType( idPlayer::Type ) ) {
+	if (activator && activator->IsType( idPlayer::Type ) && !gameLocal.isClient ) {
 		player = static_cast<idPlayer *>( activator );
+	} else if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+		player = gameLocal.GetCoopPlayer();
 	} else {
-		player = gameLocal.GetLocalPlayer();
+		player = gameLocal.GetLocalPlayer(); // for this for clients in coop
 	}
 
-	player->hud->HandleNamedEvent( "radioChatterUp" );
+	if (!player && gameLocal.mpGame.IsGametypeCoopBased()) { //ERROR!
+		common->Warning("[COOP] No player detected at idFuncRadioChatter::Event_Activate!\n");
+	}
+
+	if (player->hud) {
+		player->hud->HandleNamedEvent( "radioChatterUp" );
+	}
+
 
 	sound = spawnArgs.GetString( "snd_radiochatter", "" );
 	if ( sound && *sound ) {
 		shader = declManager->FindSound( sound );
 		player->StartSoundShader( shader, SND_CHANNEL_RADIO, SSF_GLOBAL, false, &length );
 		time = MS2SEC( length + 150 );
+
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && wasCalledViaScript) {
+			idBitMsg outMsg;
+			byte msgBuf[1024];
+			outMsg.Init( msgBuf, sizeof( msgBuf ) );
+			outMsg.WriteByte( GAME_RELIABLE_MESSAGE_SOUND_INDEX );
+			outMsg.WriteInt( gameLocal.ServerRemapDecl( -1, DECL_SOUND, shader->Index() ) );
+			networkSystem->ServerSendReliableMessage( -1, outMsg );
+			gameLocal.DebugPrintf("Sending idFuncRadioChatter::Event_Activate\n");
+		}
 	}
 	// we still put the hud up because this is used with no sound on
 	// certain frame commands when the chatter is triggered
-	PostEventSec( &EV_ResetRadioHud, time, player );
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		CS_PostEventSec( &EV_ResetRadioHud, time, player );
+	} else {
+		PostEventSec( &EV_ResetRadioHud, time, player );
+	}
 
 }
 
@@ -3506,8 +3586,22 @@ idFuncRadioChatter::Event_ResetRadioHud
 ================
 */
 void idFuncRadioChatter::Event_ResetRadioHud( idEntity *activator ) {
-	idPlayer *player = ( activator->IsType( idPlayer::Type ) ) ? static_cast<idPlayer *>( activator ) : gameLocal.GetLocalPlayer();
-	player->hud->HandleNamedEvent( "radioChatterDown" );
+	idPlayer *player;
+
+	if (activator && activator->IsType( idPlayer::Type ) && !gameLocal.isClient ) {
+		player = static_cast<idPlayer *>( activator );
+	} else if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+		player = gameLocal.GetCoopPlayer();
+	} else {
+		player = gameLocal.GetLocalPlayer(); // for this for clients in coop
+	}
+
+	if (player->hud) {
+		player->hud->HandleNamedEvent( "radioChatterDown" );
+	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) 
+		return;
 	ActivateTargets( activator );
 }
 

@@ -772,24 +772,45 @@ void idAnim::CallFrameCommands( idEntity *ent, int from, int to ) const {
 					break;
 				}
 				case FC_SOUND_VOICE: {
+					bool netSyncSound = false;
+					if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isNPC(ent)) {
+						if (gameLocal.isServer) {
+						netSyncSound = true;
+						} else {
+							//don't play any sound because can lead to bug sometimes
+							break;
+						}
+					}
+
 					if ( !command.soundShader ) {
-						if ( !ent->StartSound( command.string->c_str(), SND_CHANNEL_VOICE, 0, false, NULL ) ) {
+						if ( !ent->StartSound( command.string->c_str(), SND_CHANNEL_VOICE, 0, netSyncSound, NULL ) ) {
 							gameLocal.Warning( "Framecommand 'sound_voice' on entity '%s', anim '%s', frame %d: Could not find sound '%s'",
 								ent->name.c_str(), FullName(), frame + 1, command.string->c_str() );
 						}
 					} else {
-						ent->StartSoundShader( command.soundShader, SND_CHANNEL_VOICE, 0, false, NULL );
+						ent->StartSoundShader( command.soundShader, SND_CHANNEL_VOICE, 0, netSyncSound, NULL );
 					}
 					break;
 				}
 				case FC_SOUND_VOICE2: {
+
+					bool netSyncSound = false;
+					if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isNPC(ent)) {
+						if (gameLocal.isServer) {
+							netSyncSound = true;
+						} else {
+							//don't play any sound because can lead to bug sometimes
+							break;
+						}
+					}
+
 					if ( !command.soundShader ) {
-						if ( !ent->StartSound( command.string->c_str(), SND_CHANNEL_VOICE2, 0, false, NULL ) ) {
+						if ( !ent->StartSound( command.string->c_str(), SND_CHANNEL_VOICE2, 0, netSyncSound, NULL ) ) {
 							gameLocal.Warning( "Framecommand 'sound_voice2' on entity '%s', anim '%s', frame %d: Could not find sound '%s'",
 								ent->name.c_str(), FullName(), frame + 1, command.string->c_str() );
 						}
 					} else {
-						ent->StartSoundShader( command.soundShader, SND_CHANNEL_VOICE2, 0, false, NULL );
+						ent->StartSoundShader( command.soundShader, SND_CHANNEL_VOICE2, 0, netSyncSound, NULL );
 					}
 					break;
 				}

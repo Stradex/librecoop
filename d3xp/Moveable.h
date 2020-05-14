@@ -71,6 +71,9 @@ public:
 	virtual void			WriteToSnapshot( idBitMsgDelta &msg ) const;
 	virtual void			ReadFromSnapshot( const idBitMsgDelta &msg );
 
+	void					Event_Bind( idEntity *master );
+	void					Event_Unbind( void );
+
 #ifdef _D3XP
 	void					SetAttacker( idEntity *ent );
 #endif

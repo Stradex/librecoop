@@ -1064,3 +1064,12 @@ idClass::CS_PostEventMS
 bool idClass::CS_PostEventMS( const idEventDef *ev, int time ) {
 	return CS_PostEventArgs( ev, time, 0 );
 }
+
+/*
+================
+idClass::CS_PostEventMS
+================
+*/
+bool idClass::CS_PostEventMS( const idEventDef *ev, int time, idEventArg arg1 ) {
+	return CS_PostEventArgs( ev, time, 1, &arg1 );
+} 

@@ -1593,8 +1593,13 @@ void idObjective::Event_Trigger( idEntity *activator ) {
 		return; //clients can't touch this
 	}
 
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+		ServerSendEvent( EVENT_TRIGGER, NULL, true, -1 );
+	}
+	gameLocal.Printf("[COOP] idObjective Event_Trigger...\n");
+
 	idPlayer *player = gameLocal.GetLocalPlayer();
-	if ( player ) {
+	if ( player && !player->spectating  ) {
 
 		//Pickup( player );
 
@@ -1636,7 +1641,11 @@ void idObjective::Event_GetPlayerPos() {
 	idPlayer *player = gameLocal.GetLocalPlayer();
 	if ( player ) {
 		playerPos = player->GetPhysics()->GetOrigin();
-		PostEventMS( &EV_HideObjective, 100, player );
+		if (gameLocal.isClient) {
+			CS_PostEventMS( &EV_HideObjective, 100, player );
+		} else {
+			PostEventMS( &EV_HideObjective, 100, player );
+		}
 	}
 }
 
@@ -1651,11 +1660,82 @@ void idObjective::Event_HideObjective(idEntity *e) {
 		idVec3 v = player->GetPhysics()->GetOrigin() - playerPos;
 		if ( v.Length() > 64.0f ) {
 			player->HideObjective();
-			PostEventMS( &EV_Remove, 0 );
+			if (gameLocal.isClient) {
+				CS_PostEventMS( &EV_Remove, 0 );
+			} else {
+				PostEventMS( &EV_Remove, 0 );
+			}
 		} else {
-			PostEventMS( &EV_HideObjective, 100, player );
+			if (gameLocal.isClient) {
+				CS_PostEventMS( &EV_HideObjective, 100, player );
+			} else {
+				PostEventMS( &EV_HideObjective, 100, player );
+			}
 		}
 	}
+}
+
+/*
+================
+idObjective::CS_Event_Trigger
+================
+*/
+void idObjective::CS_Event_Trigger( idEntity *activator ) {
+
+	assert( gameLocal.isClient );
+
+	gameLocal.Printf("[COOP] idObjective CS_Event_Trigger...\n");
+
+	idPlayer *player = gameLocal.GetLocalPlayer();
+	if ( player ) {
+
+		//Pickup( player );
+
+		if ( spawnArgs.GetString( "inv_objective", NULL ) ) {
+			if ( player && player->hud ) {
+				idStr shotName = gameLocal.GetMapName();
+				shotName.StripFileExtension();
+				shotName += "/";
+				shotName += spawnArgs.GetString( "screenshot" );
+				shotName.SetFileExtension( ".tga" );
+				player->hud->SetStateString( "screenshot", shotName );
+				player->hud->SetStateString( "objective", "1" );
+				player->hud->SetStateString( "objectivetext", spawnArgs.GetString( "objectivetext" ) );
+				player->hud->SetStateString( "objectivetitle", spawnArgs.GetString( "objectivetitle" ) );
+				player->GiveObjective( spawnArgs.GetString( "objectivetitle" ), spawnArgs.GetString( "objectivetext" ), shotName );
+
+				// a tad slow but keeps from having to update all objectives in all maps with a name ptr
+				for( int i = 0; i < gameLocal.num_entities; i++ ) {
+					if ( gameLocal.entities[ i ] && gameLocal.entities[ i ]->IsType( idObjectiveComplete::Type ) ) {
+						if ( idStr::Icmp( spawnArgs.GetString( "objectivetitle" ), gameLocal.entities[ i ]->spawnArgs.GetString( "objectivetitle" ) ) == 0 ){
+							gameLocal.entities[ i ]->spawnArgs.SetBool( "objEnabled", true );
+							break;
+						}
+					}
+				}
+				CS_PostEventMS( &EV_GetPlayerPos, 2000 );
+			}
+		}
+	}
+}
+
+/*
+================
+idObjective::ClientReceiveEvent
+================
+*/
+bool	idObjective::ClientReceiveEvent( int event, int time, const idBitMsg &msg )
+{
+	switch( event ) {
+		case EVENT_TRIGGER: {
+			CS_Event_Trigger(NULL);
+			return true;
+		}
+		default:
+			break;
+	}
+
+	return idItem::ClientReceiveEvent( event, time, msg );
 }
 
 /*
@@ -1684,16 +1764,22 @@ idVideoCDItem::GiveToPlayer
 */
 bool idVideoCDItem::GiveToPlayer( idPlayer *player ) {
 
-	if (gameLocal.mpGame.IsGametypeCoopBased()) { //disable video pickup in COOP to avoid crash
-		return true; //should be false?, I think so
-	}
-
 	idStr str = spawnArgs.GetString( "video" );
 	if ( player && str.Length() ) {
 		player->GiveVideo( str, &spawnArgs );
 	}
 	return true;
 }
+
+/*
+================
+idVideoCDItem::CS_GiveToPlayer
+================
+*/
+bool idVideoCDItem::CS_GiveToPlayer( idPlayer *player ) {
+	return GiveToPlayer(player); //by now exactly the same
+}
+
 
 /*
 ===============================================================================
@@ -1719,6 +1805,19 @@ bool idPDAItem::GiveToPlayer(idPlayer *player) {
 	const char *str = spawnArgs.GetString( "pda_name" );
 	if ( player ) {
 		player->GivePDA( str, &spawnArgs );
+	}
+	return true;
+}
+
+/*
+================
+idPDAItem::CS_GiveToPlayer
+================
+*/
+bool idPDAItem::CS_GiveToPlayer(idPlayer *player) {
+	const char *str = spawnArgs.GetString( "pda_name" );
+	if ( player ) {
+		player->CS_GivePDA( str, &spawnArgs );
 	}
 	return true;
 }
@@ -2141,6 +2240,19 @@ bool idMoveablePDAItem::GiveToPlayer(idPlayer *player) {
 }
 
 /*
+================
+idMoveablePDAItem::CS_GiveToPlayer
+================
+*/
+bool idMoveablePDAItem::CS_GiveToPlayer(idPlayer *player) {
+	const char *str = spawnArgs.GetString( "pda_name" );
+	if ( player ) {
+		player->CS_GivePDA( str, &spawnArgs );
+	}
+	return true;
+}
+
+/*
 ===============================================================================
 
   idItemRemover
@@ -2250,11 +2362,15 @@ void idObjectiveComplete::Event_Trigger( idEntity *activator ) {
 		return; //clients can't touch this
 	}
 
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+		ServerSendEvent( EVENT_TRIGGER, NULL, true, -1 );
+	}
+
 	if ( !spawnArgs.GetBool( "objEnabled" ) ) {
 		return;
 	}
 	idPlayer *player = gameLocal.GetLocalPlayer();
-	if ( player ) {
+	if ( player && !player->spectating ) {
 		RemoveItem( player );
 
 		if ( spawnArgs.GetString( "inv_objective", NULL ) ) {
@@ -2283,7 +2399,11 @@ void idObjectiveComplete::Event_GetPlayerPos() {
 	idPlayer *player = gameLocal.GetLocalPlayer();
 	if ( player ) {
 		playerPos = player->GetPhysics()->GetOrigin();
-		PostEventMS( &EV_HideObjective, 100, player );
+		if (gameLocal.isClient) {
+			CS_PostEventMS( &EV_HideObjective, 100, player );
+		} else {
+			PostEventMS( &EV_HideObjective, 100, player );
+		}
 	}
 }
 
@@ -2299,9 +2419,65 @@ void idObjectiveComplete::Event_HideObjective( idEntity *e ) {
 		v -= playerPos;
 		if ( v.Length() > 64.0f ) {
 			player->hud->HandleNamedEvent( "closeObjective" );
-			PostEventMS( &EV_Remove, 0 );
+			if (gameLocal.isClient) {
+				CS_PostEventMS( &EV_Remove, 0 );
+			} else {
+				PostEventMS( &EV_Remove, 0 );
+			}
 		} else {
-			PostEventMS( &EV_HideObjective, 100, player );
+			if (gameLocal.isClient) {
+				CS_PostEventMS( &EV_HideObjective, 100, player );
+			} else {
+				PostEventMS( &EV_HideObjective, 100, player );
+			}
 		}
 	}
+}
+
+/*
+================
+idObjectiveComplete::CS_Event_Trigger
+================
+*/
+void idObjectiveComplete::CS_Event_Trigger( idEntity *activator ) {
+
+	assert(gameLocal.isClient);
+
+	if ( !spawnArgs.GetBool( "objEnabled" ) ) {
+		return;
+	}
+	idPlayer *player = gameLocal.GetLocalPlayer();
+	gameLocal.Printf("[COOP] idObjectiveComplete..\n");
+	if ( player && !player->spectating ) {
+		RemoveItem( player );
+
+		if ( spawnArgs.GetString( "inv_objective", NULL ) ) {
+			if ( player->hud ) {
+				player->hud->SetStateString( "objective", "2" );
+				player->hud->SetStateString( "objectivetext", spawnArgs.GetString( "objectivetext" ) );
+				player->hud->SetStateString( "objectivetitle", spawnArgs.GetString( "objectivetitle" ) );
+				player->CompleteObjective( spawnArgs.GetString( "objectivetitle" ) );
+				CS_PostEventMS( &EV_GetPlayerPos, 2000 );
+			}
+		}
+	}
+}
+
+/*
+================
+idObjectiveComplete::ClientReceiveEvent
+================
+*/
+bool idObjectiveComplete::ClientReceiveEvent( int event, int time, const idBitMsg &msg )
+{
+	switch( event ) {
+		case EVENT_TRIGGER: {
+			CS_Event_Trigger(NULL);
+			return true;
+		}
+		default:
+			break;
+	}
+
+	return idEntity::ClientReceiveEvent( event, time, msg );
 }

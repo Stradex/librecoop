@@ -218,6 +218,7 @@ void idGameLocal::Clear( void ) {
 		userInfo[i].Clear();
 		persistentPlayerInfo[i].Clear();
 	}
+	persistentPlayerInfoClientside.Clear();
 	memset( usercmds, 0, sizeof( usercmds ) );
 	memset( entities, 0, sizeof( entities ) );
 	memset(coopentities, 0, sizeof(coopentities)); //added for coop
@@ -292,6 +293,7 @@ void idGameLocal::Clear( void ) {
 	lastGUI = 0;
 
 	//added for coop
+	isRestartingMap = false;
 	spPlayerStartSpot.ent = NULL;
 	firstClientToSpawn = false;
 	coopMapScriptLoad = false;
@@ -720,6 +722,27 @@ const idDict &idGameLocal::GetPersistentPlayerInfo( int clientNum ) {
 
 /*
 ===========
+idGameLocal::CS_SavePersistentPlayerInfo
+============
+*/
+const idDict &idGameLocal::CS_SavePersistentPlayerInfo( void ) {
+
+	assert(this->isClient && localClientNum >= 0);
+
+	idEntity	*ent;
+
+	persistentPlayerInfoClientside.Clear();
+	ent = entities[ localClientNum ];
+	if ( ent && ent->IsType( idPlayer::Type ) ) {
+		static_cast<idPlayer *>(ent)->CS_SavePersistantInfo();
+	}
+
+	return persistentPlayerInfoClientside;
+}
+
+
+/*
+===========
 idGameLocal::SetPersistentPlayerInfo
 ============
 */
@@ -761,6 +784,24 @@ void idGameLocal::DPrintf( const char *fmt, ... ) const {
 	va_end( argptr );
 
 	common->Printf( "%s", text );
+}
+
+/*
+============
+idGameLocal::DebugPrintf
+============
+*/
+void idGameLocal::DebugPrintf( const char *fmt, ... ) const {
+#ifdef _DEBUG
+	va_list		argptr;
+	char		text[MAX_STRING_CHARS];
+
+	va_start( argptr, fmt );
+	idStr::vsnPrintf( text, sizeof( text ), fmt, argptr );
+	va_end( argptr );
+
+	common->Printf( "[DEBUG] %s", text );
+#endif
 }
 
 /*
@@ -1092,6 +1133,8 @@ void idGameLocal::LocalMapRestart( ) {
 
 	Printf( "----- Game Map Restart -----\n" );
 
+	isRestartingMap = true; //COOP
+
 	gamestate = GAMESTATE_SHUTDOWN;
 
 	for ( i = 0; i < MAX_CLIENTS; i++ ) {
@@ -1150,6 +1193,13 @@ void idGameLocal::LocalMapRestart( ) {
 	for (i=0; i < MAX_CLIENTS; i++) {
 		mpGame.playerUseCheckpoints[i] = false;
 		mpGame.playerCheckpoints[i] = vec3_zero;
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			if (entities[ i ]) {
+				program.SetEntity( entities[ i ]->name.c_str(), NULL );
+			} else {
+				program.SetEntity( va("player%d", i), NULL );
+			}
+		}
 	}
 
 	MapPopulate();
@@ -1168,6 +1218,29 @@ void idGameLocal::LocalMapRestart( ) {
 	}
 
 	gamestate = GAMESTATE_ACTIVE;
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+
+		world->InitializateMapScript(); //COOP, to fix a bug while doing serverMapRestart (or any kind of map restart while playing coop)
+		idEntity* ent;
+		for( ent = spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next() ) {
+			if ((ent == world) || ent->IsType(idPlayer::Type)) {
+				continue; //ignore the world entity, of course.
+			}
+			if (!ent->findTargetsAlreadyCalled) {
+				ent->Call_FindTargets();
+			}
+			if (!ent->scriptAlreadyConstructed) {
+				ent->Call_ConstructScriptObject();
+				if (ent->IsType(idAI::Type)) {
+					static_cast<idAI*>(ent)->Init_CoopScriptFix();
+				}
+			}
+		}
+		idEvent::ServiceEvents();
+	}
+
+	isRestartingMap = false; //COOP
 }
 
 /*
@@ -1349,7 +1422,9 @@ void idGameLocal::MapPopulate( void ) {
 	// this makes sure the map script main() function is called
 	// before the physics are run so entities can bind correctly
 	Printf( "==== Processing events ====\n" );
-	idEvent::ServiceEvents();
+	if (!gameLocal.mpGame.IsGametypeCoopBased() || !gameLocal.isRestartingMap) {
+		idEvent::ServiceEvents();
+	}
 }
 
 /*
@@ -1668,15 +1743,12 @@ void idGameLocal::MapClear( bool clearClients ) {
 	int i;
 
 	for( i = ( clearClients ? 0 : MAX_CLIENTS ); i < MAX_GENTITIES; i++ ) {
-		if (entities[i])
-		{
-			coopIds[ entities[i]->entityCoopNumber ] = -1;
-		}
 		delete entities[ i ];
 		// ~idEntity is in charge of setting the pointer to NULL
 		// it will also clear pending events for this entity
 		assert( !entities[ i ] );
 		spawnIds[ i ] = -1;
+		coopIds[ i ] = -1;
 	}
 
 	entityHash.Clear( 1024, MAX_GENTITIES );
@@ -1701,6 +1773,31 @@ void idGameLocal::MapClear( bool clearClients ) {
 
 	delete[] locationEntities;
 	locationEntities = NULL;
+
+	//testing
+	activeEntities.Clear();
+	numEntitiesToDeactivate = 0;
+	sortTeamMasters = false;
+	sortPushers = false;
+	lastGUIEnt = NULL;
+	lastGUI = 0;
+
+	// always leave room for the max number of clients,
+	// even if they aren't all used, so numbers inside that
+	// range are NEVER anything but clients
+	num_entities	= MAX_CLIENTS;
+	num_coopentities = MAX_CLIENTS;
+	firstFreeIndex	= MAX_CLIENTS;
+	firstFreeCoopIndex = MAX_CLIENTS; //added for Coop
+	firstFreeTargetIndex = MAX_CLIENTS; //added for Coop
+	firstFreeCsIndex = CS_ENTITIES_START; //added for Coop
+
+	lastAIAlertEntity = NULL;
+	lastAIAlertTime = 0;
+
+	nextGibTime		= 0;
+
+	vacuumAreaNum = -1;		// if an info_vacuum is spawned, it will set this
 }
 
 /*
@@ -2263,13 +2360,32 @@ idPlayer *idGameLocal::GetCoopPlayer() const {
 			return NULL;
 		}
 	} else {
-		if ( localClientNum < 0) {
-			return NULL;
-		}
+		return GetLocalPlayer();
 	}
 
 	return static_cast<idPlayer *>( entities[ localClientNum ] );
 }
+
+/*
+================
+idGameLocal::GetCoopPlayerScriptHack
+================
+*/
+idEntity *idGameLocal::GetCoopPlayerScriptHack() const {
+
+	idEntity* p=NULL;
+	for (int i=0; i < MAX_CLIENTS; i++) {
+		if (entities[i] && entities[i]->IsType(idPlayer::Type)) {
+			p = entities[i];
+			if (!static_cast<idPlayer *>( entities[i] )->spectating) {
+				return p;
+			}
+		}
+	}
+
+	return p;
+}
+
 
 
 /*
@@ -2689,8 +2805,10 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 						ent->GetPhysics()->UpdateTime( time );
 						continue;
 					}
-					ent->Think();
-					num++;
+					if (!gameLocal.mpGame.IsGametypeCoopBased() || !isRestartingMap || ent->IsType(idPlayer::Type)) { //avoid thinking while localMapRestart in coop
+						ent->Think();
+						num++;
+					}
 				}
 			} else {
 				num = 0;
@@ -2700,8 +2818,10 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 						continue;
 					}
 #endif
-					ent->Think();
-					num++;
+					if (!gameLocal.mpGame.IsGametypeCoopBased() || !isRestartingMap  || ent->IsType(idPlayer::Type)) { //avoid thinking while localMapRestart in coop
+						ent->Think();
+						num++;
+					}
 				}
 			}
 		}
@@ -2915,6 +3035,11 @@ idGameLocal::HandleESC
 */
 escReply_t idGameLocal::HandleESC( idUserInterface **gui ) {
 	if ( isMultiplayer ) {
+		idPlayer *player = GetLocalPlayer();
+		if (gameLocal.mpGame.IsGametypeCoopBased() && player && player->objectiveSystem && player->objectiveSystemOpen) {
+			player->PerformImpulse(IMPULSE_21);
+			return ESC_IGNORE;
+		}
 		*gui = StartMenu();
 		// we may set the gui back to NULL to hide it
 		return ESC_GUI;
@@ -3887,6 +4012,23 @@ bool idGameLocal::RemoveEntityFromHash( const char *name, idEntity *ent ) {
 	for ( i = entityHash.First( hash ); i != -1; i = entityHash.Next( i ) ) {
 		if ( entities[i] && entities[i] == ent && entities[i]->name.Icmp( name ) == 0 ) {
 			entityHash.Remove( hash, i );
+			return true;
+		}
+	}
+	return false;
+}
+
+/*
+================
+idGameLocal::EntityFromHashExists
+================
+*/
+bool idGameLocal::EntityFromHashExists( const char *name )  {
+	int hash, i;
+
+	hash = entityHash.GenerateKey( name, true );
+	for ( i = entityHash.First( hash ); i != -1; i = entityHash.Next( i ) ) {
+		if (entities[i] && entities[i]->name.Icmp( name ) == 0 ) {
 			return true;
 		}
 	}
@@ -5385,3 +5527,34 @@ idGameLocal::GetMapLoadingGUI
 ===============
 */
 void idGameLocal::GetMapLoadingGUI( char gui[ MAX_STRING_CHARS ] ) { }
+
+/*
+===============
+idGameLocal::isNPC (DIRTY HACK for LibreCoop NPC functionality without touching pk4 data
+===============
+*/
+bool idGameLocal::isNPC(idEntity *ent ) const {
+	if (!ent)
+		return false;
+	const idKeyValue	*talksKey;
+	bool entityTalks = false;
+
+	if (ent->IsType(idAI::Type)) {
+		talksKey = ent->spawnArgs.FindKey( "talks" );
+		if (talksKey) {
+			entityTalks = ( atoi( talksKey->GetValue() ) != 0 );
+		}
+	} else if (ent->IsType(idAFAttachment::Type) && static_cast<idAFAttachment*>(ent)->GetBody() && static_cast<idAFAttachment*>(ent)->GetBody() != ent) {
+		idEntity* bodyEnt = static_cast<idAFAttachment*>(ent)->GetBody();
+		return isNPC(bodyEnt);
+	}
+	if (!entityTalks) //last resource: check scriptobject
+	{
+		const char *scriptObjectName;
+		if ( spawnArgs.GetString( "scriptobject", NULL, &scriptObjectName ) && scriptObjectName && !idStr::Icmp( scriptObjectName, "character") ) {
+			entityTalks = true;
+		}
+	}
+
+	return entityTalks;
+} 

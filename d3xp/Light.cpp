@@ -940,6 +940,10 @@ idLight::Event_On
 */
 void idLight::Event_On( void ) {
 	On();
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && !this->coopNode.InList()) { //lets sync this event
+		ServerSendEvent( EVENT_ON, NULL, true, -1, true );
+	}
 }
 
 /*
@@ -949,6 +953,10 @@ idLight::Event_Off
 */
 void idLight::Event_Off( void ) {
 	Off();
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && !this->coopNode.InList()) { //lets sync this event
+		ServerSendEvent( EVENT_OFF, NULL, true, -1, true );
+	}
 }
 
 /*
@@ -957,6 +965,12 @@ idLight::Event_ToggleOnOff
 ================
 */
 void idLight::Event_ToggleOnOff( idEntity *activator ) {
+
+	//hack for coop start
+	bool wasCalledViaScript = calledViaScriptThread;
+	calledViaScriptThread = false;
+	//hack for coop ends 
+
 	triggercount++;
 	if ( triggercount < count ) {
 		return;
@@ -972,6 +986,9 @@ void idLight::Event_ToggleOnOff( idEntity *activator ) {
 	}
 
 	if ( !currentLevel ) {
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && !this->coopNode.InList() && wasCalledViaScript) {
+			ServerSendEvent( EVENT_ON, NULL, true, -1, true );
+		}
 		On();
 	}
 	else {
@@ -1025,6 +1042,16 @@ idLight::Event_FadeOut
 */
 void idLight::Event_FadeOut( float time ) {
 	FadeOut( time );
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && !this->coopNode.InList()) { //lets sync this event
+		idBitMsg	msg;
+		byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+
+		msg.Init( msgBuf, sizeof( msgBuf ) );
+		msg.BeginWriting();
+		msg.WriteFloat( time );
+		ServerSendEvent( EVENT_FADEOUT, &msg, true, -1, true );
+	}
 }
 
 /*
@@ -1034,6 +1061,16 @@ idLight::Event_FadeIn
 */
 void idLight::Event_FadeIn( float time ) {
 	FadeIn( time );
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && !this->coopNode.InList()) { //lets sync this event
+		idBitMsg	msg;
+		byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+
+		msg.Init( msgBuf, sizeof( msgBuf ) );
+		msg.BeginWriting();
+		msg.WriteFloat( time );
+		ServerSendEvent( EVENT_FADEIN, &msg, true, -1, true );
+	}
 }
 
 /*
@@ -1156,6 +1193,24 @@ bool idLight::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 	switch( event ) {
 		case EVENT_BECOMEBROKEN: {
 			BecomeBroken( NULL );
+			return true;
+		}
+		case EVENT_ON: {
+			On();
+			return true;
+		}
+		case EVENT_OFF: {
+			Off();
+			return true;
+		}
+		case EVENT_FADEIN: {
+			float eventTime = msg.ReadFloat();
+			FadeIn(eventTime);
+			return true;
+		}
+		case EVENT_FADEOUT: {
+			float eventTime = msg.ReadFloat();
+			FadeOut(eventTime);
 			return true;
 		}
 		default:

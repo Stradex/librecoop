@@ -391,7 +391,7 @@ void idGameLocal::ServerClientDisconnect( int clientNum ) {
 
 		if (mpGame.IsGametypeCoopBased() && coopentities[i]) { //COOP: Reset entity snapshot priority info
 			coopentities[i]->firstTimeInClientPVS[clientNum] = true;
-			coopentities[i]->inSnapshotQueue[clientNum] = false;
+			coopentities[i]->inSnapshotQueue[clientNum] = 0;
 			coopentities[i]->snapshotMissingCount[clientNum] = 0; 
 		}
 
@@ -1704,7 +1704,14 @@ void idGameLocal::ClientProcessReliableMessage( int clientNum, const idBitMsg &m
 		case GAME_RELIABLE_MESSAGE_PORTAL: {
 			qhandle_t portal = msg.ReadInt();
 			int blockingBits = msg.ReadBits( NUM_RENDER_PORTAL_BITS );
-			assert( portal > 0 && portal <= gameRenderWorld->NumPortals() );
+			if (gameLocal.mpGame.IsGametypeCoopBased()) {
+				if (portal <= 0 || portal > gameRenderWorld->NumPortals()) {
+					gameLocal.Warning("[FATAL] assertion avoided at GAME_RELIABLE_MESSAGE_PORTAL\n");
+					return;
+				}
+			} else {
+				assert( portal > 0 && portal <= gameRenderWorld->NumPortals() );
+			}
 			gameRenderWorld->SetPortalState( portal, blockingBits );
 			break;
 		}
@@ -1804,7 +1811,7 @@ gameReturn_t idGameLocal::ClientPrediction( int clientNum, const usercmd_t *clie
 		RunClientSideFrame(player, clientCmds);
 	} else { //old netcode entities (mover entities mostly)
 		for( ent = snapshotEntities.Next(); ent != NULL; ent = ent->snapshotNode.Next() ) {
-			if ((ent->entityCoopNumber == player->entityCoopNumber) || !ent->MasterUseOldNetcode()) { //maybe the entity doesn't use oldnetcode but the masters does so do this shit then
+			if ((ent->entityCoopNumber == player->entityCoopNumber) || (!ent->IsBoundToMover() && !ent->MasterUseOldNetcode())) { //maybe the entity doesn't use oldnetcode but the masters does so do this shit then
 				continue;
 			}
 
@@ -1813,7 +1820,8 @@ gameReturn_t idGameLocal::ClientPrediction( int clientNum, const usercmd_t *clie
 		}
 
 		for( ent = activeEntities.Next(); ent != NULL; ent = ent->activeNode.Next() ) {
-			if (isSnapshotEntity(ent) || (ent->entityCoopNumber ==  player->entityCoopNumber) || !ent->MasterUseOldNetcode()) {
+			if (isSnapshotEntity(ent) || (ent->entityCoopNumber ==  player->entityCoopNumber) || (!ent->IsBoundToMover() && !ent->MasterUseOldNetcode())) {
+
 				continue;
 			}
 
@@ -2091,20 +2099,6 @@ gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const userc
 	const renderView_t *view;
 	int			num;
 	clientEventsCount=0; //COOP DEBUG ONLY
-	// make sure the random number counter is used each frame so random events
-	// are influenced by the player's actions
-	//random.RandomInt();
-
-	/*
-	if ( clientPlayer ) {
-		// update the renderview so that any gui videos play from the right frame
-		view = clientPlayer->GetRenderView();
-		if ( view ) {
-			gameRenderWorld->SetRenderView( view );
-		}
-	}
-	*/
-	//SetupPlayerPVS();
 
 	for( ent = snapshotEntities.Next(); ent != NULL; ent = ent->snapshotNode.Next() ) {
 		if (ent->entityCoopNumber == clientPlayer->entityCoopNumber) {
@@ -2174,28 +2168,6 @@ gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const userc
 		numEntitiesToDeactivate = 0;
 	}
 
-	//FreePlayerPVS();
-
-	//Finished
-
-	/*
-	for( ent = activeEntities.Next(); ent != NULL; ent = ent->activeNode.Next() ) {
-		if (!ent->fl.networkSync) { //Only entities without net-sync
-			ent->ClientPredictionThink();
-		}
-	}
-	for( ent = spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next() ) {
-		if (!InPlayerPVS(ent))
-			continue;
-		if (!ent->fl.networkSync) { //Only entities without net-sync
-			ent->thinkFlags |= TH_PHYSICS;
-			//ent->thinkFlags |= TH_THINK;
-			ent->ClientPredictionThink();
-		}
-	}
-	FreePlayerPVS();
-	*/
-
 	//COOP DEBUG
 	if (clientEventsCount > 10) {
 		common->Printf("Client sending events: %d\n", serverEventsCount);
@@ -2213,13 +2185,6 @@ idGameLocal::isSnapshotEntity
 */
 
 bool idGameLocal::isSnapshotEntity(idEntity* ent){
-	/*idEntity* snapEnt;
-	
-	for( snapEnt = snapshotEntities.Next(); snapEnt != NULL; snapEnt = snapEnt->snapshotNode.Next() ) {
-		if (snapEnt->entityCoopNumber == ent->entityCoopNumber) {
-			return true;
-		}
-	}*/
 	return ent->snapshotNode.InList();
 }
 
@@ -2233,98 +2198,6 @@ idEntity* idGameLocal::getEntityBySpawnId(int spawnId){
 	}
 
 	return NULL;
-}
-
-idEntity* idGameLocal::getEntityByEntityNumber(int entityNum)
-{
-	idEntity *ent;
-
-	for( ent = spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next() ) {
-		if (ent->entityNumber == entityNum) {
-			return ent;
-		}
-	}
-
-	return NULL;
-}
-
-
-int idGameLocal::getFreeEntityNumber( void ) {
-	int i;
-	idEntity* ent;
-	//for( i = MAX_CLIENTS; i < ENTITYNUM_MAX_NORMAL; i++ ) {
-	for (i = CS_ENTITIES_START; i < MAX_GENTITIES; i++) { //Client-side entities from 3096 to 4095
-		ent = entities[i];
-		if (!ent) {
-			return i;
-		}
-	}
-	return -1; //no free slot o.O
-}
-
-bool idGameLocal::duplicateEntity(idEntity* ent) {
-	idDict			args;
-	idTypeInfo		*typeInfo;
-
-	if (!ent) {
-		delete ent;
-		return false;
-	}
-
-	int freeEntitySlot = getFreeEntityNumber();  //FUCK NO, TRY ANOTHER THING (slow af cause bad entityNumber choice). FIXME LATER
-	if (freeEntitySlot >= MAX_CLIENTS)
-	{
-		int bakEnt_spawnId = this->GetSpawnId(ent);
-		char *bakEnt_name = (char*)malloc(strlen(ent->GetName()) + 1);
-		strcpy(bakEnt_name, ent->GetName());
-		typeInfo = idClass::GetType( ent->Type.typeNum );
-
-		int backEnt_defNumber = ent->entityDefNumber;
-
-		idVec3 bakEnt_origin = ent->GetLocalCoordinates( ent->GetPhysics()->GetOrigin() ); //get origin pos
-
-		args.Clear();
-		args.Copy(ent->spawnArgs);
-		delete ent;
-
-		args.SetInt( "spawn_entnum", freeEntitySlot );
-		args.Set( "name", bakEnt_name );
-		args.Set("origin", bakEnt_origin.ToString());
-		
-		if (this->FindEntity(bakEnt_name)) {
-			Error( "Backuped entity with name '%s' already exists!", bakEnt_name  );
-		}
-
-		//this->GetSpawnId
-
-		if ( backEnt_defNumber >= 0 ) {
-			if ( backEnt_defNumber >= declManager->GetNumDecls( DECL_ENTITYDEF ) ) {
-				//assert(0); //crash to find bug
-				Error( "(this makes non-sense) Client has %d entityDefs instead of %d", backEnt_defNumber, declManager->GetNumDecls( DECL_ENTITYDEF ) );
-			}
-			//args.Set("classname", bakEnt_classname);
-			char *bakEnt_classname = (char*)malloc(strlen(declManager->DeclByIndex( DECL_ENTITYDEF, backEnt_defNumber, false )->GetName()) + 1);
-			strcpy(bakEnt_classname, declManager->DeclByIndex( DECL_ENTITYDEF, backEnt_defNumber, false )->GetName());
-			args.Set( "classname", bakEnt_classname );
-			if ( !SpawnEntityDef( args, &ent, true, true )) {
-				//assert(0); //crash to find bug
-				Error( "Failed to spawn backup entity with classname '%s' of type '%s'", bakEnt_classname, typeInfo->classname );
-			}
-		} else {
-			ent = SpawnEntityType( *typeInfo, &args, true );
-			if ( !ent ) {
-				Error( "Failed to spawn backup entity of type '%s'", typeInfo->classname );
-			}
-		}
-		ent->clientSideEntity = true;
-		common->Printf("[COOP DEBUG] Entity backuped: %s -> %s...\n", ent->GetName(), ent->GetClassname()); //for debug
-		return true;
-	} else {
-		common->Printf("[COOP DEBUG] Unable to backup entity: %s...\n", ent->GetName()); //for debug
-	}
-
-	delete ent;
-	return false;
 }
 
 /*
@@ -2394,12 +2267,8 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 			base->state.BeginReading();
 		}
 		newBase = entityStateAllocator.Alloc();
-		if (mpGame.IsGametypeCoopBased()) {
-			newBase->entityNumber = i; //test
-			newBase->entityCoopNumber = i; //added to test new netcode sync coop
-		} else {
-			newBase->entityNumber = i;
-		}
+		newBase->entityNumber = i; //test
+		newBase->entityCoopNumber = i; //added to test new netcode sync coop
 		
 		newBase->next = snapshot->firstEntityState;
 		snapshot->firstEntityState = newBase;
@@ -2410,11 +2279,7 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 
 		deltaMsg.Init( base ? &base->state : NULL, &newBase->state, &msg );
 
-		if (mpGame.IsGametypeCoopBased()) {
-			coopId = deltaMsg.ReadBits( 32 - GENTITYNUM_BITS ); //test new netsync for coop
-		} else {
-			spawnId = deltaMsg.ReadBits( 32 - GENTITYNUM_BITS );
-		}
+		coopId = deltaMsg.ReadBits( 32 - GENTITYNUM_BITS ); //test new netsync for coop
 		
 		typeNum = deltaMsg.ReadBits( idClass::GetTypeNumBits() );
 		entityDefNumber = ClientRemapDecl( DECL_ENTITYDEF, deltaMsg.ReadBits( entityDefBits ) );
@@ -2423,15 +2288,10 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 		if ( !typeInfo ) {
 			Error( "Unknown type number %d for entity %d with class number %d", typeNum, i, entityDefNumber );
 		}
-		if (mpGame.IsGametypeCoopBased()) {
-			ent = coopentities[i]; //for non-coop :P
-		} else {
-			ent = entities[i]; //for non-coop :P
-		}
-		
+		ent = coopentities[i]; 
 		
 		// if there is no entity or an entity of the wrong type
-		if ( !ent || ent->GetType()->typeNum != typeNum || ent->entityDefNumber != entityDefNumber || (spawnId != spawnIds[ i ] && !gameLocal.mpGame.IsGametypeCoopBased()) || (coopId != coopIds[ i ] && gameLocal.mpGame.IsGametypeCoopBased())) {
+		if ( !ent || ent->GetType()->typeNum != typeNum || ent->entityDefNumber != entityDefNumber || (coopId != coopIds[ i ])) {
 
 			if ( i < MAX_CLIENTS && ent ) {
 				// SPAWN_PLAYER should be taking care of spawning the entity with the right spawnId
@@ -2440,52 +2300,26 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 
 			delete ent;
 
-			if (mpGame.IsGametypeCoopBased()) {
-				coopCount = coopId;
-			} else {
-				spawnCount = spawnId; //creo que el holograma de delta labs sector 1 crashea...
-			}
+			coopCount = coopId;
 
 			args.Clear();
-			if (mpGame.IsGametypeCoopBased()) {
-				args.SetInt( "coop_entnum", i );
-			} else {
-				args.SetInt( "spawn_entnum", i );
-			}
+			args.SetInt( "coop_entnum", i );
 			args.Set( "name", va( "entity%d", i ) );
 
 
-			if (mpGame.IsGametypeCoopBased()) { //testing for new netcode sync for coop
-				if ( entityDefNumber >= 0 ) {
-					if ( entityDefNumber >= declManager->GetNumDecls( DECL_ENTITYDEF ) ) {
-						Error( "server has %d entityDefs instead of %d", entityDefNumber, declManager->GetNumDecls( DECL_ENTITYDEF ) );
-					}
-					classname = declManager->DeclByIndex( DECL_ENTITYDEF, entityDefNumber, false )->GetName();
-					args.Set( "classname", classname );
-					if ( !SpawnEntityDef( args, &ent, true, true ) || !coopentities[i] || coopentities[i]->GetType()->typeNum != typeNum ) {
-						Error( "Failed to spawn entity with classname '%s' of type '%s'", classname, typeInfo->classname );
-					}
-				} else {
-					ent = SpawnEntityType( *typeInfo, &args, true );
-					if ( !coopentities[i] || coopentities[i]->GetType()->typeNum != typeNum ) {
-						Error( "Failed to spawn entity of type '%s'", typeInfo->classname );
-					}
+			if ( entityDefNumber >= 0 ) {
+				if ( entityDefNumber >= declManager->GetNumDecls( DECL_ENTITYDEF ) ) {
+					Error( "server has %d entityDefs instead of %d", entityDefNumber, declManager->GetNumDecls( DECL_ENTITYDEF ) );
+				}
+				classname = declManager->DeclByIndex( DECL_ENTITYDEF, entityDefNumber, false )->GetName();
+				args.Set( "classname", classname );
+				if ( !SpawnEntityDef( args, &ent, true, true ) || !coopentities[i] || coopentities[i]->GetType()->typeNum != typeNum ) {
+					Error( "Failed to spawn entity with classname '%s' of type '%s'", classname, typeInfo->classname );
 				}
 			} else {
-				if ( entityDefNumber >= 0 ) {
-					if ( entityDefNumber >= declManager->GetNumDecls( DECL_ENTITYDEF ) ) {
-						Error( "server has %d entityDefs instead of %d", entityDefNumber, declManager->GetNumDecls( DECL_ENTITYDEF ) );
-					}
-					classname = declManager->DeclByIndex( DECL_ENTITYDEF, entityDefNumber, false )->GetName();
-					args.Set( "classname", classname );
-					if ( !SpawnEntityDef( args, &ent, true, true ) || !entities[i] || entities[i]->GetType()->typeNum != typeNum ) {
-						Error( "Failed to spawn entity with classname '%s' of type '%s'", classname, typeInfo->classname );
-					}
-				} else {
-					ent = SpawnEntityType( *typeInfo, &args, true );
-					if ( !entities[i] || entities[i]->GetType()->typeNum != typeNum ) {
-						Error( "Failed to spawn entity of type '%s'", typeInfo->classname );
-					}
+				ent = SpawnEntityType( *typeInfo, &args, true );
+				if ( !coopentities[i] || coopentities[i]->GetType()->typeNum != typeNum ) {
+					Error( "Failed to spawn entity of type '%s'", typeInfo->classname );
 				}
 			}
 			
@@ -2526,11 +2360,7 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 #endif
 	}
 
-	if (mpGame.IsGametypeCoopBased()) {
-		player = static_cast<idPlayer *>( coopentities[clientNum] );
-	} else {
-		player = static_cast<idPlayer *>( entities[clientNum] );
-	}
+	player = static_cast<idPlayer *>( coopentities[clientNum] );
 	
 	if ( !player ) {
 		return;
@@ -2607,7 +2437,7 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 		if ( ent->snapshotSequence == sequence ) {
 			continue;
 		}
-		if (!ent->fl.coopNetworkSync && mpGame.IsGametypeCoopBased()) {
+		if (!ent->fl.coopNetworkSync) {
 			continue; //ignore client-side entities in coop (IMPORTANT TO AVOID CRASHES IN COOP)
 		}
 
@@ -2641,11 +2471,7 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 		ent->snapshotSequence = sequence;
 		ent->snapshotBits = 0;
 
-		if (mpGame.IsGametypeCoopBased()) {
-			base = clientEntityStates[clientNum][ent->entityCoopNumber]; //added to test new netcode sync for coop
-		} else {
-			base = clientEntityStates[clientNum][ent->entityNumber];
-		}
+		base = clientEntityStates[clientNum][ent->entityCoopNumber]; //added to test new netcode sync for coop
 		
 		if ( !base ) {
 			// entity has probably fl.networkSync set to false
@@ -2656,11 +2482,7 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 
 		deltaMsg.Init( &base->state, NULL, (const idBitMsg *)NULL );
 
-		if (mpGame.IsGametypeCoopBased()) {
-			coopId = deltaMsg.ReadBits( 32 - GENTITYNUM_BITS ); //new netcode sync for coop
-		} else {
-			spawnId = deltaMsg.ReadBits( 32 - GENTITYNUM_BITS );
-		}
+		coopId = deltaMsg.ReadBits( 32 - GENTITYNUM_BITS ); //new netcode sync for coop
 		
 		typeNum = deltaMsg.ReadBits( idClass::GetTypeNumBits() );
 		entityDefNumber = deltaMsg.ReadBits( entityDefBits );
@@ -2735,10 +2557,10 @@ void idGameLocal::snapshotsort_swap(idEntity* entities[], int lhs, int rhs) {
 // entities in snapshot queue <-- lower snapshot priority <-- first time in PVS <-- everything else
 bool idGameLocal::snapshotsort_notInOrder(const snapshotsort_context_s& context, idEntity* lhs, idEntity* rhs) {
 	// 1 - elements in snapshot queue should be left
-	if (!lhs->inSnapshotQueue[context.clientNum] && rhs->inSnapshotQueue[context.clientNum]) {
+	if (lhs->inSnapshotQueue[context.clientNum] < rhs->inSnapshotQueue[context.clientNum]) {
 		return true;
 	}
-	else if (lhs->inSnapshotQueue[context.clientNum] && !rhs->inSnapshotQueue[context.clientNum]) {
+	else if (lhs->inSnapshotQueue[context.clientNum] > rhs->inSnapshotQueue[context.clientNum]) {
 		return false;
 	}
 
@@ -2815,11 +2637,7 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 	int serverSendEntitiesCount=0;
 	int serverEntitiesLimit = net_serverSnapshotLimit.GetInteger();
 
-	if (mpGame.IsGametypeCoopBased()) {
-		player = static_cast<idPlayer *>( coopentities[ clientNum ] );
-	} else {
-		player = static_cast<idPlayer *>( entities[ clientNum ] );
-	}
+	player = static_cast<idPlayer *>( coopentities[ clientNum ] );
 	
 	if ( !player ) {
 		return;
@@ -2881,7 +2699,7 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 	for( ent = coopSyncEntities.Next(); ent != NULL; ent = ent->coopNode.Next() ) {
 		ent->readByServer = false;
 
-		if (ent->clientsideNode.InList()) { //Stradex: ignore clientside only entities to avoid weird shit
+		if ((ent->entityCoopNumber == clientNum) || ent->clientsideNode.InList() || !ent->fl.coopNetworkSync) { //Stradex: ignore clientside only entities to avoid weird shit
 			continue;
 		}
 
@@ -2892,19 +2710,22 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 			}
 		}
 
-		if ( !ent->PhysicsTeamInPVS( pvsHandle ) && (((ent->entityNumber != clientNum) && !mpGame.IsGametypeCoopBased()) || ((ent->entityCoopNumber != clientNum) && mpGame.IsGametypeCoopBased()))  ) {
-			continue;
+		if ( !ent->PhysicsTeamInPVS( pvsHandle ) ) {
+			if (!ent->forceSnapshotUpdateOrigin && ent->PhysicsTeamInPVS_snapshot( pvsHandle, clientNum )) {
+				ent->inSnapshotQueue[clientNum]++; //hack?
+				ent->forceSnapshotUpdateOrigin = true;
+			} else {
+				continue;
+			}
 		}
+
 		if (!ent->IsActive() && !ent->IsMasterActive() && !ent->firstTimeInClientPVS[clientNum] && !ent->forceNetworkSync && !ent->inSnapshotQueue[clientNum] && !ent->MasterUseOldNetcode()) { //ignore inactive entities that the player already saw before
 			continue;
 		}
 		if (ent->IsHidden() && !ent->firstTimeInClientPVS[clientNum] && !ent->inSnapshotQueue[clientNum] ) { //this shit is really important to improve server netcode
 			continue;
 		}
-		// if that entity is not marked for network synchronization
-		if ( !ent->fl.coopNetworkSync ) {
-			continue;
-		}
+
 		//Since sorting it's a pretty expensive stuff, let's try to have this list the less filled with entities possible
 		sortsnapshotentities[sortSnapCount++] = ent;
 	}
@@ -2913,105 +2734,34 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 	context.clientNum = clientNum;
 	snapshotsort(context, sortsnapshotentities, 1, sortSnapCount - 1);
 
-	//bool readingQueue = true; 
-
-	// create the snapshot
-	//for( ent = spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next() ) {
-	//for (int j=0; j < 2; j++) {
-	//for( ent = coopSyncEntities.Next(); ent != NULL; ent = ent->coopNode.Next() ) { //Test for coop
 	for (j=0, ent = sortsnapshotentities[j]; ent != NULL; ent = sortsnapshotentities[++j]) {
-		// if the entity is not in the player PVS
-		/*
-		if ( !ent->PhysicsTeamInPVS( pvsHandle ) && (((ent->entityNumber != clientNum) && !mpGame.IsGametypeCoopBased()) || ((ent->entityCoopNumber != clientNum) && mpGame.IsGametypeCoopBased()))  ) {
-			continue;
-		}
-		
-		//Coop stuff
-		if (!ent->IsActive() && !ent->IsMasterActive() && !ent->firstTimeInClientPVS[clientNum] && !ent->forceNetworkSync) { //ignore inactive entities that the player already saw before
-			continue;
-		}
-		*/
-		//In coop let's ignore static snapshots and ton of other shitty stuff
-		//TryingSomething
-		
-		if (!mpGame.IsGametypeCoopBased()) {
-			// add the entity to the snapshot pvs
-			snapshot->pvs[ ent->entityNumber >> 5 ] |= 1 << ( ent->entityNumber & 31 ); //NON-Coop keeps the original order
-		}
-		
-		
-		//snapshot->pvs[ ent->entityNumber >> 5 ] |= 1 << ( ent->entityNumber & 31 ); 
-
-		/*
-		// if that entity is not marked for network synchronization
-		if ( !ent->fl.networkSync ) {
-			continue;
-		}
-		*/
-
-		if (serverSendEntitiesCount >= serverEntitiesLimit) {
-			ent->inSnapshotQueue[clientNum] = true;
-			continue;
-		}
-
-		ent->inSnapshotQueue[clientNum] = false;
-		serverSendEntitiesCount++;
-		/*
-		if (mpGame.IsGametypeCoopBased() &&
-			(ent->IsType(idStaticEntity::Type) || ent->IsType(idFuncSmoke::Type) || ent->IsType(idTextEntity::Type) ||
-			ent->IsType(idLocationSeparatorEntity::Type) || ent->IsType(idVacuumSeparatorEntity::Type) ||
-			ent->IsType(idBeam::Type) || ent->IsType(idShaking::Type) || ent->IsType(idEarthQuake::Type) || 
-			ent->IsType(idFuncAASObstacle::Type) || ent->IsType(idTrigger::Type) || ent->IsType(idSound::Type))) {
-			common->Printf("Not sending entity %s to client\n", ent->GetName());
-				continue; //ignore these entities, let the client deal with these client-side
-		}
-		*/
-
-		if (mpGame.IsGametypeCoopBased()) {
-			// add the entity to the snapshot pvs
-			snapshot->pvs[ ent->entityNumber >> 5 ] |= 1 << ( ent->entityNumber & 31 ); //COOP add entities to the snapshot pvs only to netsync entities STRADEX
-		}
+	
+		// add the entity to the snapshot pvs
+		snapshot->pvs[ ent->entityNumber >> 5 ] |= 1 << ( ent->entityNumber & 31 ); //COOP add entities to the snapshot pvs only to netsync entities STRADEX
 		
 		ent->firstTimeInClientPVS[clientNum] = false; //Let the server know that this client already saw this entity for atleast one time
 
 		// save the write state to which we can revert when the entity didn't change at all
 		msg.SaveWriteState( msgSize, msgWriteBit );
 	
-		if (mpGame.IsGametypeCoopBased()) {
-			// write the entity coop number to the snapshot
-			msg.WriteBits( ent->entityCoopNumber, GENTITYNUM_BITS ); //test new netcode coop sync
-		} else {
-			// write the entity number to the snapshot	
-			msg.WriteBits( ent->entityNumber, GENTITYNUM_BITS );
-		}
+		// write the entity coop number to the snapshot
+		msg.WriteBits( ent->entityCoopNumber, GENTITYNUM_BITS ); //test new netcode coop sync
 
 
-
-		if (mpGame.IsGametypeCoopBased()) {
-			base = clientEntityStates[clientNum][ent->entityCoopNumber];
-		} else {
-			base = clientEntityStates[clientNum][ent->entityNumber];
-		}
+		base = clientEntityStates[clientNum][ent->entityCoopNumber];
 	
 		if ( base ) {
 			base->state.BeginReading();
 		}
 		newBase = entityStateAllocator.Alloc();
-		if (mpGame.IsGametypeCoopBased()) {
-			newBase->entityCoopNumber = ent->entityCoopNumber;
-		} else {
-			newBase->entityNumber = ent->entityNumber;
-		}
+		newBase->entityCoopNumber = ent->entityCoopNumber;
+
 		newBase->state.Init( newBase->stateBuf, sizeof( newBase->stateBuf ) );
 		newBase->state.BeginWriting();
 
 		deltaMsg.Init( base ? &base->state : NULL, &newBase->state, &msg );
 
-		if (mpGame.IsGametypeCoopBased()){
-			deltaMsg.WriteBits( coopIds[ ent->entityCoopNumber ], 32 - GENTITYNUM_BITS ); //testing netsync coop
-		} else {
-			deltaMsg.WriteBits( spawnIds[ ent->entityNumber ], 32 - GENTITYNUM_BITS );
-		}
+		deltaMsg.WriteBits( coopIds[ ent->entityCoopNumber ], 32 - GENTITYNUM_BITS ); //testing netsync coop
 		
 		deltaMsg.WriteBits( ent->GetType()->typeNum, idClass::GetTypeNumBits() );
 		deltaMsg.WriteBits( ServerRemapDecl( -1, DECL_ENTITYDEF, ent->entityDefNumber ), entityDefBits );
@@ -3019,13 +2769,24 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 		// write the class specific data to the snapshot
 		ent->WriteToSnapshot( deltaMsg );
 
-		if ( !deltaMsg.HasChanged() ) {
+		if ( !deltaMsg.HasChanged() && !ent->inSnapshotQueue[clientNum] ) { //if inSnapshotQueue, send data anyways
 			msg.RestoreWriteState( msgSize, msgWriteBit );
 			entityStateAllocator.Free( newBase );
+		} else if (serverSendEntitiesCount >= serverEntitiesLimit) {
+			msg.RestoreWriteState( msgSize, msgWriteBit );
+			entityStateAllocator.Free( newBase );
+			ent->inSnapshotQueue[clientNum]++;
 		} else {
 			newBase->next = snapshot->firstEntityState;
 			snapshot->firstEntityState = newBase;
-			ent->spawnSnapShot = false; //used to send spawn data first time an entity is in the snapshot
+
+			//Coop specific stuff
+			ent->inSnapshotQueue[clientNum] = 0;
+			serverSendEntitiesCount++;
+			ent->firstTimeInClientPVS[clientNum] = false; //Let the server know that this client already saw this entity for atleast one time
+			ent->forceSnapshotUpdateOrigin = false;
+			ent->ClearPVSAreas_snapshot(clientNum);
+			ent->lastSnapshotOrigin[clientNum] = ent->GetRenderEntity()->origin;
 
 #if ASYNC_WRITE_TAGS
 			msg.WriteInt( tagRandom.RandomInt() );
@@ -3078,21 +2839,6 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 	// copy the client PVS string
 	memcpy( clientInPVS, snapshot->pvs, ( numPVSClients + 7 ) >> 3 );
 	LittleRevBytes( clientInPVS, sizeof( int ), sizeof( clientInPVS ) / sizeof ( int ) );
-
-	//just for coop debug (May a cvar for test would be cool)
-	//common->Printf("Sending %d entities to client number: %d\n", serverSendEntitiesCount, clientNum);
-
-	/*
-	//It was just for DEBUG, it's common and nothing bad with it
-	if (serverSendEntitiesCount >= serverEntitiesLimit) {
-		common->Warning("[COOP] Snapshot overflow... using snapshot queue\n");
-	}
-	*/
-	/*
-	if (iterationsDebug >= MAX_SORT_ITERATIONS) {
-		common->Warning("[COOP] iterations overflow while sorting list!: %d\n", iterationsDebug);
-	}
-	*/
 }
 /*
 ===============

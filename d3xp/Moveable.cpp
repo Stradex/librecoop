@@ -516,6 +516,10 @@ idMoveable::WriteToSnapshot
 */
 void idMoveable::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	physicsObj.WriteToSnapshot( msg );
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		WriteBindToSnapshot(msg);
+		msg.WriteBits( IsHidden(), 1 );
+	}
 }
 
 /*
@@ -525,6 +529,14 @@ idMoveable::ReadFromSnapshot
 */
 void idMoveable::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	physicsObj.ReadFromSnapshot( msg );
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		ReadBindFromSnapshot(msg);
+		if ( msg.ReadBits( 1 ) ) {
+			Hide();
+		} else {
+			Show();
+		}
+	}
 	if ( msg.HasChanged() ) {
 		UpdateVisuals();
 	}

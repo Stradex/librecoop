@@ -285,6 +285,15 @@ END_CLASS
 
 /*
 ================
+idTarget_SetGlobalShaderTime::idTarget_SetGlobalShaderTime
+================
+*/
+idTarget_SetGlobalShaderTime::idTarget_SetGlobalShaderTime( void ) {
+	//canBeCsTarget = true;
+}
+
+/*
+================
 idTarget_SetGlobalShaderTime::Event_Activate
 ================
 */
@@ -307,6 +316,15 @@ idTarget_SetShaderParm
 CLASS_DECLARATION( idTarget, idTarget_SetShaderParm )
 	EVENT( EV_Activate,	idTarget_SetShaderParm::Event_Activate )
 END_CLASS
+
+/*
+================
+idTarget_SetShaderParm::idTarget_SetShaderParm
+================
+*/
+idTarget_SetShaderParm::idTarget_SetShaderParm( void ) {
+	canBeCsTarget = true;
+}
 
 /*
 ================
@@ -364,6 +382,16 @@ END_CLASS
 
 /*
 ================
+idTarget_SetShaderTime::idTarget_SetShaderTime
+================
+*/
+
+idTarget_SetShaderTime::idTarget_SetShaderTime( void ) {
+	canBeCsTarget = true;
+}
+
+/*
+================
 idTarget_SetShaderTime::Event_Activate
 ================
 */
@@ -405,6 +433,7 @@ idTarget_FadeEntity::idTarget_FadeEntity( void ) {
 	fadeFrom.Zero();
 	fadeStart = 0;
 	fadeEnd = 0;
+	canBeCsTarget = true;
 }
 
 /*
@@ -494,6 +523,16 @@ void idTarget_FadeEntity::Think( void ) {
 }
 
 /*
+================
+idTarget_FadeEntity::ClientPredictionThink
+================
+*/
+void idTarget_FadeEntity::ClientPredictionThink( void ) {
+	Think();
+}
+
+
+/*
 ===============================================================================
 
 idTarget_LightFadeIn
@@ -504,6 +543,17 @@ idTarget_LightFadeIn
 CLASS_DECLARATION( idTarget, idTarget_LightFadeIn )
 	EVENT( EV_Activate,				idTarget_LightFadeIn::Event_Activate )
 END_CLASS
+
+
+/*
+================
+idTarget_LightFadeIn::idTarget_LightFadeIn
+================
+*/
+
+idTarget_LightFadeIn::idTarget_LightFadeIn( void ) {
+	canBeCsTarget = true;
+}
 
 /*
 ================
@@ -547,6 +597,16 @@ idTarget_LightFadeOut
 CLASS_DECLARATION( idTarget, idTarget_LightFadeOut )
 	EVENT( EV_Activate,				idTarget_LightFadeOut::Event_Activate )
 END_CLASS
+
+/*
+================
+idTarget_LightFadeOut::idTarget_LightFadeOut
+================
+*/
+
+idTarget_LightFadeOut::idTarget_LightFadeOut( void ) {
+	canBeCsTarget = true;
+}
 
 /*
 ================
@@ -609,12 +669,24 @@ idTarget_Give::Event_Activate
 */
 void idTarget_Give::Event_Activate( idEntity *activator ) {
 
-	if ( spawnArgs.GetBool( "development" ) && developer.GetInteger() == 0 ) {
+	if ( spawnArgs.GetBool( "development" ) && developer.GetInteger() == 0 && !gameLocal.mpGame.IsGametypeCoopBased() ) {
+		return;
+	}
+	if (gameLocal.isClient) {
 		return;
 	}
 
 	static int giveNum = 0;
-	idPlayer *player = gameLocal.GetLocalPlayer(); //should I use get Coop player?
+	idPlayer *player;
+
+	if (activator && activator->IsType(idPlayer::Type)) {
+		player = static_cast<idPlayer*>(activator);
+	} else if (gameLocal.GetLocalPlayer()) {
+		player = gameLocal.GetLocalPlayer();
+	} else if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		player = gameLocal.GetCoopPlayer();
+	}
+
 	if ( player ) {
 		const idKeyValue *kv = spawnArgs.MatchPrefix( "item", NULL );
 		while ( kv ) {
@@ -623,10 +695,13 @@ void idTarget_Give::Event_Activate( idEntity *activator ) {
 				idDict d2;
 				d2.Copy( *dict );
 				d2.Set( "name", va( "givenitem_%i", giveNum++ ) );
+				if (gameLocal.mpGame.IsGametypeCoopBased()) {
+					d2.Set("clientside", "1"); //hack to avoid problems with entities in coop serverSide
+				}
 				idEntity *ent = NULL;
 				if ( gameLocal.SpawnEntityDef( d2, &ent ) && ent && ent->IsType( idItem::Type ) ) {
 					idItem *item = static_cast<idItem*>(ent);
-					item->GiveToPlayer( gameLocal.GetLocalPlayer() );
+					item->GiveToPlayer( player );
 				}
 			}
 			kv = spawnArgs.MatchPrefix( "item", kv );
@@ -686,6 +761,17 @@ idTarget_SetModel
 CLASS_DECLARATION( idTarget, idTarget_SetModel )
 	EVENT( EV_Activate,	idTarget_SetModel::Event_Activate )
 END_CLASS
+
+/*
+================
+idTarget_SetModel::idTarget_SetModel
+================
+*/
+
+idTarget_SetModel::idTarget_SetModel( void ) {
+	canBeCsTarget = true;
+}
+
 
 /*
 ================
@@ -752,6 +838,7 @@ idTarget_SetInfluence::idTarget_SetInfluence( void ) {
 	switchToCamera = NULL;
 	soundFaded = false;
 	restoreOnTrigger = false;
+	canBeCsTarget = true;
 }
 
 /*
@@ -884,7 +971,11 @@ idTarget_SetInfluence::Spawn
 ================
 */
 void idTarget_SetInfluence::Spawn() {
-	PostEventMS( &EV_GatherEntities, 0 );
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		CS_PostEventMS( &EV_GatherEntities, 0 );
+	} else {
+		PostEventMS( &EV_GatherEntities, 0 );
+	}
 	flashIn = spawnArgs.GetFloat( "flashIn", "0" );
 	flashOut = spawnArgs.GetFloat( "flashOut", "0" );
 	flashInSound = spawnArgs.GetString( "snd_flashin" );
@@ -904,6 +995,11 @@ idTarget_SetInfluence::Event_Flash
 */
 void idTarget_SetInfluence::Event_Flash( float flash, int out ) {
 	idPlayer *player = gameLocal.GetLocalPlayer();
+
+	if (!player && gameLocal.mpGame.IsGametypeCoopBased()) {
+		return;
+	}
+
 	player->playerView.Fade( idVec4( 1, 1, 1, 1 ), flash );
 	const idSoundShader *shader = NULL;
 	if ( !out && flashInSound.Length() ){
@@ -913,7 +1009,11 @@ void idTarget_SetInfluence::Event_Flash( float flash, int out ) {
 		shader = declManager->FindSound( flashOutSound.Length() ? flashOutSound : flashInSound );
 		player->StartSoundShader( shader, SND_CHANNEL_VOICE, 0, false, NULL );
 	}
-	PostEventSec( &EV_ClearFlash, flash, flash );
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		CS_PostEventSec( &EV_ClearFlash, flash, flash );
+	} else {
+		PostEventSec( &EV_ClearFlash, flash, flash );
+	}
 }
 
 
@@ -924,6 +1024,11 @@ idTarget_SetInfluence::Event_ClearFlash
 */
 void idTarget_SetInfluence::Event_ClearFlash( float flash ) {
 	idPlayer *player = gameLocal.GetLocalPlayer();
+
+	if (!player && gameLocal.mpGame.IsGametypeCoopBased()) {
+		return;
+	}
+
 	player->playerView.Fade( vec4_zero , flash );
 }
 /*
@@ -1001,10 +1106,6 @@ idTarget_SetInfluence::Event_Activate
 */
 void idTarget_SetInfluence::Event_Activate( idEntity *activator ) {
 
-	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-		return; //Disabled in COOP. testing avoid crash
-	}
-
 	int i, j;
 	idEntity *ent;
 	idLight *light;
@@ -1031,7 +1132,9 @@ void idTarget_SetInfluence::Event_Activate( idEntity *activator ) {
 	float fadeTime = spawnArgs.GetFloat( "fadeWorldSounds" );
 
 	if ( delay > 0.0f ) {
-		PostEventSec( &EV_Activate, delay, activator );
+		if ((!gameLocal.mpGame.IsGametypeCoopBased() || !gameLocal.isClient) && activator) {
+			PostEventSec( &EV_Activate, delay, activator );
+		}
 		delay = 0.0f;
 		// start any sound fading now
 		if ( fadeTime ) {
@@ -1044,11 +1147,11 @@ void idTarget_SetInfluence::Event_Activate( idEntity *activator ) {
 		soundFaded = true;
 	}
 
-	if ( spawnArgs.GetBool( "triggerTargets" ) ) {
+	if ( (!gameLocal.mpGame.IsGametypeCoopBased() || !gameLocal.isClient) && spawnArgs.GetBool( "triggerTargets" ) ) {
 		ActivateTargets( activator );
 	}
 
-	if ( flashIn ) {
+	if ( flashIn && !gameLocal.mpGame.IsGametypeCoopBased() ) { //don't do this in coop yet
 		PostEventSec( &EV_Flash, 0.0f, flashIn, 0 );
 	}
 
@@ -1057,12 +1160,12 @@ void idTarget_SetInfluence::Event_Activate( idEntity *activator ) {
 		PostEventSec( &EV_StartSoundShader, flashIn, parm, SND_CHANNEL_ANY );
 	}
 
-	if ( switchToCamera ) {
+	if ( switchToCamera && !gameLocal.mpGame.IsGametypeCoopBased() ) { //don't do this in coop yet
 		switchToCamera->PostEventSec( &EV_Activate, flashIn + 0.05f, this );
 	}
 
 	int fov = spawnArgs.GetInt( "fov" );
-	if ( fov ) {
+	if ( fov && !gameLocal.mpGame.IsGametypeCoopBased() ) { //do not touch fov in coop yet
 		fovSetting.Init( gameLocal.time, SEC2MS( spawnArgs.GetFloat( "fovTime" ) ), player->DefaultFov(), fov );
 		BecomeActive( TH_THINK );
 	}
@@ -1136,16 +1239,18 @@ void idTarget_SetInfluence::Event_Activate( idEntity *activator ) {
 		}
 	}
 
-	player->SetInfluenceLevel( spawnArgs.GetInt( "influenceLevel" ) );
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) { //don't touch this in coop
+		player->SetInfluenceLevel( spawnArgs.GetInt( "influenceLevel" ) ); 
+	}
 
 	int snapAngle = spawnArgs.GetInt( "snapAngle" );
-	if ( snapAngle ) {
+	if ( snapAngle && !gameLocal.mpGame.IsGametypeCoopBased()) { //don't touch this in coop
 		idAngles ang( 0, snapAngle, 0 );
 		player->SetViewAngles( ang );
 		player->SetAngles( ang );
 	}
 
-	if ( spawnArgs.GetBool( "effect_vision" ) ) {
+	if ( spawnArgs.GetBool( "effect_vision" ) && !gameLocal.mpGame.IsGametypeCoopBased() ) {  //don't touch this in coop
 		parm = spawnArgs.GetString( "mtrVision" );
 		skin = spawnArgs.GetString( "skinVision" );
 		player->SetInfluenceView( parm, skin, spawnArgs.GetInt( "visionRadius" ), this );
@@ -1157,7 +1262,11 @@ void idTarget_SetInfluence::Event_Activate( idEntity *activator ) {
 	}
 
 	if ( !restoreOnTrigger ) {
-		PostEventMS( &EV_RestoreInfluence, SEC2MS( spawnArgs.GetFloat( "time" ) ) );
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+			CS_PostEventMS( &EV_RestoreInfluence, SEC2MS( spawnArgs.GetFloat( "time" ) ) );
+		} else {
+			PostEventMS( &EV_RestoreInfluence, SEC2MS( spawnArgs.GetFloat( "time" ) ) );
+		}
 	}
 }
 
@@ -1167,6 +1276,11 @@ idTarget_SetInfluence::Think
 ================
 */
 void idTarget_SetInfluence::Think( void ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) { // do nothing in coop by now
+		return;
+	}
+
 	if ( thinkFlags & TH_THINK ) {
 		idPlayer *player = gameLocal.GetLocalPlayer();
 		player->SetInfluenceFov( fovSetting.GetCurrentValue( gameLocal.time ) );
@@ -1197,11 +1311,11 @@ void idTarget_SetInfluence::Event_RestoreInfluence() {
 	idVec3 color;
 	idVec4 colorTo;
 
-	if ( flashOut ) {
+	if ( flashOut && !gameLocal.mpGame.IsGametypeCoopBased() ) { //don't touch this in coop yet
 		PostEventSec( &EV_Flash, 0.0f, flashOut, 1 );
 	}
 
-	if ( switchToCamera ) {
+	if ( switchToCamera && !gameLocal.mpGame.IsGametypeCoopBased() ) {  //don't touch this in coop yet
 		switchToCamera->PostEventMS( &EV_Activate, 0.0f, this );
 	}
 
@@ -1262,10 +1376,12 @@ void idTarget_SetInfluence::Event_RestoreInfluence() {
 		}
 	}
 
-	idPlayer *player = gameLocal.GetLocalPlayer();
-	player->SetInfluenceLevel( 0 );
-	player->SetInfluenceView( NULL, NULL, 0.0f, NULL );
-	player->SetInfluenceFov( 0 );
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) { //don't touch this in coop yet
+		idPlayer *player = gameLocal.GetLocalPlayer();
+		player->SetInfluenceLevel( 0 );
+		player->SetInfluenceView( NULL, NULL, 0.0f, NULL );
+		player->SetInfluenceFov( 0 );
+	}
 	gameLocal.SetGlobalMaterial( NULL );
 	float fadeTime = spawnArgs.GetFloat( "fadeWorldSounds" );
 	if ( fadeTime ) {

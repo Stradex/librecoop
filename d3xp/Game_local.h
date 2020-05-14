@@ -300,6 +300,7 @@ public:
 	idDict					userInfo[MAX_CLIENTS];	// client specific settings
 	usercmd_t				usercmds[MAX_CLIENTS];	// client input commands
 	idDict					persistentPlayerInfo[MAX_CLIENTS];
+	idDict					persistentPlayerInfoClientside; //added for Coop (pdas data mostly)
 	idEntity *				entities[MAX_GENTITIES];// index to entities
 	int						spawnIds[MAX_GENTITIES];// for use in idEntityPtr
 	int						firstFreeIndex;			// first free index in the entities array
@@ -325,6 +326,7 @@ public:
 	idLinkList<idEntity>	coopSyncEntities;				// all net-synced (used by Coop only)
 	int						serverEventsCount;				//just to debug delete later
 	int						clientEventsCount;				//just to debug, delete later
+	bool					isRestartingMap;				//added for coop to fix a script bug after serverMapRestart
 	serverEvent_t			serverOverflowEvents[SERVER_EVENTS_QUEUE_SIZE]; //To avoid server reliabe messages overflow
 	void					addToServerEventOverFlowList(int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient, int eventTime, idEntity* ent, bool saveLastOnly=false); //To avoid server reliabe messages overflow
 	void					addToServerEventOverFlowList(entityNetEvent_t* event, int clientNum); //To avoid server reliabe messages overflow
@@ -479,6 +481,7 @@ public:
 
 	void					Printf( const char *fmt, ... ) const id_attribute((format(printf,2,3)));
 	void					DPrintf( const char *fmt, ... ) const id_attribute((format(printf,2,3)));
+	void					DebugPrintf( const char *fmt, ... ) const id_attribute((format(printf,2,3))); //to show in debug only
 	void					Warning( const char *fmt, ... ) const id_attribute((format(printf,2,3)));
 	void					DWarning( const char *fmt, ... ) const id_attribute((format(printf,2,3)));
 	void					Error( const char *fmt, ... ) const id_attribute((format(printf,2,3)));
@@ -538,6 +541,7 @@ public:
 
 	void					AddEntityToHash( const char *name, idEntity *ent );
 	bool					RemoveEntityFromHash( const char *name, idEntity *ent );
+	bool					EntityFromHashExists( const char *name );
 	int						GetTargets( const idDict &args, idList< idEntityPtr<idEntity> > &list, const char *ref ) const;
 
 							// returns the master entity of a trace.  for example, if the trace entity is the player's head, it will return the player.
@@ -574,6 +578,7 @@ public:
 
 	idPlayer *				GetLocalPlayer() const;
 	idPlayer *				GetCoopPlayer() const; //added for Coop
+	idEntity *				GetCoopPlayerScriptHack() const; //added for Coop
 
 	void					SpreadLocations();
 	idLocationEntity *		LocationForPoint( const idVec3 &point );	// May return NULL
@@ -592,6 +597,8 @@ public:
 	int						GetGibTime() { return nextGibTime; };
 
 	//specific coop stuff
+	bool					isNPC(idEntity *ent ) const; //added for COOP hack
+	const idDict &			CS_SavePersistentPlayerInfo( void );
 	bool					firstClientToSpawn; //used in coop for dedicated server not starting scripts until a player joins
 	bool					coopMapScriptLoad; //used in coop for dedicated server not starting scripts until a player joins
 	spawnSpot_t				spPlayerStartSpot; //added for COOP
@@ -704,9 +711,6 @@ private:
 
 	bool					isSnapshotEntity(idEntity* ent); //added for COOP by Stradex
 	idEntity*				getEntityBySpawnId(int spawnId);  //added for COOP by Stradex
-	idEntity*				getEntityByEntityNumber(int entityNum);  //added for COOP by Stradex
-	int						getFreeEntityNumber( void ); //added for COOP by Stradex
-	bool					duplicateEntity(idEntity* ent); //added for Coop by stradex
 };
 
 //============================================================================

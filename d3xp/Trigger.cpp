@@ -139,7 +139,7 @@ void idTrigger::Disable( void ) {
 idTrigger::CallScript
 ================
 */
-void idTrigger::CallScript( void ) const {
+void idTrigger::CallScript( void ) {
 	idThread *thread;
 
 	if ( scriptFunction ) {

@@ -155,11 +155,15 @@ public:
 	bool					clientSideEntity;		// FIXME: I think there's no need of this but well... for COOP
 	bool					firstTimeInClientPVS[MAX_CLIENTS]; //added for Netcode optimization for COOP (Stradex)
 	bool					forceNetworkSync;		//FIXME: I think there's no need of this. Just duct tape to fix the new netcode 
-	bool					inSnapshotQueue[MAX_CLIENTS];		//IF there's a snapshot overflow (see net_serverSnapshotLimit) we're going to need a snapshotqueue
+	int						inSnapshotQueue[MAX_CLIENTS];		//IF there's a snapshot overflow (see net_serverSnapshotLimit) we're going to need a snapshotqueue
 	bool					readByServer;			//if the entity was already tried to be sent in the snapshot
 	int						snapshotPriority;		//The priority of this entity (useful when snapshot overflow
 	int						snapshotMissingCount[MAX_CLIENTS];	//Missing snapshots count for coop
-	bool					spawnSnapShot;			 //first snapshot send by server
+	idVec3					lastSnapshotOrigin[MAX_CLIENTS]; // COOP: last origin position sended to a client via snapshot
+	bool					forceSnapshotUpdateOrigin;
+	bool					calledViaScriptThread; // Dirty hack for coop
+	bool					scriptAlreadyConstructed; //to fix a bug at localMapRestart
+	bool					findTargetsAlreadyCalled; //to fix a bug at localMapRestart
 
 	struct entityFlags_s {
 		bool				notarget			:1;	// if true never attack or target this entity
@@ -250,6 +254,10 @@ public:
 	const int *				GetPVSAreas( void );
 	void					ClearPVSAreas( void );
 	bool					PhysicsTeamInPVS( pvsHandle_t pvsHandle );
+	int						GetNumPVSAreas_snapshot(  int clientNum );
+	const int *				GetPVSAreas_snapshot(  int clientNum );
+	void					ClearPVSAreas_snapshot(  int clientNum );
+	bool					PhysicsTeamInPVS_snapshot( pvsHandle_t pvsHandle,  int clientNum ); //dirty code for coop optimization
 
 	// animation
 	virtual bool			UpdateAnimationControllers( void );
@@ -295,7 +303,12 @@ public:
 	void					GetWorldVelocities( idVec3 &linearVelocity, idVec3 &angularVelocity ) const;
 
 	bool					IsMasterActive ( void ) const; //added for coop netcode
+	bool					IsMasterCoopSync ( void ) const; //added for coop netcode
+	bool					IsMasterInSnapshot ( void ) const; //added for coop netcode
 	bool					MasterUseOldNetcode ( void ) const; //added for coop netcode
+	bool					IsBoundToMover( void ) const; //added for coop netcode
+	void					Call_ConstructScriptObject( void ); //added by stradex to fix a bug at localMapRestart
+	void					Call_FindTargets( void ); //added by stradex to fix a bug at localMapRestart
 
 	// physics
 							// set a new physics object to be used by this entity
@@ -370,7 +383,7 @@ public:
 	// targets
 	void					FindTargets( void );
 	void					RemoveNullTargets( void );
-	void					ActivateTargets( idEntity *activator ) const;
+	void					ActivateTargets( idEntity *activator );
 
 	// misc
 	virtual void			Teleport( const idVec3 &origin, const idAngles &angles, idEntity *destination );
@@ -382,6 +395,7 @@ public:
 	enum {
 		EVENT_STARTSOUNDSHADER,
 		EVENT_STOPSOUNDSHADER,
+		EVENT_ACTIVATE_TARGETS,
 		EVENT_MAXEVENTS
 	};
 
@@ -417,6 +431,8 @@ private:
 
 	int						numPVSAreas;						// number of renderer areas the entity covers
 	int						PVSAreas[MAX_PVS_AREAS];			// numbers of the renderer areas the entity covers
+	int						numPVSAreas_snapshot[MAX_CLIENTS];				// COOP: number of renderer areas the entity covers
+	int						PVSAreas_snapshot[MAX_CLIENTS][MAX_PVS_AREAS];	// COOP: numbers of the renderer areas the entity covers
 
 	signalList_t *			signals;
 
@@ -440,6 +456,7 @@ private:
 	void					QuitTeam( void );					// leave the current team
 
 	void					UpdatePVSAreas( void );
+	void					UpdatePVSAreas_snapshot( int clientNum );
 
 	// events
 	void					Event_GetName( void );

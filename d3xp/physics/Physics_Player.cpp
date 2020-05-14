@@ -2088,10 +2088,6 @@ void idPhysics_Player::WriteToEvent( idBitMsg &msg ) {
 	msg.WriteDeltaFloat( 0.0f, current.pushVelocity[0], PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
 	msg.WriteDeltaFloat( 0.0f, current.pushVelocity[1], PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
 	msg.WriteDeltaFloat( 0.0f, current.pushVelocity[2], PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
-	//msg.WriteDeltaFloat( 0.0f, current.stepUp );
-	//msg.WriteBits( current.movementType, PLAYER_MOVEMENT_TYPE_BITS );
-	//msg.WriteBits( current.movementFlags, PLAYER_MOVEMENT_FLAGS_BITS );
-	//msg.WriteDeltaInt( 0, current.movementTime );
 }
 
 /*
@@ -2112,10 +2108,6 @@ void idPhysics_Player::ReadFromEvent( const idBitMsg &msg ) {
 	current.pushVelocity[0] = msg.ReadDeltaFloat( 0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
 	current.pushVelocity[1] = msg.ReadDeltaFloat( 0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
 	current.pushVelocity[2] = msg.ReadDeltaFloat( 0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS );
-	//current.stepUp = msg.ReadDeltaFloat( 0.0f );
-	//current.movementType = msg.ReadBits( PLAYER_MOVEMENT_TYPE_BITS );
-	//current.movementFlags = msg.ReadBits( PLAYER_MOVEMENT_FLAGS_BITS );
-	//current.movementTime = msg.ReadDeltaInt( 0 );
 
 	if ( clipModel ) {
 		clipModel->Link( gameLocal.clip, self, 0, current.origin, clipModel->GetAxis() );

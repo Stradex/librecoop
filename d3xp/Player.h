@@ -244,6 +244,9 @@ public:
 	void					UpdateArmor( void );
 	//COOP specific functions
 	bool					CS_Give( idPlayer *owner, const idDict &spawnArgs, const char *statname, const char *value, int *idealWeapon, bool updateHud );
+	void					CS_GetPersistantData( idDict &dict );
+	void					CS_RestoreInventory( idPlayer *owner, const idDict &dict );
+	void					CS_CoopClear( void ); //To keep pda security, keys, etc... (and all related to inv_carry)
 
 	int						nextItemPickup;
 	int						nextItemNum;
@@ -277,6 +280,7 @@ public:
 		EVENT_POWERUP,
 		EVENT_SPECTATE,
 		EVENT_PLAYERPHYSICS, //addded by stradex
+		EVENT_PLAYERSPAWN, //addded by stradex
 #ifdef _D3XP
 		EVENT_PICKUPNAME,
 #endif
@@ -651,10 +655,19 @@ public:
 	idAngles				GetViewAngles( void ); //added for coop checkpoint teleport
 	bool					allowClientsideMovement; //used to let the server send info for some seconds after spawning, to avoid spawn in void
 	int						nextSendPhysicsInfoTime; // COOP: added for clientside movement code 
+	idAI*					GetFocusCharacter( void ); // COOP
 
 	//Client-side stuff for coop
 	bool					CS_Give( const char *statname, const char *value );
 	bool					CS_GiveItem( idItem *item );
+	void					CS_GivePDA( const char *pdaName, idDict *item );
+	void					CS_GiveVideo( const char *videoName, idDict *item );
+	void					CS_GiveEmail( const char *emailName );
+	void					CS_GiveSecurity( const char *security );
+	void					CS_GiveObjective( const char *title, const char *text, const char *screenshot );
+	void					CS_CompleteObjective( const char *title );
+	void					CS_SavePersistantInfo( void );
+	void					CS_RestorePersistantInfo( void );
 	//END COOP SPECIFIC
 
 private:
@@ -844,6 +857,7 @@ private:
 	void					Event_HideTip( void );
 	void					Event_LevelTrigger( void );
 	void					Event_Gibbed( void );
+	void					Event_GetLinearVelocity( void ); //for sentry bot coop hack
 
 #ifdef _D3XP //BSM: Event to remove inventory items. Useful with powercells.
 	void					Event_GiveInventoryItem( const char* name );

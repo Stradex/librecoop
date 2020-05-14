@@ -673,7 +673,9 @@ void idTarget_Give::Event_Activate( idEntity *activator ) {
 		return;
 	}
 
-	assert(!gameLocal.isClient);
+	if (gameLocal.isClient) {
+		return;
+	}
 
 	static int giveNum = 0;
 	idPlayer *player;

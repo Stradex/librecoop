@@ -163,6 +163,8 @@ void idSound::Event_Trigger( idEntity *activator ) {
 			}
 		}
 	}
+
+	calledViaScriptThread = false;
 }
 
 /*
@@ -261,10 +263,10 @@ idSound::DoSound
 */
 void idSound::DoSound( bool play ) {
 	if ( play ) {
-		StartSoundShader( refSound.shader, SND_CHANNEL_ANY, refSound.parms.soundShaderFlags, true, &playingUntilTime );
+		StartSoundShader( refSound.shader, SND_CHANNEL_ANY, refSound.parms.soundShaderFlags, calledViaScriptThread, &playingUntilTime );
 		playingUntilTime += gameLocal.time;
 	} else {
-		StopSound( SND_CHANNEL_ANY, true );
+		StopSound( SND_CHANNEL_ANY, calledViaScriptThread );
 		playingUntilTime = 0;
 	}
 }

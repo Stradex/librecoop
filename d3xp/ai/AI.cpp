@@ -408,6 +408,7 @@ idAI::idAI() {
 	snapshotPriority = 2; //added by Stradex for coop. High priority for this
 	thereWasEnemy = true; //shouldn't this be false?
 	currentChannelOverride = 0;
+	currentHeadAnim = 0;
 }
 
 /*
@@ -837,7 +838,9 @@ void idAI::Spawn( void ) {
 	spawnArgs.GetInt(	"num_cinematics",		"0",		num_cinematics );
 	current_cinematic = 0;
 
-	LinkScriptVariables();
+	if (!gameLocal.mpGame.IsGametypeCoopBased() || !gameLocal.isRestartingMap) { //fix for coop
+		LinkScriptVariables();
+	}
 
 	fl.takedamage		= !spawnArgs.GetBool( "noDamage" );
 	enemy				= NULL;
@@ -995,7 +998,9 @@ void idAI::Spawn( void ) {
 		fl.takedamage = false;
 		physicsObj.SetContents( 0 );
 		physicsObj.GetClipModel()->Unlink();
-		Hide();
+		if (!gameLocal.mpGame.IsGametypeCoopBased() || !gameLocal.isRestartingMap) { //fix for coop
+			Hide();
+		}
 	} else {
 		// play a looping ambient sound if we have one
 		StartSound( "snd_ambient", SND_CHANNEL_AMBIENT, 0, false, NULL );
@@ -1017,7 +1022,10 @@ void idAI::Spawn( void ) {
 	}
 
 	// init the move variables
-	StopMove( MOVE_STATUS_DONE );
+	if (!gameLocal.mpGame.IsGametypeCoopBased() || !gameLocal.isRestartingMap) { //fix for coop
+		// init the move variables
+		StopMove( MOVE_STATUS_DONE );
+	}
 
 
 #ifdef _D3XP
@@ -1035,6 +1043,21 @@ void idAI::Gib( const idVec3 &dir, const char *damageDefName ) {
 	idActor::Gib(dir, damageDefName);
 }
 #endif
+
+/*
+===================
+idAI::Init_CoopScriptFix
+Ugly shitty hack to fix something related to script and localMapRestart in coop
+===================
+*/
+
+void idAI::Init_CoopScriptFix( void ) {
+	LinkScriptVariables();
+	if ( num_cinematics || spawnArgs.GetBool( "hide" ) || spawnArgs.GetBool( "teleport" ) || spawnArgs.GetBool( "trigger_anim" ) || gameLocal.isClient ) {
+		Hide();
+	} 
+	StopMove( MOVE_STATUS_DONE );
+}
 
 /*
 ===================
@@ -1154,6 +1177,10 @@ void idAI::Think( void ) {
 
 	currentTorsoAnim = animator.CurrentAnim( ANIMCHANNEL_TORSO )->AnimNum(); //added by Stradex for coop
 	currentLegsAnim = animator.CurrentAnim( ANIMCHANNEL_LEGS )->AnimNum(); //added by Stradex for coop
+
+	if (head.GetEntity()) {
+		currentHeadAnim = head.GetEntity()->GetAnimator()->CurrentAnim(ANIMCHANNEL_ALL)->AnimNum();
+	}
 
 	// if we are completely closed off from the player, don't do anything at all
 	if ( CheckDormant() ) {
@@ -3672,7 +3699,7 @@ void idAI::Activate( idEntity *activator ) {
 		AI_ACTIVATED = true;
 		if ( !activator || !activator->IsType( idPlayer::Type ) ) {
 			if (gameLocal.mpGame.IsGametypeCoopBased()) {
-				player = GetClosestPlayerEnemy();
+				player = GetClosestPlayer();
 			} else {
 				player = gameLocal.GetLocalPlayer();
 			}
@@ -5341,8 +5368,8 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 		normalizedLastDamageDir = lastDamageDir;
 	}
 
-	msg.WriteBits( spawnSnapShot, 1 );
-	if (spawnSnapShot) {
+	msg.WriteBits( forceSnapshotUpdateOrigin, 1 );
+	if (forceSnapshotUpdateOrigin) {
 		//sending origin position
 		msg.WriteFloat(GetPhysics()->GetOrigin().x);
 		msg.WriteFloat(GetPhysics()->GetOrigin().y);
@@ -5402,6 +5429,19 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteBits( disableGravity, 1 );
 
 	msg.WriteBits( fl.hidden, 1);
+
+	//Head entity info
+	int headEntitySendInfo = head.GetEntity() ? 1 : 0;
+	msg.WriteBits( headEntitySendInfo, 1 );
+	if (headEntitySendInfo) {
+		msg.WriteShort(currentHeadAnim);
+		int focusEntityNum = focusEntity.GetEntity() ? focusEntity.GetEntity()->entityCoopNumber : -1;
+		msg.WriteInt( focusEntityNum );
+		msg.WriteInt( alignHeadTime );
+		msg.WriteInt( forceAlignHeadTime );
+		msg.WriteInt( blink_time );
+		msg.WriteInt( focusTime );
+	}
 }
 
 /*
@@ -5415,16 +5455,16 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		return idEntity::ReadFromSnapshot(msg); //original non-coop 
 	}
 
-	int		i, oldHealth, enemySpawnId, torsoAnimId, legsAnimId, enemyEntityId, goalEntityId;
-	bool	newHitToggle, stateHitch, hasEnemy, isSpawnSnapshot;
+	int		i, oldHealth, enemySpawnId, torsoAnimId, legsAnimId, headAnimId, enemyEntityId, goalEntityId, focusEntityId;
+	bool	newHitToggle, stateHitch, hasEnemy, getOriginInfo, headEntityReceivedInfo;
 	netActionType_t newNetAction;
 	idVec3	tmpOrigin = vec3_zero;
 
 	oldHealth = health;
 
-	isSpawnSnapshot  = msg.ReadBits( 1 ) != 0;
-	if (isSpawnSnapshot) {
-		//sending origin position
+	getOriginInfo  = msg.ReadBits( 1 ) != 0;
+	if (getOriginInfo) {
+		//receiving origin position
 		tmpOrigin.x = msg.ReadFloat();
 		tmpOrigin.y = msg.ReadFloat();
 		tmpOrigin.z = msg.ReadFloat();
@@ -5476,11 +5516,11 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	enemyEntityId = msg.ReadInt();
 	goalEntityId =  msg.ReadInt();
 
-	if (enemyEntityId >= 0 && gameLocal.coopentities[enemyEntityId]) {
-		enemy.SetSpawnId(gameLocal.GetSpawnId(gameLocal.coopentities[enemyEntityId])); //should I use SetSpawnId or better SetCoopId?
+	if (enemyEntityId >= 0 && gameLocal.coopentities[enemyEntityId] && gameLocal.coopentities[enemyEntityId]->IsType(idActor::Type)) {
+		enemy = static_cast<idActor*>(gameLocal.coopentities[enemyEntityId]);
 	}
 	if (goalEntityId >= 0 && gameLocal.coopentities[goalEntityId]) {
-		move.goalEntity.SetSpawnId(gameLocal.GetSpawnId(gameLocal.coopentities[goalEntityId])); //should I use SetSpawnId or better SetCoopId?
+		move.goalEntity = gameLocal.coopentities[goalEntityId];
 	}
 
 	currentChannelOverride = msg.ReadShort();
@@ -5489,6 +5529,20 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 	bool isInvisible=false;
 	isInvisible = msg.ReadBits( 1 ) != 0;
+
+	//Head entity info
+	headEntityReceivedInfo = msg.ReadBits( 1 ) != 0;
+	if (headEntityReceivedInfo) {
+		headAnimId = msg.ReadShort();
+		focusEntityId = msg.ReadInt();
+		if (focusEntityId >= 0 && gameLocal.coopentities[focusEntityId]) {
+			focusEntity = gameLocal.coopentities[focusEntityId];
+		}
+		alignHeadTime =  msg.ReadInt();
+		forceAlignHeadTime = msg.ReadInt();
+		blink_time = msg.ReadInt();
+		focusTime = msg.ReadInt();
+	}
 
 	//No more msg read from here 
 
@@ -5505,8 +5559,14 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	if (legsAnimId != currentLegsAnim ) {
 		animator.CycleAnim(ANIMCHANNEL_LEGS, legsAnimId, gameLocal.time, 2);
 	}
+
+	if (head.GetEntity() && currentHeadAnim != headAnimId) {
+		head.GetEntity()->GetAnimator()->CycleAnim(ANIMCHANNEL_ALL, headAnimId, gameLocal.time, 2);
+	}
+
 	currentTorsoAnim = torsoAnimId;
 	currentLegsAnim = legsAnimId;
+	currentHeadAnim = headAnimId;
 
 
 	if ( oldHealth > 0 && health <= 0 ) {
@@ -5517,7 +5577,7 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	}
 
 	if ( msg.HasChanged() ) {
-		if (isSpawnSnapshot) { //lets update origin then
+		if (getOriginInfo) { //lets update origin then
 			physicsObj.SetOrigin( tmpOrigin + idVec3( 0, 0, CM_CLIP_EPSILON ) );
 		}
 		ClientProcessNetAction(newNetAction);
@@ -5652,6 +5712,59 @@ idPlayer *idAI::GetClosestPlayerEnemy( void ) {
 
 	return closestPlayer;
 }
+
+/*
+================
+idAI::GetClosestPlayer
+================
+*/
+
+idPlayer *idAI::GetClosestPlayer( void ) {
+	idPlayer* closestPlayer = NULL;
+	float shortestDist = idMath::INFINITY;
+	idPlayer *player;
+	float dist;
+	idVec3		delta;
+	for (int i = 0; i < gameLocal.numClients; i++) {
+		player = gameLocal.GetClientByNum(i);
+
+		if (!player || player->spectating || player->health <= 0) {
+			continue;
+		}
+
+		delta = physicsObj.GetOrigin() - player->GetPhysics()->GetOrigin();
+		dist = delta.LengthSqr();
+
+		if (dist < shortestDist) {
+			shortestDist = dist;
+			closestPlayer = player;
+		}
+	}
+
+	return closestPlayer;
+}
+//focusCharacter
+
+/*
+================
+idAI::GetClosestPlayer
+================
+*/
+
+idPlayer *idAI::GetFocusPlayer( void ) {
+	idPlayer *player;
+	for (int i = 0; i < gameLocal.numClients; i++) {
+		player = gameLocal.GetClientByNum(i);
+		if (!player || player->spectating || player->health <= 0) {
+			continue;
+		}
+		if (player->GetFocusCharacter() == this)
+			return player;
+	}
+
+	return NULL;
+}
+
 
 
 /*

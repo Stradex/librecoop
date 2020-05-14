@@ -32,6 +32,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "script/Script_Thread.h"
 
 #include "script/Script_Interpreter.h"
+#include "Player.h" //for coop ugly hack only
 
 /*
 ================

@@ -137,9 +137,16 @@ public:
 
 	void					Spawn();
 
+	enum {
+		EVENT_TRIGGER = idItem::EVENT_MAXEVENTS
+	};
+
+	virtual bool			ClientReceiveEvent( int event, int time, const idBitMsg &msg );
+
 private:
 	idVec3					playerPos;
 
+	void					CS_Event_Trigger( idEntity *activator );
 	void					Event_Trigger( idEntity *activator );
 	void					Event_HideObjective( idEntity *e );
 	void					Event_GetPlayerPos();
@@ -152,6 +159,7 @@ public:
 
 	void					Spawn();
 	virtual bool			GiveToPlayer( idPlayer *player );
+	virtual bool			CS_GiveToPlayer( idPlayer *player ); //Client-side give to player
 };
 
 class idPDAItem : public idItem {
@@ -159,6 +167,7 @@ public:
 	CLASS_PROTOTYPE( idPDAItem );
 
 	virtual bool			GiveToPlayer( idPlayer *player );
+	virtual bool			CS_GiveToPlayer( idPlayer *player ); //Client-side give to player
 };
 
 class idMoveableItem : public idItem {
@@ -279,6 +288,7 @@ public:
 	CLASS_PROTOTYPE( idMoveablePDAItem );
 
 	virtual bool			GiveToPlayer( idPlayer *player );
+	virtual bool			CS_GiveToPlayer( idPlayer *player ); //Client-side give to player
 };
 
 /*
@@ -311,9 +321,16 @@ public:
 
 	void					Spawn();
 
+	enum {
+		EVENT_TRIGGER = idEntity::EVENT_MAXEVENTS
+	};
+
+	virtual bool			ClientReceiveEvent( int event, int time, const idBitMsg &msg );
+
 private:
 	idVec3					playerPos;
 
+	void					CS_Event_Trigger( idEntity *activator );
 	void					Event_Trigger( idEntity *activator );
 	void					Event_HideObjective( idEntity *e );
 	void					Event_GetPlayerPos();

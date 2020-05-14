@@ -308,9 +308,11 @@ public:
 	virtual bool			ClientReceiveEvent( int event, int time, const idBitMsg &msg ); //Added for COOP by Stradex
 	void					ClientProcessNetAction(netActionType_t newAction);  //Added for COOP by Stradex
 	idPlayer				*GetClosestPlayerEnemy( void );
+	idPlayer				*GetClosestPlayer( void );
+	idPlayer				*GetFocusPlayer( void ); //for coop with characters AI
 
 	void					TriggerWeaponEffects( const idVec3 &muzzle ); //moved to public by Stradex for COOP
-
+	void					Init_CoopScriptFix( void ); //dirty hack for coop fix
 
 #ifdef _D3XP
 	virtual void			Gib( const idVec3 &dir, const char *damageDefName );
@@ -453,6 +455,7 @@ protected:
 	idVec3					turnTowardPos; 
 	bool					thereWasEnemy;
 	int						currentChannelOverride;
+	int						currentHeadAnim;
 
 
 #ifdef _D3XP
@@ -503,6 +506,7 @@ protected:
 	idVec3					FirstVisiblePointOnPath( const idVec3 origin, const idVec3 &target, int travelFlags ) const;
 	void					CalculateAttackOffsets( void );
 	void					PlayCinematic( void );
+	void					LinkScriptVariables( void );
 
 	// movement
 	virtual void			ApplyImpulse( idEntity *ent, int id, const idVec3 &point, const idVec3 &impulse );
@@ -605,7 +609,6 @@ protected:
 #endif
 
 	// AI script state management
-	void					LinkScriptVariables( void );
 	void					UpdateAIScript( void );
 
 	//
