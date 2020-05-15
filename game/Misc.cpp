@@ -261,7 +261,7 @@ void idPlayerStart::Event_TeleportPlayer( idEntity *activator ) {
 				msg.WriteBits( player->entityNumber, GENTITYNUM_BITS );
 				ServerSendEvent( EVENT_TELEPORTPLAYER, &msg, false, -1 );
 			}
-
+			ActivateTargets(player); //testing
 			TeleportPlayer( player );
 		}
 	}
