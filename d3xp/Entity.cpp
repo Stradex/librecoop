@@ -5135,6 +5135,19 @@ idEntity::Event_SetNetShaderParm
 ================
 */
 void idEntity::Event_SetNetShaderParm( int parmnum, float value ) {
+
+
+	if ( gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased() ) {
+		idBitMsg	msg;
+		byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+
+		msg.Init( msgBuf, sizeof( msgBuf ) );
+		msg.BeginWriting();
+		msg.WriteInt( parmnum );
+		msg.WriteFloat(value);
+		ServerSendEvent( EVENT_SETNETSHADERPARM, &msg, true, -1, true );
+	}
+
 	SetShaderParm( parmnum, value ); //FIXME Stradex: NetSync this later
 }
 
@@ -5558,6 +5571,12 @@ bool idEntity::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 		}
 		case EVENT_ACTIVATE_TARGETS: {
 			ActivateTargets(this);
+			return true;
+		}
+		case EVENT_SETNETSHADERPARM: {
+			int parmnum = msg.ReadInt();
+			float value = msg.ReadFloat();
+			SetShaderParm( parmnum, value ); 
 			return true;
 		}
 #ifdef _D3XP

@@ -3547,6 +3547,7 @@ void idFuncRadioChatter::Event_Activate( idEntity *activator ) {
 
 	if (!player && gameLocal.mpGame.IsGametypeCoopBased()) { //ERROR!
 		common->Warning("[COOP] No player detected at idFuncRadioChatter::Event_Activate!\n");
+		return;
 	}
 
 	if (player->hud) {

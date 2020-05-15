@@ -1227,6 +1227,12 @@ void idGameLocal::LocalMapRestart( ) {
 			if ((ent == world) || ent->IsType(idPlayer::Type)) {
 				continue; //ignore the world entity, of course.
 			}
+
+			if (!idStr::Icmp(ent->GetName(), "puzzle_floor_clip")) {
+				gameLocal.DebugPrintf("%s defname: %s\n", ent->GetName(), ent->GetEntityDefName());
+				gameLocal.DebugPrintf("%s classname: %s\n", ent->GetName(), ent->GetClassname());
+			}
+
 			if (!ent->findTargetsAlreadyCalled) {
 				ent->Call_FindTargets();
 			}
@@ -3624,7 +3630,7 @@ void idGameLocal::RegisterTargetEntity( idEntity *ent ) {
 		Error( "no free target entities" );
 	}
 
-	common->Printf("Adding %s to the targetentities array...\n", ent->GetName());
+	//common->Printf("Adding %s to the targetentities array...\n", ent->GetName());
 	target_entnum = firstFreeTargetIndex++;
 
 	targetentities[target_entnum] = ent; //added for coop
