@@ -1228,11 +1228,6 @@ void idGameLocal::LocalMapRestart( ) {
 				continue; //ignore the world entity, of course.
 			}
 
-			if (!idStr::Icmp(ent->GetName(), "puzzle_floor_clip")) {
-				gameLocal.DebugPrintf("%s defname: %s\n", ent->GetName(), ent->GetEntityDefName());
-				gameLocal.DebugPrintf("%s classname: %s\n", ent->GetName(), ent->GetClassname());
-			}
-
 			if (!ent->findTargetsAlreadyCalled) {
 				ent->Call_FindTargets();
 			}

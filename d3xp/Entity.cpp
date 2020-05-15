@@ -5173,6 +5173,11 @@ idEntity::Event_SetGui
 * loaded after the level loads should be precahced using PrecacheGui.
 */
 void idEntity::Event_SetGui( int guiNum, const char *guiName) {
+
+	if (modelDefHandle == -1) {
+		return; //avoid crash in coop.. maybe
+	}
+
 	idUserInterface** gui = NULL;
 
 	if ( guiNum >= 1 && guiNum <= MAX_RENDERENTITY_GUI ) {
