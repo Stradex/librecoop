@@ -23,15 +23,12 @@ entityDef player_doommarine_coop {
 
 	"deathSkinTime"						"500"	// how long once dead before setting the dead body contents to 0
 
-	"weapon"							"weapon_fists,weapon_pistol,weapon_flashlight,weapon_handgrenade,weapon_plasmagun,weapon_machinegun,weapon_shotgun"
-	"weapon_nightmare"					"weapon_fists,weapon_pistol,weapon_flashlight,weapon_pda,weapon_soulcube,weapon_machinegun"
+	"weapon"							"weapon_fists,weapon_pistol,weapon_flashlight,weapon_pda"
+	"weapon_nightmare"					"weapon_fists,weapon_pistol,weapon_flashlight,weapon_pda,weapon_soulcube"
 	"current_weapon"					"1"
 	"ammo_grenades"						"2"
-	"ammo_shells"						"18"
-	"ammo_bullets"						"48"
-	"ammo_rockets"						"5"
-	"ammo_cells"						"40"
-	"ammo_clip"							"60"
+	"ammo_shells"						"8"
+	"ammo_bullets"						"16"
 
 	// ignore flashlight when cycling weapons
 	"weapon11_cycle"					"0"

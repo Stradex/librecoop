@@ -8,6 +8,7 @@ mapDef game/mars_city1 {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
 	"size0"		"241381796"
 	"size1"		"241381796"
 	"size2"		"360373649"
@@ -38,6 +39,10 @@ mapDef game/mars_city2 {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_pistol,weapon_shotgun"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_small"
+
 	"size0"		"214993446"
 	"size1"		"214993446"
 	"size2"		"337536192"
@@ -53,6 +58,10 @@ mapDef game/admin {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_pistol,weapon_shotgun,weapon_machinegun"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_small,ammo_clip_small"
+
 	"size0"		"175009749"
 	"size1"		"175009749"
 	"size2"		"290086374"
@@ -68,6 +77,10 @@ mapDef game/alphalabs1 {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_pistol,weapon_shotgun,weapon_machinegun"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_large,ammo_clip_small"
+
 	"size0"		"208322592"
 	"size1"		"208322592"
 	"size2"		"325950691"
@@ -83,6 +96,10 @@ mapDef game/alphalabs2 {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_pistol,weapon_shotgun,weapon_machinegun"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_large,ammo_clip_large"
+
 	"size0"		"216968995"
 	"size1"		"216968995"
 	"size2"		"338687855"
@@ -98,6 +115,10 @@ mapDef game/alphalabs3 {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_pistol,weapon_shotgun,weapon_machinegun"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_large,ammo_clip_large"
+
 	"size0"		"149590497"
 	"size1"		"149590497"
 	"size2"		"246631772"
@@ -113,6 +134,10 @@ mapDef game/alphalabs4 {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_pistol,weapon_shotgun,weapon_machinegun,weapon_chaingun"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_large,ammo_clip_large,ammo_belt_small"
+
 	"size0"		"193870193"
 	"size1"		"193870193"
 	"size2"		"305560317"
@@ -128,6 +153,10 @@ mapDef game/enpro {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_pistol,weapon_shotgun,weapon_machinegun,weapon_chaingun"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_large,ammo_clip_large,ammo_belt_small"
+
 	"size0"		"214271969"
 	"size1"		"214271969"
 	"size2"		"336685005"
@@ -143,6 +172,10 @@ mapDef game/commoutside {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_pistol,weapon_shotgun,weapon_machinegun,weapon_chaingun,weapon_plasmagun"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_large,ammo_clip_large,ammo_belt_small,ammo_cells_small"
+
 	"size0"		"199297356"
 	"size1"		"199297356"
 	"size2"		"324143934"
@@ -158,6 +191,10 @@ mapDef game/comm1 {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_pistol,weapon_shotgun,weapon_machinegun,weapon_chaingun,weapon_plasmagun"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_large,ammo_clip_large,ammo_belt_small,ammo_cells_small"
+
 	"size0"		"219312713"
 	"size1"		"219312713"
 	"size2"		"345777343"
@@ -173,6 +210,10 @@ mapDef game/recycling1 {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_pistol,weapon_shotgun,weapon_machinegun,weapon_chaingun,weapon_plasmagun"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_large,ammo_clip_large,ammo_belt_small,ammo_cells_large"
+
 	"size0"		"189751399"
 	"size1"		"189751399"
 	"size2"		"305798361"
@@ -188,6 +229,10 @@ mapDef game/recycling2 {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_pistol,weapon_shotgun,weapon_machinegun,weapon_chaingun,weapon_plasmagun,weapon_rocketlauncher"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_large,ammo_clip_large,ammo_belt_small,ammo_cells_large,ammo_rockets_small"
+
 	"size0"		"168090603"
 	"size1"		"168090603"
 	"size2"		"265471659"
@@ -203,6 +248,10 @@ mapDef game/monorail {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_pistol,weapon_shotgun,weapon_machinegun,weapon_chaingun,weapon_plasmagun,weapon_rocketlauncher"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_large,ammo_clip_large,ammo_belt_small,ammo_cells_large,ammo_rockets_small"
+
 	"size0"		"192843018"
 	"size1"		"192843018"
 	"size2"		"309521938"
@@ -218,6 +267,10 @@ mapDef game/delta1 {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_pistol,weapon_shotgun,weapon_machinegun,weapon_chaingun,weapon_plasmagun,weapon_rocketlauncher"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_large,ammo_clip_large,ammo_belt_small,ammo_cells_large,ammo_rockets_small"
+
 	"size0"		"193509186"
 	"size1"		"193509186"
 	"size2"		"306636507"
@@ -226,7 +279,18 @@ mapDef game/delta1 {
 mapDef game/delta2a {
 	"name"		"Delta Labs Sector 2a"
 	"devname"		"16-Delta 2A"
+
 	"singleplayer"		"1"
+	"Deathmatch"		"0"
+	"Team DM"		"0"
+	"Last Man"		"0"
+	"Tourney"		"0"
+	"Coop"			"1"
+	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_pistol,weapon_shotgun,weapon_machinegun,weapon_chaingun,weapon_plasmagun,weapon_rocketlauncher"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_large,ammo_clip_large,ammo_belt_small,ammo_cells_large,ammo_rockets_large"
+
 	"size0"		"205050093"
 	"size1"		"205050093"
 	"size2"		"330096160"
@@ -242,6 +306,10 @@ mapDef game/delta2b {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_pistol,weapon_shotgun,weapon_machinegun,weapon_chaingun,weapon_plasmagun,weapon_rocketlauncher"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_large,ammo_clip_large,ammo_belt_small,ammo_cells_large,ammo_rockets_large"
+
 	"size0"		"205949877"
 	"size1"		"205949877"
 	"size2"		"324818414"
@@ -257,6 +325,10 @@ mapDef game/delta3 {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_pistol,weapon_shotgun,weapon_machinegun,weapon_chaingun,weapon_plasmagun,weapon_rocketlauncher"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_large,ammo_clip_large,ammo_belt_small,ammo_cells_large,ammo_rockets_large"
+
 	"size0"		"188442086"
 	"size1"		"188442086"
 	"size2"		"293665120"
@@ -272,6 +344,10 @@ mapDef game/delta4 {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_pistol,weapon_shotgun,weapon_machinegun,weapon_chaingun,weapon_plasmagun,weapon_rocketlauncher"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_large,ammo_clip_large,ammo_belt_small,ammo_cells_large,ammo_rockets_large"
+
 	"size0"		"114374005"
 	"size1"		"114374005"
 	"size2"		"198882904"
@@ -302,6 +378,9 @@ mapDef game/delta5 {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_soulcube"
+
 	"size0"		"175616475"
 	"size1"		"175616475"
 	"size2"		"280277981"
@@ -317,6 +396,10 @@ mapDef game/cpu {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_soulcube,weapon_pistol,weapon_shotgun,weapon_machinegun,weapon_chaingun,weapon_plasmagun,weapon_rocketlauncher"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_large,ammo_clip_large,ammo_belt_small,ammo_cells_large,ammo_rockets_large"
+
 	"size0"		"158182640"
 	"size1"		"158182640"
 	"size2"		"261839023"
@@ -332,6 +415,10 @@ mapDef game/cpuboss {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_soulcube,weapon_pistol,weapon_shotgun,weapon_machinegun,weapon_chaingun,weapon_plasmagun,weapon_rocketlauncher"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_large,ammo_clip_large,ammo_belt_small,ammo_cells_large,ammo_rockets_large"
+
 	"size0"		"158533127"
 	"size1"		"158533127"
 	"size2"		"276219445"
@@ -347,6 +434,10 @@ mapDef game/site3 {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_soulcube,weapon_pistol,weapon_shotgun,weapon_machinegun,weapon_chaingun,weapon_plasmagun,weapon_rocketlauncher,weapon_bfg"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_large,ammo_clip_large,ammo_belt_small,ammo_cells_large,ammo_rockets_large"
+
 	"size0"		"181599152"
 	"size1"		"181599152"
 	"size2"		"301729201"
@@ -362,6 +453,10 @@ mapDef game/caverns1 {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_soulcube,weapon_pistol,weapon_shotgun,weapon_machinegun,weapon_chaingun,weapon_plasmagun,weapon_rocketlauncher,weapon_bfg"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_large,ammo_clip_large,ammo_belt_small,ammo_cells_large,ammo_rockets_large,ammo_bfg_small"
+
 	"size0"		"187042073"
 	"size1"		"187042073"
 	"size2"		"290594108"
@@ -377,6 +472,10 @@ mapDef game/caverns2 {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_soulcube,weapon_pistol,weapon_shotgun,weapon_machinegun,weapon_chaingun,weapon_plasmagun,weapon_rocketlauncher,weapon_bfg"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_large,ammo_clip_large,ammo_belt_small,ammo_cells_large,ammo_rockets_large,ammo_bfg_small"
+
 	"size0"		"142680291"
 	"size1"		"142680291"
 	"size2"		"233599715"
@@ -392,6 +491,10 @@ mapDef game/hellhole {
 	"Tourney"		"0"
 	"Coop"			"1"
 	"Survival"		"1"
+
+	"spawn_weapons"	"weapon_soulcube,weapon_pistol,weapon_shotgun,weapon_machinegun,weapon_chaingun,weapon_plasmagun,weapon_rocketlauncher,weapon_bfg"
+	"spawn_ammo"	"ammo_bullets_small,ammo_shells_large,ammo_clip_large,ammo_belt_small,ammo_cells_large,ammo_rockets_large,ammo_bfg_small"
+
 	"size0"		"158309408"
 	"size1"		"158309408"
 	"size2"		"268269006"
