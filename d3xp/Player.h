@@ -247,6 +247,7 @@ public:
 	void					CS_GetPersistantData( idDict &dict );
 	void					CS_RestoreInventory( idPlayer *owner, const idDict &dict );
 	void					CS_CoopClear( void ); //To keep pda security, keys, etc... (and all related to inv_carry)
+	void					GiveSpawnItemsToPlayer( idPlayer *owner, const idDict &dict); //coop specific
 
 	int						nextItemPickup;
 	int						nextItemNum;

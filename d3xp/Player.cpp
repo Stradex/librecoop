@@ -532,6 +532,10 @@ void idInventory::RestoreInventory( idPlayer *owner, const idDict &dict ) {
 		Give( owner, dict, "weapon", dict.GetString( "weapon" ), NULL, false );
 	}
 
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		GiveSpawnItemsToPlayer(owner, dict);
+	}
+
 	if (!gameLocal.mpGame.IsGametypeCoopBased()) {
 		num = dict.GetInt( "levelTriggers" );
 		for ( i = 0; i < num; i++ ) {
@@ -1043,6 +1047,20 @@ bool idInventory::Give( idPlayer *owner, const idDict &spawnArgs, const char *st
 			}
 		}
 		return tookWeapon;
+	} else if ( !idStr::Icmp( statname, "ammospawn" ) ) { //added for coop
+		for( pos = value; pos != NULL; pos = end ) {
+			end = strchr( pos, ',' );
+			if ( end ) {
+				len = end - pos;
+				end++;
+			} else {
+				len = strlen( pos );
+			}
+
+			idStr ammoName( pos, 0, len );
+			owner->GiveItem(ammoName);
+		}
+		return true;
 	} else if ( !idStr::Icmp( statname, "item" ) || !idStr::Icmp( statname, "icon" ) || !idStr::Icmp( statname, "name" ) ) {
 		// ignore these as they're handled elsewhere
 		return false;
@@ -1380,6 +1398,36 @@ void idInventory::CS_RestoreInventory( idPlayer *owner, const idDict &dict ) {
 	}
 }
 
+/*
+===============
+idInventory::GiveSpawnItemsToPlayer
+Give items defined at "spawn_items" to the current player
+===============
+*/
+void idInventory::GiveSpawnItemsToPlayer( idPlayer *owner, const idDict &dict ) {
+	idStr map = gameLocal.serverInfo.GetString( "si_map" );
+
+	map.StripFileExtension();
+
+	int num = declManager->GetNumDecls( DECL_MAPDEF );
+	int i, j;
+
+	for ( i = 0; i < num; i++ ) {
+		const idDeclEntityDef *mapDef = static_cast<const idDeclEntityDef *>( declManager->DeclByIndex( DECL_MAPDEF, i ) );
+
+		if ( mapDef && idStr::Icmp( mapDef->GetName(), map.c_str() ) == 0 ) {
+			if ( mapDef->dict.GetString("spawn_weapons" )) {
+				gameLocal.DebugPrintf("Giving weapons to player %d\n", owner->entityNumber);
+				Give( owner, dict, "weapon", mapDef->dict.GetString( "spawn_weapons" ), NULL, false );
+			}
+			if ( mapDef->dict.GetString("spawn_ammo" )) {
+				gameLocal.DebugPrintf("Giving ammo to player %d\n", owner->entityNumber);
+				Give( owner, dict, "ammospawn", mapDef->dict.GetString( "spawn_ammo" ), NULL, false );
+			}
+			return;
+		}
+	}
+}
 
 /*
 ==============
