@@ -2457,9 +2457,7 @@ void idPlayer::SelectInitialSpawnPoint( idVec3 &origin, idAngles &angles ) {
 
 		forceSPSpawnPoint = false;
 
-#ifdef _DEBUG
-		gameLocal.Printf("[COOP DEBUG] Forcing info_player_start...\n");
-#endif
+		gameLocal.DebugPrintf("[COOP DEBUG] Forcing info_player_start...\n");
 	} else {
 		spot = gameLocal.SelectInitialSpawnPoint( this );
 
@@ -4086,7 +4084,7 @@ void idPlayer::SelectWeapon( int num, bool force ) {
 		UpdateHudWeapon();
 	}
 	if ( num == weapon_pda ) {
-		gameLocal.Printf("[DEBUG] pda weapon selected\n");
+		gameLocal.DebugPrintf("[DEBUG] pda weapon selected\n");
 	}
 }
 
@@ -5799,7 +5797,7 @@ void idPlayer::TogglePDA( void ) {
 	}
 
 	if ( inventory.pdas.Num() == 0 ) {
-		gameLocal.Printf("[COOP] no pdas to use..\n");
+		gameLocal.DebugPrintf("[COOP] no pdas to use..\n");
 		ShowTip( spawnArgs.GetString( "text_infoTitle" ), spawnArgs.GetString( "text_noPDA" ), true );
 		return;
 	}
@@ -5859,7 +5857,7 @@ void idPlayer::TogglePDA( void ) {
 		inventory.selEMail = objectiveSystem->State().GetInt( "listPDAEmail_sel_0" );
 		objectiveSystem->Activate( false, gameLocal.time );
 	}
-	gameLocal.Printf("[COOP] Client TogglePDA: %d\n", objectiveSystemOpen);
+	gameLocal.DebugPrintf("[COOP] Client TogglePDA: %d\n", objectiveSystemOpen);
 	if (!gameLocal.mpGame.IsGametypeCoopBased() || gameLocal.isServer) {
 		objectiveSystemOpen ^= 1;
 	}

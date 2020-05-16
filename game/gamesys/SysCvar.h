@@ -248,7 +248,6 @@ extern idCVar	si_map;
 extern idCVar	si_spectators;
 
 //fluff start (Thanks fluff :3)
-extern idCVar	si_shootDoors; 
 extern idCVar	si_itemRespawn; // added for coop
 //fluff end
 
