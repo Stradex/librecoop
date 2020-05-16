@@ -627,7 +627,7 @@ idItem::Event_Touch
 ================
 */
 void idItem::Event_Touch( idEntity *other, trace_t *trace ) {
-	if ( !other->IsType( idPlayer::Type ) ) {
+	if ( !other || !other->IsType( idPlayer::Type ) ) {
 		return;
 	}
 
