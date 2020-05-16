@@ -2692,6 +2692,8 @@ idBeam::idBeam
 idBeam::idBeam() {
 	target = NULL;
 	master = NULL;
+	canBeCsTarget = true;
+	eventSyncVital = false;
 }
 
 /*
@@ -2838,13 +2840,19 @@ idBeam::Event_Activate
 ================
 */
 void idBeam::Event_Activate( idEntity *activator ) {
+
+	//hack for coop start
+	bool wasCalledViaScript = calledViaScriptThread;
+	calledViaScriptThread = false;
+	//hack for coop ends 
+
 	if ( IsHidden() ) {
 		Show();
 	} else {
 		Hide();
 	}
 
-	if ( gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased() ) { //extra sync for coop
+	if ( gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased() && wasCalledViaScript ) { //extra sync for coop
 		idBitMsg	msg;
 		byte		msgBuf[MAX_EVENT_PARAM_SIZE];
 

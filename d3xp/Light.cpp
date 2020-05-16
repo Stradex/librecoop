@@ -210,6 +210,7 @@ idLight::idLight() {
 	fadeEnd				= 0;
 	soundWasPlaying		= false;
 	canBeCsTarget		 = true; //added for coop
+	eventSyncVital		= false;
 }
 
 /*

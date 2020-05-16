@@ -268,6 +268,7 @@ idTrigger_Multi::idTrigger_Multi( void ) {
 	touchOther = false;
 	triggerFirst = false;
 	triggerWithSelf = false;
+	eventSyncVital = false;
 }
 
 /*

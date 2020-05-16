@@ -487,6 +487,11 @@ idEntity::idEntity() {
 		numPVSAreas_snapshot[i] = -1;  //added by Stradex for Coop netcode optimization
 	}
 
+	eventsSend = 0;
+	eventSyncVital = true; //true by default
+	nextSendEventTime = 0;
+	nextResetEventCountTime = 0;
+
 #ifdef _D3XP
 	memset( &xrayEntity, 0, sizeof( xrayEntity ) );
 
@@ -3992,7 +3997,6 @@ void idEntity::ActivateTargets( idEntity *activator ) {
 
 		if (entityTargetNumber != ENTITYNUM_NONE && gameLocal.targetentities[entityTargetNumber] && sendTargetEvent) {
 			ServerSendEvent(EVENT_ACTIVATE_TARGETS, NULL, true, -1);
-			gameLocal.DebugPrintf("Sending EVENT_ACTIVATE_TARGETS\n");
 		}
 	}
 
@@ -5444,6 +5448,19 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 		return;
 	}
 
+	if (gameLocal.time >= nextResetEventCountTime) {
+		eventsSend = 0;
+	}
+
+	if (!eventSyncVital && gameLocal.time <= nextSendEventTime) { //to avoid overflow in case of non-vital entities sending an event in loop
+		return;
+	}
+
+
+	if (eventId == EVENT_ACTIVATE_TARGETS) {
+		gameLocal.DebugPrintf("Sending EVENT_ACTIVATE_TARGETS\n");
+	}
+
 	if ((gameLocal.serverEventsCount >= MAX_SERVER_EVENTS_PER_FRAME) && gameLocal.mpGame.IsGametypeCoopBased()) {
 		gameLocal.addToServerEventOverFlowList(eventId, msg, saveEvent, excludeClient, gameLocal.time, this, saveLastOnly); //Avoid serverSendEvent overflow in coop
 		return;
@@ -5478,6 +5495,16 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 
 	if ( saveEvent ) {
 		gameLocal.SaveEntityNetworkEvent( this, eventId, msg , saveLastOnly);
+	}
+
+	eventsSend++;
+
+	if (eventsSend == 1) {
+		nextResetEventCountTime = gameLocal.time + 1000; //1 sec
+	}
+
+	if (eventsSend >= MAX_ENTITY_EVENTS_PER_SEC) {
+		nextSendEventTime = gameLocal.time + 1000;
 	}
 
 	gameLocal.serverEventsCount++;
@@ -5884,6 +5911,13 @@ void idAnimatedEntity::AddDamageEffect( const trace_t &collision, const idVec3 &
 	idMat3 axis;
 
 	if ( !g_bloodEffects.GetBool() || renderEntity.joints == NULL ) {
+		return;
+	}
+
+	// avoid ugly crash in coop
+	if (gameLocal.mpGame.IsGametypeCoopBased() && (FLOAT_IS_NAN(collision.c.point.x) || FLOAT_IS_NAN(collision.c.point.y) ||
+		FLOAT_IS_NAN(collision.c.point.z) || FLOAT_IS_NAN(collision.c.normal.x) || FLOAT_IS_NAN(collision.c.normal.y) || FLOAT_IS_NAN(collision.c.normal.z))) {
+		common->Warning("[COOP FATAL] NAN Float at idAnimatedEntity::AddDamageEffect\n");
 		return;
 	}
 
