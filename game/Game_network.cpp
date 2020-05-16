@@ -1498,7 +1498,7 @@ void idGameLocal::ClientProcessEntityNetworkEventQueue( void ) {
 				}
 			} else {
 				ent = entPtr.GetEntity();
-				assert( ent );
+				assert( ent ); //crash here FIX
 
 				eventMsg.Init( event->paramsBuf, sizeof( event->paramsBuf ) );
 				eventMsg.SetSize( event->paramsSize );

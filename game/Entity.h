@@ -50,6 +50,7 @@ If you have questions concerning this license or the applicable additional terms
 static const int DELAY_DORMANT_TIME = 3000;
 static const int DEFAULT_SNAPSHOT_PRIORITY = 5; //COOP: All snapshotPriority values behind are top priority
 static const int MAX_MISSING_SNAPSHOTS = 10; //COOP by stradex
+static const int MAX_ENTITY_EVENTS_PER_SEC = 3; //MAX events an non-high priority entity can send per second
 
 extern const idEventDef EV_PostSpawn;
 extern const idEventDef EV_FindTargets;
@@ -165,6 +166,10 @@ public:
 	bool					calledViaScriptThread; // Dirty hack for coop
 	bool					scriptAlreadyConstructed; //to fix a bug at localMapRestart
 	bool					findTargetsAlreadyCalled; //to fix a bug at localMapRestart
+	int						eventsSend;					//to debug
+	bool					eventSyncVital;				//if is vital that this entity always sync events
+	int						nextSendEventTime;			//next time to send event in case of overflow.
+	int						nextResetEventCountTime;
 
 	struct entityFlags_s {
 		bool				notarget			:1;	// if true never attack or target this entity

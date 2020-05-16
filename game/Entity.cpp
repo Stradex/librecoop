@@ -464,7 +464,10 @@ idEntity::idEntity() {
 		lastSnapshotOrigin[i] = vec3_zero; //added by Stradex for Coop netcode optimization
 		numPVSAreas_snapshot[i] = -1;  //added by Stradex for Coop netcode optimization
 	}
-
+	eventsSend = 0;
+	eventSyncVital = true; //true by default
+	nextSendEventTime = 0;
+	nextResetEventCountTime = 0;
 }
 
 /*
@@ -3923,7 +3926,6 @@ void idEntity::ActivateTargets( idEntity *activator ) {
 		if (entityTargetNumber != ENTITYNUM_NONE && gameLocal.targetentities[entityTargetNumber] && sendTargetEvent) {
 			// send message to the clients
 			ServerSendEvent(EVENT_ACTIVATE_TARGETS, NULL, true, -1);
-			gameLocal.DebugPrintf("Sending EVENT_ACTIVATE_TARGETS\n");
 		}
 	}
 
@@ -5268,6 +5270,19 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 		return;
 	}
 
+	if (gameLocal.time >= nextResetEventCountTime) {
+		eventsSend = 0;
+	}
+
+	if (!eventSyncVital && gameLocal.time <= nextSendEventTime) { //to avoid overflow in case of non-vital entities sending an event in loop
+		return;
+	}
+
+
+	if (eventId == EVENT_ACTIVATE_TARGETS) {
+		gameLocal.DebugPrintf("Sending EVENT_ACTIVATE_TARGETS\n");
+	}
+
 	if ((gameLocal.serverEventsCount >= MAX_SERVER_EVENTS_PER_FRAME) && gameLocal.mpGame.IsGametypeCoopBased()) {
 		gameLocal.addToServerEventOverFlowList(eventId, msg, saveEvent, excludeClient, gameLocal.time, this, saveLastOnly); //Avoid serverSendEvent overflow in coop
 		return;
@@ -5279,7 +5294,6 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
 		outMsg.WriteBits( gameLocal.GetCoopId( this ), 32 );
 		outMsg.WriteBits( gameLocal.GetSpawnId( this ), 32 ); //added for coop
-		//common->Printf("idEntity::ServerSendEvent entity %s with coopid %d\n", GetName(), gameLocal.GetCoopId( this ));
 	} else {
 		outMsg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
 	}
@@ -5303,7 +5317,16 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 		gameLocal.SaveEntityNetworkEvent( this, eventId, msg , saveLastOnly);
 	}
 
-	gameLocal.serverEventsCount++; //COOP DEEBUG ONLY
+	eventsSend++;
+
+	if (eventsSend == 1) {
+		nextResetEventCountTime = gameLocal.time + 1000; //1 sec
+	}
+
+	if (eventsSend >= MAX_ENTITY_EVENTS_PER_SEC) {
+		nextSendEventTime = gameLocal.time + 1000;
+	}
+	gameLocal.serverEventsCount++;
 }
 
 /*
@@ -5657,6 +5680,13 @@ void idAnimatedEntity::AddDamageEffect( const trace_t &collision, const idVec3 &
 		return;
 	}
 
+	// avoid ugly crash in coop
+	if (gameLocal.mpGame.IsGametypeCoopBased() && (FLOAT_IS_NAN(collision.c.point.x) || FLOAT_IS_NAN(collision.c.point.y) ||
+		FLOAT_IS_NAN(collision.c.point.z) || FLOAT_IS_NAN(collision.c.normal.x) || FLOAT_IS_NAN(collision.c.normal.y) || FLOAT_IS_NAN(collision.c.normal.z))) {
+		common->Warning("[COOP FATAL] NAN Float at idAnimatedEntity::AddDamageEffect\n");
+		return;
+	}
+
 	const idDeclEntityDef *def = gameLocal.FindEntityDef( damageDefName, false );
 	if ( def == NULL ) {
 		return;
@@ -5670,7 +5700,7 @@ void idAnimatedEntity::AddDamageEffect( const trace_t &collision, const idVec3 &
 	dir = velocity;
 	dir.Normalize();
 
-	axis = renderEntity.joints[jointNum].ToMat3() * renderEntity.axis; //crash in coop for some random reason
+	axis = renderEntity.joints[jointNum].ToMat3() * renderEntity.axis;
 	origin = renderEntity.origin + renderEntity.joints[jointNum].ToVec3() * renderEntity.axis;
 
 	localOrigin = ( collision.c.point - origin ) * axis.Transpose();
@@ -5716,6 +5746,7 @@ void idAnimatedEntity::AddLocalDamageEffect( jointHandle_t jointNum, const idVec
 	damageEffect_t	*de;
 	idVec3 origin, dir;
 	idMat3 axis;
+	//crash here at renderEntity.joints[jointNum].ToMat3(). fix
 
 	axis = renderEntity.joints[jointNum].ToMat3() * renderEntity.axis;
 	origin = renderEntity.origin + renderEntity.joints[jointNum].ToVec3() * renderEntity.axis;
