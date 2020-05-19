@@ -5329,12 +5329,14 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	if (legsAnimId != currentLegsAnim ) {
 		animator.CycleAnim(ANIMCHANNEL_LEGS, legsAnimId, gameLocal.time, 2);
 	}
-	if (head.GetEntity() && currentHeadAnim != headAnimId) {
+	if (headEntityReceivedInfo && head.GetEntity() && currentHeadAnim != headAnimId) {
 		head.GetEntity()->GetAnimator()->CycleAnim(ANIMCHANNEL_ALL, headAnimId, gameLocal.time, 2);
 	}
 	currentTorsoAnim = torsoAnimId;
 	currentLegsAnim = legsAnimId;
-	currentHeadAnim = headAnimId;
+	if (headEntityReceivedInfo) {
+		currentHeadAnim = headAnimId;
+	}
 
 
 	if ( oldHealth > 0 && health <= 0 ) {
