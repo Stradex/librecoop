@@ -1477,12 +1477,28 @@ void idGameLocal::ClientProcessEntityNetworkEventQueue( void ) {
 		event = eventQueue.Start();
 
 		// only process forward, in order
+		
+		
 		if ( event->time > time ) {
 			break;
+		} 
+
+		if( !event->entity ) {
+			// if new entity exists in this position, silently ignore
+			gameLocal.DebugPrintf("FATAL: Receiving unkwown entity event\n");
+		} else {
+			eventMsg.Init( event->paramsBuf, sizeof( event->paramsBuf ) );
+			eventMsg.SetSize( event->paramsSize );
+			eventMsg.BeginReading();
+			if ( !event->entity->ClientReceiveEvent( event->event, event->time, eventMsg ) ) {
+				NetworkEventWarning( event, "unknown event" );
+			}
 		}
+		/*
 
 		idEntityPtr< idEntity > entPtr;
 
+		
 		if (mpGame.IsGametypeCoopBased() && (event->coopId >= 0)) {
 			if( !entPtr.SetCoopId( event->coopId ) ) {
 				if( !gameLocal.coopentities[ event->coopId & ( ( 1 << GENTITYNUM_BITS ) - 1 ) ] ) {
@@ -1522,7 +1538,7 @@ void idGameLocal::ClientProcessEntityNetworkEventQueue( void ) {
 			} else {
 				gameLocal.DebugPrintf("FATAL: Receiving unkwown entity event\n");
 			}
-		}
+		}*/
 
 
 
@@ -1757,8 +1773,17 @@ void idGameLocal::ClientProcessReliableMessage( int clientNum, const idBitMsg &m
 				event = eventQueue.Alloc();
 				eventQueue.Enqueue( event, idEventQueue::OUTOFORDER_IGNORE );
 
-				event->coopId = msg.ReadBits( 32 );
-				event->spawnId = msg.ReadBits( 32 ); //added for coop
+				int typeNum = msg.ReadBits( 32 );
+				int typeArrayIndex = msg.ReadBits( 32 );
+				event->entity = entitiesByType[typeNum][typeArrayIndex];
+				/*
+				if (entitiesByType[typeNum][typeArrayIndex]) {
+					event->spawnId = gameLocal.GetSpawnId(entitiesByType[typeNum][typeArrayIndex]);
+					event->coopId = gameLocal.GetCoopId(entitiesByType[typeNum][typeArrayIndex]);
+				} else {
+					event->spawnId = -1; //added for coop
+					event->coopId = -1;
+				}*/
 			
 				event->event = eventId;
 				event->time = eventTime;
@@ -2899,8 +2924,8 @@ int	idGameLocal::eventBufferDataBuildMsgPacket(eventBufferData_t &data, idBitMsg
 	outMsg.WriteInt(  gameLocal.time );
 	outMsg.WriteInt( data.eventBufferData.Num() ); //entities count
 	for (j=start,eventsToSend=0; j < data.eventBufferData.Num(); j++, eventsToSend++) {
-		outMsg.WriteBits( GetCoopId(data.eventBufferData[j].eventEnt), 32 );
-		outMsg.WriteBits( GetSpawnId(data.eventBufferData[j].eventEnt), 32 ); 
+		outMsg.WriteBits( data.eventBufferData[j].eventEnt->GetType()->typeNum, 32 );
+		outMsg.WriteBits( data.eventBufferData[j].eventEnt->entityTypeNumber, 32 );
 		outMsg.WriteBits( data.eventBufferData[j].paramsSize, idMath::BitsForInteger( MAX_EVENT_PARAM_SIZE ) );
 		if ( data.eventBufferData[j].paramsSize ) {
 			outMsg.WriteData( data.eventBufferData[j].paramsBuf, data.eventBufferData[j].paramsSize );
@@ -2915,15 +2940,16 @@ int	idGameLocal::eventBufferDataBuildMsgPacket(eventBufferData_t &data, idBitMsg
 		eventsToSend = 1; //ensure to send atleast one event
 
 	//END SILLY CODE
-	outMsg.Init( msgBuf, sizeof( msgBuf ) );
+	byte		newMsgBuf[MAX_GAME_MESSAGE_SIZE];
+	outMsg.Init( newMsgBuf, sizeof( newMsgBuf ) );
 	outMsg.BeginWriting();
 	outMsg.WriteByte( GAME_RELIABLE_MESSAGE_EVENTBUFFER ); //GAME_RELIABLE_MESSAGE_EVENTBUFFER new netcode
 	outMsg.WriteByte( data.eventId );
 	outMsg.WriteInt( gameLocal.time );
 	outMsg.WriteInt( eventsToSend ); //entities count
 	for (j=start; j < (eventsToSend+start); j++) {
-		outMsg.WriteBits( GetCoopId(data.eventBufferData[j].eventEnt), 32 );
-		outMsg.WriteBits( GetSpawnId(data.eventBufferData[j].eventEnt), 32 ); 
+		outMsg.WriteBits( data.eventBufferData[j].eventEnt->GetType()->typeNum, 32 );
+		outMsg.WriteBits( data.eventBufferData[j].eventEnt->entityTypeNumber, 32 );
 		outMsg.WriteBits( data.eventBufferData[j].paramsSize, idMath::BitsForInteger( MAX_EVENT_PARAM_SIZE ) );
 		if ( data.eventBufferData[j].paramsSize ) {
 			outMsg.WriteData( data.eventBufferData[j].paramsBuf, data.eventBufferData[j].paramsSize );
@@ -2955,6 +2981,7 @@ void idGameLocal::serverSendEventBuffer( void ) {
 		return;
 	}
 
+	int dataSent = 0;
 	for (i=0; i < gameLocal.serverEventsBuffer.Num(); i++) {
 
 		if ( gameLocal.serverEventsBuffer[i].saveEvent ) {
@@ -2970,10 +2997,14 @@ void idGameLocal::serverSendEventBuffer( void ) {
 			} else {
 				networkSystem->ServerSendReliableMessage( -1, outMsg );
 			}
+			dataSent+=outMsg.GetSize();
 			serverEventsCount++;
-			//gameLocal.DebugPrintf("Data size: %d, ammount readed: %d, entities: %d\n", outMsg.GetSize(), readAmount, gameLocal.serverEventsBuffer[i].eventBufferData.Num());
 		} while (readAmount < gameLocal.serverEventsBuffer[i].eventBufferData.Num());
 	}
+	if (serverEventsCount > 1) {
+		gameLocal.DebugPrintf("Sending events: %d - data size: %d\n", serverEventsCount, dataSent);
+	}
+	serverEventsCount = 0;
 }
 
 /*

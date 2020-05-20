@@ -55,9 +55,10 @@ const int MAX_SORT_ITERATIONS	= 7500; //COOP: added by stradex. Iterations per p
 const int MAX_SERVER_EVENTS_PER_FRAME = 15; //COOP: May the limit could be higher but shouldn't be necessary, I prefer a bit of desync over events overflow.
 const int SERVER_EVENTS_QUEUE_SIZE = 256; //Added to avoid events overflow by server
 const int MAX_SERVER_EVENTS_TOTAL = 256; //Added for new server events netcode
-const int EVENT_BUFFER_BLOCKSIZE = 512; //Max size of bits per msg
+const int EVENT_BUFFER_BLOCKSIZE = 128; //Max size of bits per msg
 const int SERVER_EVENT_NONE = -999; //Added to avoid events overflow by server
 const int SERVER_EVENT_OVERFLOW_WAIT = 7; //How many frames to wait in case of server event overflow
+const int MAX_CLASS_TYPES = 512; //added by Stradex
 
 /*
 ===============================================================================
@@ -159,6 +160,7 @@ enum {
 typedef struct entityNetEvent_s {
 	int						spawnId;
 	int						coopId; //added for coop by stradex
+	idEntity*				entity; //added by stradex for new netcode
 	int						event;
 	int						time;
 	int						paramsSize;
@@ -327,6 +329,9 @@ public:
 	idDict					persistentLevelInfo;	// contains args that are kept around between levels
 
 	//start: stradex for coop netcode
+	int						firstFreeByClassIndex[MAX_CLASS_TYPES];		// first free index in the entities array for clientsideEntities
+	idEntity *				entitiesByType[MAX_CLASS_TYPES][MAX_GENTITIES];	//For coop new netcode
+
 	int						firstFreeCoopIndex;			// first free index in the entities array for coop
 	int						firstFreeCsIndex;		// first free index in the entities array for clientsideEntities
 	int						firstFreeTargetIndex;	// first free index in the targetentities array
@@ -510,6 +515,7 @@ public:
 	void					RegisterEntity( idEntity *ent );
 	void					RegisterCoopEntity( idEntity *ent ); //added by Stradex for coop
 	void					RegisterTargetEntity( idEntity *ent ); //added by Stradex for coop
+	void					RegisterEntityByClass( idEntity *ent ); //added by Stradex for new coop netcode
 	void					UnregisterEntity( idEntity *ent );
 
 	bool					RequirementMet( idEntity *activator, const idStr &requires, int removeItem );
