@@ -5062,6 +5062,19 @@ idEntity::Event_SetNetShaderParm
 */
 void idEntity::Event_SetNetShaderParm( int parmnum, float value ) {
 	SetShaderParm( parmnum, value ); //FIXME Stradex: NetSync this later
+
+	if ( gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased() ) {
+		idBitMsg	msg;
+		byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+
+		msg.Init( msgBuf, sizeof( msgBuf ) );
+		msg.BeginWriting();
+		msg.WriteInt( parmnum );
+		msg.WriteFloat(value);
+		ServerSendEvent( EVENT_SETNETSHADERPARM, &msg, true, -1, true );
+	}
+
+	SetShaderParm( parmnum, value );
 }
 
 /*
@@ -5072,7 +5085,7 @@ idEntity::Event_StartNetSoundShader
 void idEntity::Event_StartNetSoundShader( const char *soundName, int channel, int netSync ) {
 	int length;
 
-	StartSoundShader( declManager->FindSound( soundName ), (s_channelType)channel, netSync, false, &length );
+	StartSoundShader( declManager->FindSound( soundName ), (s_channelType)channel, 0, (netSync != 0), &length );
 	idThread::ReturnFloat( MS2SEC( length ) );
 }
 
@@ -5425,6 +5438,22 @@ bool idEntity::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 		case EVENT_ACTIVATE_TARGETS: {
 			ActivateTargets(this);
 			return true;
+		}
+		case EVENT_SETNETSHADERPARM: {
+			int parmnum = msg.ReadInt();
+			float value = msg.ReadFloat();
+			SetShaderParm( parmnum, value ); 
+			return true;
+		}
+		case EVENT_SETGUIPARM: {
+
+			char guiKey[(MAX_EVENT_PARAM_SIZE/2)];
+			char guiVal[(MAX_EVENT_PARAM_SIZE/2)];
+			msg.ReadString( guiKey, (MAX_EVENT_PARAM_SIZE/2) );
+			msg.ReadString( guiVal, (MAX_EVENT_PARAM_SIZE/2) );
+			Event_SetGuiParm(guiKey, guiVal);
+
+			gameLocal.DebugPrintf("Receiving EVENT_SETGUIPARM: %s - %s\n", guiKey, guiVal);
 		}
 		default:
 			break;

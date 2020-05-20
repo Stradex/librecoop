@@ -796,6 +796,11 @@ idInventory::AddPickupName
 void idInventory::AddPickupName( const char *name, const char *icon ) {
 	int num;
 
+	if (!name && gameLocal.mpGame.IsGametypeCoopBased()) {
+		return; //avoid possible crash in coop (rbdoom3bfg librecoop)
+	}
+
+
 	num = pickupItemNames.Num();
 	if ( ( num == 0 ) || ( pickupItemNames[ num - 1 ].name.Icmp( name ) != 0 ) ) {
 		idItemInfo &info = pickupItemNames.Alloc();

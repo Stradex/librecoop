@@ -1523,6 +1523,8 @@ void idAnimated::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 CLASS_DECLARATION( idEntity, idStaticEntity )
 	EVENT( EV_Activate,				idStaticEntity::Event_Activate )
 	EVENT( EV_Remove,				idStaticEntity::Event_Remove ) //added for coop
+	EVENT( EV_Hide,					idStaticEntity::Event_Hide )
+	EVENT( EV_Show,					idStaticEntity::Event_Show )
 END_CLASS
 
 /*
@@ -1539,6 +1541,7 @@ idStaticEntity::idStaticEntity( void ) {
 	fadeEnd	= 0;
 	runGui = false;
 	canBeCsTarget = true;
+	eventSyncVital = false; //to avoid overflow! (this could be a problem, needs testing)
 }
 
 /*
@@ -1853,11 +1856,13 @@ bool idStaticEntity::ClientReceiveEvent( int event, int time, const idBitMsg &ms
 		}
 		case EVENT_STATIC_HIDE: {
 			Event_Hide();
+			UpdateVisuals();
 			gameLocal.DebugPrintf("%s receiving hide...\n", GetName());
 			return true;
 		}
 		case EVENT_STATIC_SHOW: {
 			Event_Show();
+			UpdateVisuals();
 			gameLocal.DebugPrintf("%s receiving show...\n", GetName());
 			return true;
 		}
