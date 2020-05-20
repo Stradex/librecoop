@@ -54,6 +54,8 @@ If you have questions concerning this license or the applicable additional terms
 const int MAX_SORT_ITERATIONS	= 7500; //COOP: added by stradex. Iterations per player by the server
 const int MAX_SERVER_EVENTS_PER_FRAME = 15; //COOP: May the limit could be higher but shouldn't be necessary, I prefer a bit of desync over events overflow.
 const int SERVER_EVENTS_QUEUE_SIZE = 256; //Added to avoid events overflow by server
+const int MAX_SERVER_EVENTS_TOTAL = 256; //Added for new server events netcode
+const int EVENT_BUFFER_BLOCKSIZE = 512; //Max size of bits per msg
 const int SERVER_EVENT_NONE = -999; //Added to avoid events overflow by server
 const int SERVER_EVENT_OVERFLOW_WAIT = 7; //How many frames to wait in case of server event overflow
 
@@ -120,34 +122,6 @@ typedef struct snapshot_s {
 
 const int MAX_EVENT_PARAM_SIZE		= 128;
 
-typedef struct entityNetEvent_s {
-	int						spawnId;
-	int						coopId; //added for coop by stradex
-	int						event;
-	int						time;
-	int						paramsSize;
-	byte					paramsBuf[MAX_EVENT_PARAM_SIZE];
-	struct entityNetEvent_s	*next;
-	struct entityNetEvent_s *prev;
-} entityNetEvent_t;
-
-typedef struct serverEvent_s { //added for coop to avoid events overflow 
-	int							eventId;
-	idBitMsg					msg;
-	bool						saveEvent;
-	int							excludeClient;
-	int							eventTime;
-	idEntity*					eventEnt;
-	bool						isEventType;
-	bool						saveLastOnly; //added by stradex for coop
-	struct entityNetEvent_s		*event;
-}serverEvent_t;
-
-typedef struct snapshotsort_context_s {
-	int clientNum;
-} snapshotsort_context_s;
-
-
 enum {
 	GAME_RELIABLE_MESSAGE_INIT_DECL_REMAP,
 	GAME_RELIABLE_MESSAGE_REMAP_DECL,
@@ -179,9 +153,78 @@ enum {
 	GAME_RELIABLE_MESSAGE_GOTOCHECKPOINT,
 	GAME_RELIABLE_MESSAGE_GLOBALCHECKPOINT,
 	GAME_RELIABLE_MESSAGE_NOCLIP,
-	SERVER_RELIABLE_MESSAGE_SKILL, //Dirty hack
-	GAME_RELIABLE_MESSAGE_ACTIVATE_TARGET //Coop stuff testing
+	GAME_RELIABLE_MESSAGE_EVENTBUFFER, //for new netcode
 };
+
+typedef struct entityNetEvent_s {
+	int						spawnId;
+	int						coopId; //added for coop by stradex
+	int						event;
+	int						time;
+	int						paramsSize;
+	byte					paramsBuf[MAX_EVENT_PARAM_SIZE];
+	struct entityNetEvent_s	*next;
+	struct entityNetEvent_s *prev;
+} entityNetEvent_t;
+
+typedef struct serverEvent_t { //added for coop to avoid events overflow 
+	int							eventId;
+	idBitMsg					msg;
+	bool						saveEvent;
+	int							excludeClient;
+	int							eventTime;
+	idEntity*					eventEnt;
+	bool						isEventType;
+	bool						saveLastOnly; //added by stradex for coop
+	struct entityNetEvent_s		*event;
+}serverEvent_t;
+
+typedef struct eventBufferElem_s { //added for coop for server events optimizations
+	idBitMsg					msg;
+	int							paramsSize; //TESTING
+	byte						paramsBuf[MAX_EVENT_PARAM_SIZE]; //TESTING
+	idEntity*					eventEnt;
+}eventBufferElem_t;
+
+struct eventBufferData_t { //added for coop for server events optimizations
+	int							eventId;
+	bool						saveEvent;
+	bool						saveLastOnly;
+	int							excludeClient;
+	idList<eventBufferElem_t>	eventBufferData;
+
+ // assignment operator modifies object, therefore non-const
+    eventBufferData_t& operator=(const eventBufferData_t& a)
+    {
+		eventId = a.eventId;
+		saveEvent = a.saveEvent;
+		saveLastOnly = a.saveLastOnly;
+		excludeClient = a.excludeClient;
+		eventBufferData = a.eventBufferData; //thanks ID for idList 
+        return *this;
+    }
+
+    // equality comparison. doesn't modify object. therefore const.
+    bool operator==(const eventBufferData_t& a) const
+    {
+		return (eventId == a.eventId && saveEvent == a.saveEvent && saveLastOnly == a.saveLastOnly && excludeClient == excludeClient);
+    }
+
+	int getMsgSize(void) {
+		int msgSize = eventBufferData.Num()*8 + 1 + 4; //ugly shitty hack, 8 bytes per entity, 1 byte + 4 bytes extra for the final message.
+		for (int i=0; i < eventBufferData.Num(); i++) {
+			msgSize += eventBufferData[i].msg.GetSize();
+		}
+		return msgSize;
+	}
+
+};
+
+
+typedef struct snapshotsort_context_s {
+	int clientNum;
+} snapshotsort_context_s;
+
 
 typedef enum {
 	GAMESTATE_UNINITIALIZED,		// prior to Init being called
@@ -297,6 +340,15 @@ public:
 	int						serverEventsCount;				//just to debug delete later
 	int						clientEventsCount;				//just to debug, delete later
 	bool					isRestartingMap;				//added for coop to fix a script bug after serverMapRestart
+	
+	idList<eventBufferData_t>	serverEventsBuffer;			//added for coop new netcode for server events
+	void						addToServerEventBuffer(int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient, int eventTime, idEntity* ent, bool saveLastOnly); //new netcode optimization
+	void						serverSendEventBuffer( void ); //new netcode optimization
+	idList<eventBufferData_t>	savedEventsBufferQueue;//new netcode optimization
+	void						SaveNetworkEventBuffer( eventBufferData_t eventBufferToSave ); //COOP: added saveLastOnly
+	int							eventBufferDataBuildMsgPacket(eventBufferData_t &data, idBitMsg &out, int maxMsgSize, bool removeAlreadySend=true, int start=0);
+
+
 	serverEvent_t			serverOverflowEvents[SERVER_EVENTS_QUEUE_SIZE]; //To avoid server reliabe messages overflow
 	void					addToServerEventOverFlowList(int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient, int eventTime, idEntity* ent, bool saveLastOnly=false); //To avoid server reliabe messages overflow
 	void					addToServerEventOverFlowList(entityNetEvent_t* event, int clientNum); //To avoid server reliabe messages overflow

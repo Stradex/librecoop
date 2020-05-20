@@ -1523,6 +1523,8 @@ void idAnimated::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 CLASS_DECLARATION( idEntity, idStaticEntity )
 	EVENT( EV_Activate,				idStaticEntity::Event_Activate )
 	EVENT( EV_Remove,				idStaticEntity::Event_Remove ) //added for coop
+	EVENT( EV_Hide,					idStaticEntity::Event_Hide )
+	EVENT( EV_Show,					idStaticEntity::Event_Show )
 END_CLASS
 
 /*
@@ -1539,6 +1541,7 @@ idStaticEntity::idStaticEntity( void ) {
 	fadeEnd	= 0;
 	runGui = false;
 	canBeCsTarget = true;
+	eventSyncVital = false; //to avoid overflow! (this could be a problem, needs testing)
 }
 
 /*
@@ -1794,6 +1797,7 @@ idStaticEntity::Event_Remove
 ================
 */
 void idStaticEntity::Event_Remove( void ) {
+
 	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
 		ServerSendEvent( EVENT_STATIC_REMOVE, NULL, true, -1 );
 	}
@@ -1806,6 +1810,7 @@ idStaticEntity::Event_Hide
 ================
 */
 void idStaticEntity::Event_Hide( void ) {
+
 	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
 		ServerSendEvent( EVENT_STATIC_HIDE, NULL, true, -1 , true);
 	}
@@ -1819,7 +1824,8 @@ idStaticEntity::Event_Show
 ================
 */
 void idStaticEntity::Event_Show( void ) {
-	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
 		ServerSendEvent( EVENT_STATIC_SHOW, NULL, true, -1 , true);
 	}
 	Show();
@@ -1854,11 +1860,13 @@ bool idStaticEntity::ClientReceiveEvent( int event, int time, const idBitMsg &ms
 		case EVENT_STATIC_HIDE: {
 			Event_Hide();
 			gameLocal.DebugPrintf("%s receiving hide...\n", GetName());
+			UpdateVisuals();
 			return true;
 		}
 		case EVENT_STATIC_SHOW: {
 			Event_Show();
 			gameLocal.DebugPrintf("%s receiving show...\n", GetName());
+			UpdateVisuals();
 			return true;
 		}
 		default:

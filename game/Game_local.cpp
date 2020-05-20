@@ -270,6 +270,7 @@ void idGameLocal::Clear( void ) {
 	}
 	overflowEventCountdown=0;
 	clientsideTime = 0;
+	serverEventsBuffer.Clear(); //this is the best thing ever
 	//end for coop
 
 	memset( clientEntityStates, 0, sizeof( clientEntityStates ) );
@@ -1121,6 +1122,11 @@ void idGameLocal::LocalMapRestart( ) {
 			if ((ent == world) || ent->IsType(idPlayer::Type)) {
 				continue; //ignore the world entity, of course.
 			}
+
+			if (!idStr::Icmp(ent->GetName(), "teleporter1_controlpanel_gui")) {
+				gameLocal.DebugPrintf("Entity %s, defname: %s, classname: %s\n", ent->GetName(), ent->GetEntityDefName(), ent->GetClassname());
+			}
+
 			if (!ent->findTargetsAlreadyCalled) {
 				ent->Call_FindTargets();
 			}
@@ -2492,13 +2498,6 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 		realClientTime = time;
 		clientsideTime = time;
 		
-		//COOP DEBUG
-		//serverEventsCount=0;
-		if (mpGame.IsGametypeCoopBased()) {
-			sendServerOverflowEvents();
-		}
-		//END COOP DEBUG
-
 #ifdef GAME_DLL
 		// allow changing SIMD usage on the fly
 		if ( com_forceGenericSIMD.IsModified() ) {
@@ -2619,6 +2618,15 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 			mpGame.Run();
 		}
 
+			//COOP DEBUG
+		//serverEventsCount=0;
+		if (mpGame.IsGametypeCoopBased()  && gameLocal.isServer) {
+			serverSendEventBuffer();
+			serverEventsBuffer.Clear();
+			sendServerOverflowEvents();
+		}
+		//END COOP DEBUG
+
 		// display how long it took to calculate the current game frame
 		if ( g_frametime.GetBool() ) {
 			Printf( "game %d: all:%u th:%u ev:%u %d ents \n",
@@ -2668,7 +2676,6 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 	// show any debug info for this frame
 	RunDebugInfo();
 	D_DrawDebugLines();
-
 	return ret;
 }
 

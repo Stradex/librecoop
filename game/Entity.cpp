@@ -4717,6 +4717,7 @@ idEntity::Event_SetGuiParm
 ================
 */
 void idEntity::Event_SetGuiParm( const char *key, const char *val ) {
+	bool itWasFound = false;
 	for ( int i = 0; i < MAX_RENDERENTITY_GUI; i++ ) {
 		if ( renderEntity.gui[ i ] ) {
 			if ( idStr::Icmpn( key, "gui_", 4 ) == 0 ) {
@@ -4724,8 +4725,20 @@ void idEntity::Event_SetGuiParm( const char *key, const char *val ) {
 			}
 			renderEntity.gui[ i ]->SetStateString( key, val );
 			renderEntity.gui[ i ]->StateChanged( gameLocal.time );
+			itWasFound = true;
 		}
 	}
+
+	/*
+	if (gameLocal.mpGame.IsGametypeCoopBased() && itWasFound && gameLocal.isServer) {
+			idBitMsg	msg;
+			byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+
+			msg.Init( msgBuf, sizeof( msgBuf ) );
+			msg.WriteString( name, (MAX_EVENT_PARAM_SIZE/2) );
+			msg.WriteString( val, (MAX_EVENT_PARAM_SIZE/2) );
+			ServerSendEvent( EVENT_SETGUIPARM, &msg, true, -1, true);
+	}*/
 }
 
 /*
@@ -5061,7 +5074,19 @@ idEntity::Event_SetNetShaderParm
 ================
 */
 void idEntity::Event_SetNetShaderParm( int parmnum, float value ) {
-	SetShaderParm( parmnum, value ); //FIXME Stradex: NetSync this later
+
+	if ( gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased() ) {
+		idBitMsg	msg;
+		byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+
+		msg.Init( msgBuf, sizeof( msgBuf ) );
+		msg.BeginWriting();
+		msg.WriteInt( parmnum );
+		msg.WriteFloat(value);
+		ServerSendEvent( EVENT_SETNETSHADERPARM, &msg, true, -1, true );
+	}
+
+	SetShaderParm( parmnum, value );
 }
 
 /*
@@ -5072,7 +5097,7 @@ idEntity::Event_StartNetSoundShader
 void idEntity::Event_StartNetSoundShader( const char *soundName, int channel, int netSync ) {
 	int length;
 
-	StartSoundShader( declManager->FindSound( soundName ), (s_channelType)channel, netSync, false, &length );
+	StartSoundShader( declManager->FindSound( soundName ), (s_channelType)channel, 0, (netSync != 0), &length );
 	idThread::ReturnFloat( MS2SEC( length ) );
 }
 
@@ -5256,6 +5281,7 @@ idEntity::ServerSendEvent
 void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient , bool saveLastOnly) {
 	idBitMsg	outMsg;
 	byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
+	int			i;
 
 	if ( !gameLocal.isServer ) {
 		return;
@@ -5270,23 +5296,39 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 		return;
 	}
 
-	if (gameLocal.time >= nextResetEventCountTime) {
-		eventsSend = 0;
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+
+		if (gameLocal.time >= nextResetEventCountTime) {
+			eventsSend = 0;
+		}
+
+		if (!eventSyncVital && gameLocal.time <= nextSendEventTime) { //to avoid overflow in case of non-vital entities sending an event in loop
+			return;
+		}
+
+		eventsSend++;
+
+		if (eventsSend == 1) {
+			nextResetEventCountTime = gameLocal.time + 1000; //1 sec
+		}
+
+		if (eventsSend >= MAX_ENTITY_EVENTS_PER_SEC) {
+			nextSendEventTime = gameLocal.time + 1000;
+		}
+
+			return gameLocal.addToServerEventBuffer(eventId, msg, saveEvent, excludeClient, gameLocal.time, this, saveLastOnly); //Muahahah
+
+	
 	}
-
-	if (!eventSyncVital && gameLocal.time <= nextSendEventTime) { //to avoid overflow in case of non-vital entities sending an event in loop
-		return;
-	}
-
-
-	if (eventId == EVENT_ACTIVATE_TARGETS) {
-		gameLocal.DebugPrintf("Sending EVENT_ACTIVATE_TARGETS\n");
-	}
-
+	//for (i=0; i < gameLocal.serverEventsBuffer
+	/*
 	if ((gameLocal.serverEventsCount >= MAX_SERVER_EVENTS_PER_FRAME) && gameLocal.mpGame.IsGametypeCoopBased()) {
 		gameLocal.addToServerEventOverFlowList(eventId, msg, saveEvent, excludeClient, gameLocal.time, this, saveLastOnly); //Avoid serverSendEvent overflow in coop
 		return;
-	}
+	}*/
+
+	//EDIT FOR CODE: Make this in a way where many events can be agrouped in a single event to avoid event overflow. Coniditions
+	// DO THIS AND LIBRECOOP IS GOING TO BE THE BEST THING EVER
 
 	outMsg.Init( msgBuf, sizeof( msgBuf ) );
 	outMsg.BeginWriting();
@@ -5317,15 +5359,6 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 		gameLocal.SaveEntityNetworkEvent( this, eventId, msg , saveLastOnly);
 	}
 
-	eventsSend++;
-
-	if (eventsSend == 1) {
-		nextResetEventCountTime = gameLocal.time + 1000; //1 sec
-	}
-
-	if (eventsSend >= MAX_ENTITY_EVENTS_PER_SEC) {
-		nextSendEventTime = gameLocal.time + 1000;
-	}
 	gameLocal.serverEventsCount++;
 }
 
@@ -5425,6 +5458,22 @@ bool idEntity::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 		case EVENT_ACTIVATE_TARGETS: {
 			ActivateTargets(this);
 			return true;
+		}
+		case EVENT_SETNETSHADERPARM: {
+			int parmnum = msg.ReadInt();
+			float value = msg.ReadFloat();
+			SetShaderParm( parmnum, value ); 
+			return true;
+		}
+		case EVENT_SETGUIPARM: {
+
+			char guiKey[(MAX_EVENT_PARAM_SIZE/2)];
+			char guiVal[(MAX_EVENT_PARAM_SIZE/2)];
+			msg.ReadString( guiKey, (MAX_EVENT_PARAM_SIZE/2) );
+			msg.ReadString( guiVal, (MAX_EVENT_PARAM_SIZE/2) );
+			Event_SetGuiParm(guiKey, guiVal);
+
+			gameLocal.DebugPrintf("Receiving EVENT_SETGUIPARM: %s - %s\n", guiKey, guiVal);
 		}
 		default:
 			break;

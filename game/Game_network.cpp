@@ -88,6 +88,7 @@ void idGameLocal::InitAsyncNetwork( void ) {
 
 	eventQueue.Init();
 	savedEventQueue.Init();
+	savedEventsBufferQueue.Clear(); //new netcode
 
 	entityDefBits = -( idMath::BitsForInteger( declManager->GetNumDecls( DECL_ENTITYDEF ) ) + 1 );
 	localClientNum = 0; // on a listen server SetLocalUser will set this right
@@ -106,6 +107,7 @@ void idGameLocal::ShutdownAsyncNetwork( void ) {
 	snapshotAllocator.Shutdown();
 	eventQueue.Shutdown();
 	savedEventQueue.Shutdown();
+	savedEventsBufferQueue.Clear(); //new netcode
 	memset( clientEntityStates, 0, sizeof( clientEntityStates ) );
 	memset( clientPVS, 0, sizeof( clientPVS ) );
 	memset( clientSnapshots, 0, sizeof( clientSnapshots ) );
@@ -458,6 +460,17 @@ void idGameLocal::ServerWriteInitialReliableMessages( int clientNum ) {
 		}
 		
 		networkSystem->ServerSendReliableMessage( clientNum, outMsg );
+	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) { //new netcode queue
+		for (i=0; i < savedEventsBufferQueue.Num(); i++) {
+			int readAmount=0;
+			do {
+				readAmount = gameLocal.eventBufferDataBuildMsgPacket(savedEventsBufferQueue[i], outMsg, EVENT_BUFFER_BLOCKSIZE, false, readAmount);
+				networkSystem->ServerSendReliableMessage(clientNum, outMsg);
+				serverEventsCount++;
+			} while (readAmount < savedEventsBufferQueue[i].eventBufferData.Num());
+		}
 	}
 
 	// send all saved events
@@ -1027,7 +1040,6 @@ void idGameLocal::ServerProcessReliableMessage( int clientNum, const idBitMsg &m
 			mpGame.WantNoClip(clientNum);
 			break;
 		}
-
 		default: {
 			Warning( "Unknown client->server reliable message: %d", id );
 			break;
@@ -1460,6 +1472,7 @@ void idGameLocal::ClientProcessEntityNetworkEventQueue( void ) {
 	entityNetEvent_t	*event;
 	idBitMsg			eventMsg;
 
+	
 	while( eventQueue.Start() ) {
 		event = eventQueue.Start();
 
@@ -1496,7 +1509,7 @@ void idGameLocal::ClientProcessEntityNetworkEventQueue( void ) {
 					// if new entity exists in this position, silently ignore
 					NetworkEventWarning( event, "Entity does not exist any longer, or has not been spawned yet." );
 				}
-			} else {
+			} else if (entPtr.GetEntity()) {
 				ent = entPtr.GetEntity();
 				assert( ent ); //crash here FIX
 
@@ -1506,6 +1519,8 @@ void idGameLocal::ClientProcessEntityNetworkEventQueue( void ) {
 				if ( !ent->ClientReceiveEvent( event->event, event->time, eventMsg ) ) {
 					NetworkEventWarning( event, "unknown event" );
 				}
+			} else {
+				gameLocal.DebugPrintf("FATAL: Receiving unkwown entity event\n");
 			}
 		}
 
@@ -1728,10 +1743,35 @@ void idGameLocal::ClientProcessReliableMessage( int clientNum, const idBitMsg &m
 			mpGame.ClientReadWarmupTime( msg );
 			break;
 		}
-		case GAME_RELIABLE_MESSAGE_ACTIVATE_TARGET: {
-			int targetEntity = msg.ReadInt();
-			if (gameLocal.targetentities[targetEntity]) {
-				gameLocal.targetentities[targetEntity]->ActivateTargets(gameLocal.targetentities[targetEntity]);
+		case GAME_RELIABLE_MESSAGE_EVENTBUFFER: {
+			int i;
+			int eventId =  msg.ReadByte();
+			int eventTime = msg.ReadInt();
+			int eventsCount = msg.ReadInt();
+
+			for (i=0; i < eventsCount; i++) {
+
+				entityNetEvent_t *event;
+
+				// allocate new event
+				event = eventQueue.Alloc();
+				eventQueue.Enqueue( event, idEventQueue::OUTOFORDER_IGNORE );
+
+				event->coopId = msg.ReadBits( 32 );
+				event->spawnId = msg.ReadBits( 32 ); //added for coop
+			
+				event->event = eventId;
+				event->time = eventTime;
+
+				event->paramsSize = msg.ReadBits( idMath::BitsForInteger( MAX_EVENT_PARAM_SIZE ) );
+				if ( event->paramsSize ) {
+					if ( event->paramsSize > MAX_EVENT_PARAM_SIZE ) {
+						NetworkEventWarning( event, "invalid param size" );
+						return;
+					}
+					msg.ReadByteAlign();
+					msg.ReadData( event->paramsBuf, event->paramsSize );
+				}
 			}
 			break;
 		}
@@ -2817,6 +2857,160 @@ void idGameLocal::addToServerEventOverFlowList(entityNetEvent_t* event, int clie
 	common->Warning("[COOP] No free slot for serverOverflowEvents\n");
 }
 
+
+void idGameLocal::SaveNetworkEventBuffer( eventBufferData_t eventBufferToSave ) {
+	int i, j, k;
+
+	if (eventBufferToSave.saveLastOnly) {
+		for (i=0; i < savedEventsBufferQueue.Num(); i++) {
+			if (eventBufferToSave == savedEventsBufferQueue[i]) { //same kind of event, but let's manually check entities
+				for (j=0; j < savedEventsBufferQueue[i].eventBufferData.Num(); j++) {
+				for (k=0; k < eventBufferToSave.eventBufferData.Num(); k++) {
+					if (eventBufferToSave.eventBufferData[k].eventEnt->entityNumber == savedEventsBufferQueue[i].eventBufferData[j].eventEnt->entityNumber) {
+						savedEventsBufferQueue[i].eventBufferData[j].msg = eventBufferToSave.eventBufferData[k].msg; //update msg data as save last only intendeed.
+						eventBufferToSave.eventBufferData.RemoveIndex(k);
+					}
+				}
+				}
+			}
+		}
+	}
+	if (eventBufferToSave.eventBufferData.Num() > 0) {
+		savedEventsBufferQueue.Append(eventBufferToSave);
+	}
+}
+
+/*
+===============
+idGameLocal::eventBufferDataBuildMsgPacket
+===============
+*/
+
+int	idGameLocal::eventBufferDataBuildMsgPacket(eventBufferData_t &data, idBitMsg &out, int maxMsgSize, bool removeAlreadySend, int start) {
+	idBitMsg	outMsg;
+	byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
+	int j, eventsToSend;
+
+	//START SILLY CODE, DO A BETTER VERSION WHEN YOU FEEL YOUR BRAIN IS WORKING BETTER
+	outMsg.Init( msgBuf, sizeof( msgBuf ) );
+	outMsg.BeginWriting();
+	outMsg.WriteByte( GAME_RELIABLE_MESSAGE_EVENTBUFFER ); //GAME_RELIABLE_MESSAGE_EVENTBUFFER new netcode
+	outMsg.WriteByte( data.eventId );
+	outMsg.WriteInt(  gameLocal.time );
+	outMsg.WriteInt( data.eventBufferData.Num() ); //entities count
+	for (j=start,eventsToSend=0; j < data.eventBufferData.Num(); j++, eventsToSend++) {
+		outMsg.WriteBits( GetCoopId(data.eventBufferData[j].eventEnt), 32 );
+		outMsg.WriteBits( GetSpawnId(data.eventBufferData[j].eventEnt), 32 ); 
+		outMsg.WriteBits( data.eventBufferData[j].paramsSize, idMath::BitsForInteger( MAX_EVENT_PARAM_SIZE ) );
+		if ( data.eventBufferData[j].paramsSize ) {
+			outMsg.WriteData( data.eventBufferData[j].paramsBuf, data.eventBufferData[j].paramsSize );
+		}
+
+		if (outMsg.GetSize() >= maxMsgSize) { //ensure to send atleast info from one entity
+			break;
+		}
+	}
+
+	if (eventsToSend == 0)
+		eventsToSend = 1; //ensure to send atleast one event
+
+	//END SILLY CODE
+	outMsg.Init( msgBuf, sizeof( msgBuf ) );
+	outMsg.BeginWriting();
+	outMsg.WriteByte( GAME_RELIABLE_MESSAGE_EVENTBUFFER ); //GAME_RELIABLE_MESSAGE_EVENTBUFFER new netcode
+	outMsg.WriteByte( data.eventId );
+	outMsg.WriteInt( gameLocal.time );
+	outMsg.WriteInt( eventsToSend ); //entities count
+	for (j=start; j < (eventsToSend+start); j++) {
+		outMsg.WriteBits( GetCoopId(data.eventBufferData[j].eventEnt), 32 );
+		outMsg.WriteBits( GetSpawnId(data.eventBufferData[j].eventEnt), 32 ); 
+		outMsg.WriteBits( data.eventBufferData[j].paramsSize, idMath::BitsForInteger( MAX_EVENT_PARAM_SIZE ) );
+		if ( data.eventBufferData[j].paramsSize ) {
+			outMsg.WriteData( data.eventBufferData[j].paramsBuf, data.eventBufferData[j].paramsSize );
+		}
+	}
+
+	int numSent = j;
+	/*
+	if (removeAlreadySend) {
+		while (j-- > 0) {
+			data.eventBufferData.RemoveIndex(0); //remove the elements already readed
+		}
+	}*/
+
+	out = outMsg;
+	return numSent;
+}
+
+/*
+===============
+idGameLocal::serverSendEventBuffer
+===============
+*/
+
+void idGameLocal::serverSendEventBuffer( void ) {
+	int			i, j;
+
+	if ( !gameLocal.isServer ) {
+		return;
+	}
+
+	for (i=0; i < gameLocal.serverEventsBuffer.Num(); i++) {
+
+		if ( gameLocal.serverEventsBuffer[i].saveEvent ) {
+			gameLocal.SaveNetworkEventBuffer(gameLocal.serverEventsBuffer[i]); 
+		}
+
+		int readAmount=0;
+		do {
+			idBitMsg	outMsg;
+			readAmount = gameLocal.eventBufferDataBuildMsgPacket(gameLocal.serverEventsBuffer[i], outMsg, EVENT_BUFFER_BLOCKSIZE, false, readAmount);
+			if ( gameLocal.serverEventsBuffer[i].excludeClient != -1 ) {
+				networkSystem->ServerSendReliableMessageExcluding( gameLocal.serverEventsBuffer[i].excludeClient, outMsg );
+			} else {
+				networkSystem->ServerSendReliableMessage( -1, outMsg );
+			}
+			serverEventsCount++;
+			//gameLocal.DebugPrintf("Data size: %d, ammount readed: %d, entities: %d\n", outMsg.GetSize(), readAmount, gameLocal.serverEventsBuffer[i].eventBufferData.Num());
+		} while (readAmount < gameLocal.serverEventsBuffer[i].eventBufferData.Num());
+	}
+}
+
+/*
+===============
+idGameLocal::addToServerEventOverFlowList
+===============
+*/
+void idGameLocal::addToServerEventBuffer(int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient, int eventTime, idEntity* ent, bool saveLastOnly)
+{
+	int i;
+	eventBufferData_t currentEvent;
+	eventBufferElem_t currentElem;
+
+	currentElem.eventEnt = ent;
+	if ( msg ) {
+		currentElem.paramsSize = msg->GetSize();
+		memcpy( currentElem.paramsBuf, msg->GetData(), msg->GetSize() );
+	} else {
+		currentElem.paramsSize = 0;
+	}
+
+	currentEvent.eventId = eventId;
+	currentEvent.excludeClient = excludeClient;
+	currentEvent.saveEvent = saveEvent;
+	currentEvent.saveLastOnly = saveLastOnly;
+	currentEvent.eventBufferData.Append(currentElem);
+
+	for (i=0; i < gameLocal.serverEventsBuffer.Num(); i++) {
+		if (gameLocal.serverEventsBuffer[i] == currentEvent) {
+			gameLocal.serverEventsBuffer[i].eventBufferData.Append(currentElem);
+			return;
+		}
+	}
+
+	gameLocal.serverEventsBuffer.Append(currentEvent);
+
+}
 
 /*
 ===============
