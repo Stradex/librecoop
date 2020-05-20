@@ -2837,7 +2837,12 @@ void idGameLocal::addToServerEventOverFlowList(int eventId, const idBitMsg *msg,
 		if (serverOverflowEvents[i].eventId == SERVER_EVENT_NONE) {
 			serverOverflowEvents[i].eventEnt = ent;
 			serverOverflowEvents[i].eventId = eventId;
-			serverOverflowEvents[i].msg = *msg;
+			if ( msg ) {
+				serverOverflowEvents[i].paramsSize = msg->GetSize();
+				memcpy( serverOverflowEvents[i].paramsBuf, msg->GetData(), msg->GetSize() );
+			} else {
+				serverOverflowEvents[i].paramsSize = 0;
+			}
 			serverOverflowEvents[i].saveEvent = saveEvent;
 			serverOverflowEvents[i].excludeClient = excludeClient;
 			serverOverflowEvents[i].saveLastOnly = saveLastOnly;
@@ -2920,11 +2925,9 @@ void idGameLocal::sendServerOverflowEvents( void )
 	
 		outMsg.WriteByte( serverOverflowEvents[i].eventId );
 		outMsg.WriteInt( gameLocal.time );
-		if ( &serverOverflowEvents[i].msg ) {
-			outMsg.WriteBits( (&serverOverflowEvents[i].msg)->GetSize(), idMath::BitsForInteger( MAX_EVENT_PARAM_SIZE ) );
-			outMsg.WriteData( (&serverOverflowEvents[i].msg)->GetData(), (&serverOverflowEvents[i].msg)->GetSize() );
-		} else {
-			outMsg.WriteBits( 0, idMath::BitsForInteger( MAX_EVENT_PARAM_SIZE ) );
+		outMsg.WriteBits( serverOverflowEvents[i].paramsSize, idMath::BitsForInteger( MAX_EVENT_PARAM_SIZE ) );
+		if ( serverOverflowEvents[i].paramsSize ) {
+			outMsg.WriteData( serverOverflowEvents[i].paramsBuf, serverOverflowEvents[i].paramsSize );
 		}
 
 		if ( serverOverflowEvents[i].excludeClient != -1 ) {
@@ -2932,9 +2935,14 @@ void idGameLocal::sendServerOverflowEvents( void )
 		} else {
 			networkSystem->ServerSendReliableMessage( -1, outMsg );
 		}
-
+		
 		if ( serverOverflowEvents[i].saveEvent ) {
-			gameLocal.SaveEntityNetworkEvent( serverOverflowEvents[i].eventEnt, serverOverflowEvents[i].eventId, &serverOverflowEvents[i].msg , serverOverflowEvents[i].saveLastOnly);
+			idBitMsg	saveMsg;
+			byte		tmpBuf[MAX_GAME_MESSAGE_SIZE];
+			saveMsg.Init( tmpBuf, sizeof( tmpBuf ) );
+			saveMsg.BeginWriting();
+			saveMsg.WriteData( serverOverflowEvents[i].paramsBuf, serverOverflowEvents[i].paramsSize );
+			gameLocal.SaveEntityNetworkEvent( serverOverflowEvents[i].eventEnt, serverOverflowEvents[i].eventId, &saveMsg , serverOverflowEvents[i].saveLastOnly);
 		}
 
 		}

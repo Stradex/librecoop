@@ -133,7 +133,8 @@ typedef struct entityNetEvent_s {
 
 typedef struct serverEvent_s { //added for coop to avoid events overflow 
 	int							eventId;
-	idBitMsg					msg;
+	int							paramsSize;
+	byte						paramsBuf[MAX_EVENT_PARAM_SIZE];
 	bool						saveEvent;
 	int							excludeClient;
 	int							eventTime;
