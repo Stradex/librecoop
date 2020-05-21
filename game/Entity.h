@@ -300,6 +300,7 @@ public:
 	bool					IsBoundToMover( void ) const; //added for coop netcode
 	void					Call_ConstructScriptObject( void ); //added by stradex to fix a bug at localMapRestart
 	void					Call_FindTargets( void ); //added by stradex to fix a bug at localMapRestart
+	int						GetUniqueID( void ); //added by stradex to see if I actually can fix the fucking netcode sync once for all
 
 	// physics
 							// set a new physics object to be used by this entity
@@ -432,10 +433,14 @@ private:
 
 	int						mpGUIState;							// local cache to avoid systematic SetStateInt
 
+	int						uniqueId;							//unique ID Generated for coop testing
+
 private:
 	void					FixupLocalizedStrings();
 
 	bool					DoDormantTests( void );				// dormant == on the active list, but out of PVS
+
+	void					CalculateUniqueID( void ); //added by stradex to see if I actually can fix the fucking netcode sync once for all
 
 	// physics
 							// initialize the default physics

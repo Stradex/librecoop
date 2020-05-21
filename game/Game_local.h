@@ -55,10 +55,10 @@ const int MAX_SORT_ITERATIONS	= 7500; //COOP: added by stradex. Iterations per p
 const int MAX_SERVER_EVENTS_PER_FRAME = 15; //COOP: May the limit could be higher but shouldn't be necessary, I prefer a bit of desync over events overflow.
 const int SERVER_EVENTS_QUEUE_SIZE = 256; //Added to avoid events overflow by server
 const int MAX_SERVER_EVENTS_TOTAL = 256; //Added for new server events netcode
-const int EVENT_BUFFER_BLOCKSIZE = 128; //Max size of bits per msg
+const int EVENT_BUFFER_BLOCKSIZE = 256; //Max size of bits per msg
 const int SERVER_EVENT_NONE = -999; //Added to avoid events overflow by server
 const int SERVER_EVENT_OVERFLOW_WAIT = 7; //How many frames to wait in case of server event overflow
-const int MAX_CLASS_TYPES = 512; //added by Stradex
+const int MAX_CLASS_TYPES = 142; //added by Stradex. Obtained using idClass:GetNumTypes()
 
 /*
 ===============================================================================
@@ -160,6 +160,8 @@ enum {
 typedef struct entityNetEvent_s {
 	int						spawnId;
 	int						coopId; //added for coop by stradex
+	int						entityIndex;
+	int						entityType;
 	idEntity*				entity; //added by stradex for new netcode
 	int						event;
 	int						time;
@@ -508,6 +510,7 @@ public:
 	bool					SpawnEntityDef( const idDict &args, idEntity **ent = NULL, bool setDefaults = true , bool bIsClientReadSnapshot = false ); //bIsClientReadSnapshot added by Stradex for DEBUG
 	int						GetSpawnId( const idEntity *ent ) const;
 	int						GetCoopId( const idEntity *ent ) const; //added by Stradex for coop
+	idEntity*				GetEntityByUniqueID( const int id); //added by Stradex for coop
 
 	const idDeclEntityDef *	FindEntityDef( const char *name, bool makeDefault = true ) const;
 	const idDict *			FindEntityDefDict( const char *name, bool makeDefault = true ) const;

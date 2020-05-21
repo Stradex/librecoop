@@ -188,10 +188,8 @@ void idGameLocal::Clear( void ) {
 	memset(targetentities, 0, sizeof(targetentities));
 	memset( spawnIds, -1, sizeof( spawnIds ) );
 	memset( coopIds, -1, sizeof( coopIds ) );
+	memset( entitiesByType, 0, sizeof( entitiesByType ) );
 
-	for (i=0; i < MAX_CLASS_TYPES; i++) {
-		memset(entitiesByType[i], 0, sizeof(entitiesByType[i])); //added for coop
-	}
 	firstFreeIndex = 0;
 	firstFreeCoopIndex = 0;  //added for coop
 	firstFreeTargetIndex = 0;  //added for coop
@@ -3332,6 +3330,12 @@ void idGameLocal::RegisterEntityByClass( idEntity *ent ) { ///change to Type in 
 		return;
 
 	int entTypeNum = ent->GetType()->typeNum;
+
+
+	if ( entTypeNum < 0 || entTypeNum >= MAX_CLASS_TYPES ) {
+		Error( "Invalid entity type num!" );
+	}
+
 	int class_entnum;
 
 	while( entitiesByType[entTypeNum][firstFreeByClassIndex[entTypeNum]] && firstFreeByClassIndex[entTypeNum]< ENTITYNUM_MAX_NORMAL ) {
@@ -3475,6 +3479,9 @@ void idGameLocal::UnregisterEntity( idEntity *ent ) {
 		}
 
 		if (mpGame.IsGametypeCoopBased()) {
+			if ( ent->entityTypeNumber >= MAX_CLIENTS && ent->entityTypeNumber < firstFreeByClassIndex[ent->GetType()->typeNum] ) {
+				firstFreeByClassIndex[ent->GetType()->typeNum] = ent->entityTypeNumber;
+			}
 			entitiesByType[ent->GetType()->typeNum][ent->entityTypeNumber] = NULL;
 			ent->entityTypeNumber = ENTITYNUM_NONE;
 		}
@@ -5034,4 +5041,20 @@ bool idGameLocal::isNPC(idEntity *ent ) const {
 	}
 
 	return entityTalks;
+}
+
+/*
+===============
+idGameLocal::GetEntityByUniqueID
+===============
+*/
+idEntity* idGameLocal::GetEntityByUniqueID( const int id ) {
+	idEntity *ent = NULL;
+	for( ent = gameLocal.spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next() ) {
+		if (id == ent->GetUniqueID()) {
+			return ent;
+		}
+	}
+
+	return NULL;
 }

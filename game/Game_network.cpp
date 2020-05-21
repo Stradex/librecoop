@@ -1764,18 +1764,45 @@ void idGameLocal::ClientProcessReliableMessage( int clientNum, const idBitMsg &m
 			int eventId =  msg.ReadByte();
 			int eventTime = msg.ReadInt();
 			int eventsCount = msg.ReadInt();
-
+			idEntity* tmpEnt;
 			for (i=0; i < eventsCount; i++) {
+
+
+				int typeNum = msg.ReadBits( idClass::GetTypeNumBits() );
+				int typeArrayIndex = msg.ReadBits( GENTITYNUM_BITS  );
+				int uniqueId = msg.ReadBits( 32  );
+				tmpEnt = GetEntityByUniqueID(uniqueId);
+
+				if (!tmpEnt || (tmpEnt && (!tmpEnt->spawnNode.Owner() || tmpEnt->GetType()->typeNum != typeNum || !tmpEnt->spawnNode.InList()))) {
+					tmpEnt = entitiesByType[typeNum][typeArrayIndex];
+					gameLocal.DebugPrintf( "UniqueID Failed, trying normal method...");
+				}
+
+				if ( !tmpEnt || (tmpEnt  && (!tmpEnt->spawnNode.Owner() || tmpEnt->GetType()->typeNum != typeNum || !tmpEnt->spawnNode.InList()))) {
+					gameLocal.DebugPrintf( "NET - Received invalid entity at GAME_RELIABLE_MESSAGE_EVENT!");
+					//read data so we can continue reading other entities
+					int tmpSize = msg.ReadBits( idMath::BitsForInteger( MAX_EVENT_PARAM_SIZE ));
+					if ( tmpSize ) {
+						if ( tmpSize > MAX_EVENT_PARAM_SIZE ) {
+							gameLocal.DebugPrintf("NET ERROR: invalid invalid param size\n");
+							return;
+						}
+						byte tmpBuf[MAX_EVENT_PARAM_SIZE];
+						msg.ReadByteAlign();
+						msg.ReadData( tmpBuf, tmpSize );
+					}
+
+					continue;
+				} 
 
 				entityNetEvent_t *event;
 
 				// allocate new event
 				event = eventQueue.Alloc();
 				eventQueue.Enqueue( event, idEventQueue::OUTOFORDER_IGNORE );
-
-				int typeNum = msg.ReadBits( 32 );
-				int typeArrayIndex = msg.ReadBits( 32 );
-				event->entity = entitiesByType[typeNum][typeArrayIndex];
+				event->entityType = typeNum;
+				event->entityIndex = typeArrayIndex;
+				event->entity = tmpEnt;
 				/*
 				if (entitiesByType[typeNum][typeArrayIndex]) {
 					event->spawnId = gameLocal.GetSpawnId(entitiesByType[typeNum][typeArrayIndex]);
@@ -1797,6 +1824,10 @@ void idGameLocal::ClientProcessReliableMessage( int clientNum, const idBitMsg &m
 					msg.ReadByteAlign();
 					msg.ReadData( event->paramsBuf, event->paramsSize );
 				}
+			}
+
+			if (eventId == idEntity::EVENT_ACTIVATE_TARGETS) {
+				gameLocal.DebugPrintf("reading EVENT_ACTIVATE_TARGETS %d times\n", i);
 			}
 			break;
 		}
@@ -2924,8 +2955,9 @@ int	idGameLocal::eventBufferDataBuildMsgPacket(eventBufferData_t &data, idBitMsg
 	outMsg.WriteInt(  gameLocal.time );
 	outMsg.WriteInt( data.eventBufferData.Num() ); //entities count
 	for (j=start,eventsToSend=0; j < data.eventBufferData.Num(); j++, eventsToSend++) {
-		outMsg.WriteBits( data.eventBufferData[j].eventEnt->GetType()->typeNum, 32 );
-		outMsg.WriteBits( data.eventBufferData[j].eventEnt->entityTypeNumber, 32 );
+		outMsg.WriteBits( data.eventBufferData[j].eventEnt->GetType()->typeNum, idClass::GetTypeNumBits() );
+		outMsg.WriteBits( data.eventBufferData[j].eventEnt->entityTypeNumber, GENTITYNUM_BITS );
+		outMsg.WriteBits( data.eventBufferData[j].eventEnt->GetUniqueID(), 32 );
 		outMsg.WriteBits( data.eventBufferData[j].paramsSize, idMath::BitsForInteger( MAX_EVENT_PARAM_SIZE ) );
 		if ( data.eventBufferData[j].paramsSize ) {
 			outMsg.WriteData( data.eventBufferData[j].paramsBuf, data.eventBufferData[j].paramsSize );
@@ -2948,8 +2980,9 @@ int	idGameLocal::eventBufferDataBuildMsgPacket(eventBufferData_t &data, idBitMsg
 	outMsg.WriteInt( gameLocal.time );
 	outMsg.WriteInt( eventsToSend ); //entities count
 	for (j=start; j < (eventsToSend+start); j++) {
-		outMsg.WriteBits( data.eventBufferData[j].eventEnt->GetType()->typeNum, 32 );
-		outMsg.WriteBits( data.eventBufferData[j].eventEnt->entityTypeNumber, 32 );
+		outMsg.WriteBits( data.eventBufferData[j].eventEnt->GetType()->typeNum, idClass::GetTypeNumBits() );
+		outMsg.WriteBits( data.eventBufferData[j].eventEnt->entityTypeNumber, GENTITYNUM_BITS );
+		outMsg.WriteBits( data.eventBufferData[j].eventEnt->GetUniqueID(), 32 );
 		outMsg.WriteBits( data.eventBufferData[j].paramsSize, idMath::BitsForInteger( MAX_EVENT_PARAM_SIZE ) );
 		if ( data.eventBufferData[j].paramsSize ) {
 			outMsg.WriteData( data.eventBufferData[j].paramsBuf, data.eventBufferData[j].paramsSize );
@@ -2957,6 +2990,11 @@ int	idGameLocal::eventBufferDataBuildMsgPacket(eventBufferData_t &data, idBitMsg
 	}
 
 	int numSent = j;
+	
+	if (data.eventId == idEntity::EVENT_ACTIVATE_TARGETS) {
+		gameLocal.DebugPrintf("Sending EVENT_ACTIVATE_TARGETS %d times\n", eventsToSend);
+	}
+
 	/*
 	if (removeAlreadySend) {
 		while (j-- > 0) {
@@ -3001,9 +3039,9 @@ void idGameLocal::serverSendEventBuffer( void ) {
 			serverEventsCount++;
 		} while (readAmount < gameLocal.serverEventsBuffer[i].eventBufferData.Num());
 	}
-	if (serverEventsCount > 1) {
+	/*if (serverEventsCount > 1) {
 		gameLocal.DebugPrintf("Sending events: %d - data size: %d\n", serverEventsCount, dataSent);
-	}
+	}*/
 	serverEventsCount = 0;
 }
 
