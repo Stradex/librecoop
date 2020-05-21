@@ -122,7 +122,6 @@ public:
 
 	int						entityNumber;			// index into the entity list
 	int						entityDefNumber;		// index into the entity def list
-	int						entityTypeNumber;		// for new netcode (THE NAME CAN BE CONFUSING!)
 
 	int						entityCoopNumber;		// index into the entity coop list
 	int						entityTargetNumber;		// index into the entity coop list

@@ -188,12 +188,6 @@ void idGameLocal::Clear( void ) {
 	memset(targetentities, 0, sizeof(targetentities));
 	memset( spawnIds, -1, sizeof( spawnIds ) );
 	memset( coopIds, -1, sizeof( coopIds ) );
-	memset( entitiesByType, 0, sizeof( entitiesByType ) );
-	/*
-	for (i=0; i < MAX_CLASS_TYPES; i++) {
-		memset(entitiesByType[i], 0, sizeof(entitiesByType[i])); //added for coop
-	}*/
-
 	firstFreeIndex = 0;
 	firstFreeCoopIndex = 0;  //added for coop
 	firstFreeTargetIndex = 0;  //added for coop
@@ -971,10 +965,6 @@ void idGameLocal::LoadMap( const char *mapName, int randseed ) {
 	firstFreeTargetIndex = MAX_CLIENTS; //added for Coop
 	firstFreeCsIndex = CS_ENTITIES_START; //added for Coop
 
-	for (i=0; i < MAX_CLASS_TYPES; i++) {
-		firstFreeByClassIndex[i] = MAX_CLIENTS;
-	}
-
 	// reset the random number generator.
 	random.SetSeed( isMultiplayer ? randseed : 0 );
 
@@ -1046,7 +1036,6 @@ void idGameLocal::LocalMapRestart( ) {
 	for ( i = 0; i < MAX_CLIENTS; i++ ) {
 		if ( entities[ i ] && entities[ i ]->IsType( idPlayer::Type ) ) {
 			static_cast< idPlayer * >( entities[ i ] )->PrepareForRestart();
-			entitiesByType[entities[ i ]->GetType()->typeNum][i] = entities[ i ]; //added for coop
 		}
 		coopentities[i] = entities[ i ]; //fix?
 	}
@@ -1118,7 +1107,6 @@ void idGameLocal::LocalMapRestart( ) {
 	for ( i = 0; i < MAX_CLIENTS; i++ ) {
 		if ( entities[ i ] && entities[ i ]->IsType( idPlayer::Type ) ) {
 			static_cast< idPlayer * >( entities[ i ] )->Restart();
-			entitiesByType[entities[ i ]->GetType()->typeNum][i] = entities[ i ]; //added for coop
 		}
 		coopentities[i] = entities[ i ]; //fix?
 	}
@@ -1658,9 +1646,6 @@ void idGameLocal::MapClear( bool clearClients ) {
 	firstFreeCoopIndex = MAX_CLIENTS; //added for Coop
 	firstFreeTargetIndex = MAX_CLIENTS; //added for Coop
 	firstFreeCsIndex = CS_ENTITIES_START; //added for Coop
-	for (i=0; i < MAX_CLASS_TYPES; i++) {
-		firstFreeByClassIndex[i] = MAX_CLIENTS;
-	}
 
 	lastAIAlertEntity = NULL;
 	lastAIAlertTime = 0;
@@ -3318,40 +3303,6 @@ void idGameLocal::RegisterTargetEntity( idEntity *ent ) {
 
 /*
 ===================
-idGameLocal::RegisterEntityByClass
-===================
-*/
-void idGameLocal::RegisterEntityByClass( idEntity *ent ) { ///change to Type in the name of the function
-
-	if (!ent)
-		return;
-
-	int entTypeNum = ent->GetType()->typeNum;
-
-
-	if ( entTypeNum < 0 || entTypeNum >= MAX_CLASS_TYPES ) {
-		Error( "Invalid entity type num!" );
-	}
-
-	int class_entnum;
-
-	while( entitiesByType[entTypeNum][firstFreeByClassIndex[entTypeNum]] && firstFreeByClassIndex[entTypeNum]< ENTITYNUM_MAX_NORMAL ) {
-		firstFreeByClassIndex[entTypeNum]++;
-	}
-	if ( firstFreeByClassIndex[entTypeNum] >= ENTITYNUM_MAX_NORMAL ) {
-		Error( "no free entityByClass entities" );
-	}
-	class_entnum = firstFreeByClassIndex[entTypeNum]++;
-
-	//DebugPrintf("Adding %s to the entitiesByType[%d] array...\n", ent->GetName(), entTypeNum);
-
-	entitiesByType[entTypeNum][class_entnum] = ent; //added for coop
-	ent->entityTypeNumber = class_entnum;
-}
-
-
-/*
-===================
 idGameLocal::RegisterCoopEntity
 ===================
 */
@@ -3422,11 +3373,6 @@ void idGameLocal::RegisterEntity( idEntity *ent ) {
 		RegisterCoopEntity(ent); //for coop only
 	}
 
-	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-		RegisterEntityByClass(ent); //added for new netcode
-	}
-
-
 	entities[ spawn_entnum ] = ent;
 	spawnIds[ spawn_entnum ] = spawnCount++;
 	ent->entityNumber = spawn_entnum;
@@ -3475,15 +3421,6 @@ void idGameLocal::UnregisterEntity( idEntity *ent ) {
 			targetentities[ent->entityTargetNumber] = NULL;
 			ent->entityTargetNumber = ENTITYNUM_NONE;
 		}
-
-		if (mpGame.IsGametypeCoopBased()) {
-			if ( ent->entityTypeNumber >= MAX_CLIENTS && ent->entityTypeNumber < firstFreeByClassIndex[ent->GetType()->typeNum] ) {
-				firstFreeByClassIndex[ent->GetType()->typeNum] = ent->entityTypeNumber;
-			}
-			entitiesByType[ent->GetType()->typeNum][ent->entityTypeNumber] = NULL;
-			ent->entityTypeNumber = ENTITYNUM_NONE;
-		}
-
 
 		if (ent->coopNode.InList()) { //probably a coop entity then
 			//added by Stradex for coop
