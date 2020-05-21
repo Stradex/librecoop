@@ -5296,6 +5296,19 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 		gameLocal.DebugPrintf("Sending EVENT_ACTIVATE_TARGETS\n");
 	}
 
+	eventsSend++;
+
+	if (eventsSend == 1) {
+		nextResetEventCountTime = gameLocal.time + 1000; //1 sec
+	}
+
+	if (eventsSend >= MAX_ENTITY_EVENTS_PER_SEC) {
+		if (!eventSyncVital) {
+			gameLocal.DebugPrintf("Avoiding overflow with entity: %s - %s\n", this->GetName(), this->GetClassname());
+		}
+		nextSendEventTime = gameLocal.time + 1000;
+	}
+
 	if ((gameLocal.serverEventsCount >= MAX_SERVER_EVENTS_PER_FRAME) && gameLocal.mpGame.IsGametypeCoopBased()) {
 		gameLocal.addToServerEventOverFlowList(eventId, msg, saveEvent, excludeClient, gameLocal.time, this, saveLastOnly); //Avoid serverSendEvent overflow in coop
 		return;
@@ -5330,15 +5343,6 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 		gameLocal.SaveEntityNetworkEvent( this, eventId, msg , saveLastOnly);
 	}
 
-	eventsSend++;
-
-	if (eventsSend == 1) {
-		nextResetEventCountTime = gameLocal.time + 1000; //1 sec
-	}
-
-	if (eventsSend >= MAX_ENTITY_EVENTS_PER_SEC) {
-		nextSendEventTime = gameLocal.time + 1000;
-	}
 	gameLocal.serverEventsCount++;
 }
 

@@ -1479,7 +1479,9 @@ void idGameLocal::ClientProcessEntityNetworkEventQueue( void ) {
 			} else {
 
 				ent = entPtr.GetCoopEntity();
-
+				if (!ent) {
+					gameLocal.Warning("[COOP] Trying to read unkwown entity\n");
+				} else {
 				assert( ent );
 
 				eventMsg.Init( event->paramsBuf, sizeof( event->paramsBuf ) );
@@ -1488,6 +1490,7 @@ void idGameLocal::ClientProcessEntityNetworkEventQueue( void ) {
 
 				if ( !ent->ClientReceiveEvent( event->event, event->time, eventMsg ) ) {
 					NetworkEventWarning( event, "unknown event" );
+				}
 				}
 			}
 		} else {
@@ -1498,6 +1501,9 @@ void idGameLocal::ClientProcessEntityNetworkEventQueue( void ) {
 				}
 			} else {
 				ent = entPtr.GetEntity();
+				if (!ent) {
+					gameLocal.Warning("[COOP] Trying to read unkwown entity\n");
+				} else {
 				assert( ent ); //crash here FIX
 
 				eventMsg.Init( event->paramsBuf, sizeof( event->paramsBuf ) );
@@ -1505,6 +1511,7 @@ void idGameLocal::ClientProcessEntityNetworkEventQueue( void ) {
 				eventMsg.BeginReading();
 				if ( !ent->ClientReceiveEvent( event->event, event->time, eventMsg ) ) {
 					NetworkEventWarning( event, "unknown event" );
+				}
 				}
 			}
 		}
@@ -2826,9 +2833,9 @@ idGameLocal::addToServerEventOverFlowList
 void idGameLocal::addToServerEventOverFlowList(int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient, int eventTime, idEntity* ent, bool saveLastOnly)
 {
 
-	if (!msg || !ent) {
+	if (!ent) {
 #ifdef _DEBUG
-		common->Warning("[COOP FATAL] Trying to add an event with a empty message or from an unknown entity\n");
+		common->Warning("[COOP FATAL] Trying to add an event from an unknown entity\n");
 #endif
 		return;
 	}
@@ -2952,10 +2959,9 @@ void idGameLocal::sendServerOverflowEvents( void )
 		serverOverflowEvents[i].eventEnt = NULL;
 		serverOverflowEvents[i].event = NULL;
 		serverOverflowEvents[i].isEventType = false;
-
 		serverEventsCount++;
 	}
-	if (serverEventsCount) { //not zero
+	if (serverEventsCount > 0) {
 		common->Warning("[COOP] Server Events overflow!, using serverOverflowEvents queue list to avoid the crash for clients\n");
 		overflowEventCountdown=SERVER_EVENT_OVERFLOW_WAIT;
 	}
