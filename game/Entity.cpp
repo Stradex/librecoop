@@ -409,6 +409,7 @@ idEntity::idEntity() {
 	entityNumber	= ENTITYNUM_NONE;
 	entityCoopNumber = ENTITYNUM_NONE;
 	entityTargetNumber = ENTITYNUM_NONE;
+	entityTypeNumber =  ENTITYNUM_NONE;
 	entityDefNumber = -1;
 
 	spawnNode.SetOwner( this );
@@ -5292,9 +5293,9 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 	}
 
 
-	if (eventId == EVENT_ACTIVATE_TARGETS) {
+	/*if (eventId == EVENT_ACTIVATE_TARGETS) {
 		gameLocal.DebugPrintf("Sending EVENT_ACTIVATE_TARGETS\n");
-	}
+	}*/
 
 	if ((gameLocal.serverEventsCount >= MAX_SERVER_EVENTS_PER_FRAME) && gameLocal.mpGame.IsGametypeCoopBased()) {
 		gameLocal.addToServerEventOverFlowList(eventId, msg, saveEvent, excludeClient, gameLocal.time, this, saveLastOnly); //Avoid serverSendEvent overflow in coop
@@ -5305,8 +5306,8 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 	outMsg.BeginWriting();
 	outMsg.WriteByte( GAME_RELIABLE_MESSAGE_EVENT );
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-		outMsg.WriteBits( gameLocal.GetCoopId( this ), 32 );
-		outMsg.WriteBits( gameLocal.GetSpawnId( this ), 32 ); //added for coop
+		outMsg.WriteBits( GetType()->typeNum, idClass::GetTypeNumBits() );
+		outMsg.WriteBits( entityTypeNumber, GENTITYNUM_BITS );
 	} else {
 		outMsg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
 	}
