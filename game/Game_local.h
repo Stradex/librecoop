@@ -107,6 +107,7 @@ extern const int NUM_RENDER_PORTAL_BITS;
 typedef struct entityState_s {
 	int						entityNumber;
 	int						entityCoopNumber; //added for coop by Stradex
+	int						entityTypeNumber; //added for coop by Stradex
 	idBitMsg				state;
 	byte					stateBuf[MAX_ENTITY_STATE_SIZE];
 	struct entityState_s *	next;
@@ -126,6 +127,7 @@ typedef struct entityNetEvent_s {
 	int						coopId; //added for coop by stradex
 	int						entityIndex;
 	int						entityType;
+	int						uniqueId;
 	idEntity*				entity; //added by stradex for new netcode
 	int						event;
 	int						time;
@@ -146,6 +148,7 @@ typedef struct serverEvent_s { //added for coop to avoid events overflow
 	bool						isEventType;
 	int							entityIndex;
 	int							entityType;
+	int							uniqueId;
 	bool						saveLastOnly; //added by stradex for coop
 	struct entityNetEvent_s		*event;
 }serverEvent_t;
@@ -461,6 +464,8 @@ public:
 	bool					SpawnEntityDef( const idDict &args, idEntity **ent = NULL, bool setDefaults = true , bool bIsClientReadSnapshot = false ); //bIsClientReadSnapshot added by Stradex for DEBUG
 	int						GetSpawnId( const idEntity *ent ) const;
 	int						GetCoopId( const idEntity *ent ) const; //added by Stradex for coop
+	idEntity*				GetEntityByUniqueID( const int id); //added by Stradex for coop
+
 
 	const idDeclEntityDef *	FindEntityDef( const char *name, bool makeDefault = true ) const;
 	const idDict *			FindEntityDefDict( const char *name, bool makeDefault = true ) const;

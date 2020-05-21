@@ -3335,13 +3335,16 @@ void idGameLocal::RegisterEntityByClass( idEntity *ent ) { ///change to Type in 
 
 	int class_entnum;
 
-	while( entitiesByType[entTypeNum][firstFreeByClassIndex[entTypeNum]] && firstFreeByClassIndex[entTypeNum]< ENTITYNUM_MAX_NORMAL ) {
-		firstFreeByClassIndex[entTypeNum]++;
+
+	if ( !spawnArgs.GetInt( "type_entnum", "0", class_entnum ) ) {
+		while( entitiesByType[entTypeNum][firstFreeByClassIndex[entTypeNum]] && firstFreeByClassIndex[entTypeNum]< ENTITYNUM_MAX_NORMAL ) {
+			firstFreeByClassIndex[entTypeNum]++;
+			}
+		if ( firstFreeByClassIndex[entTypeNum] >= ENTITYNUM_MAX_NORMAL ) {
+			Error( "no free entityByClass entities" );
+		}
+		class_entnum = firstFreeByClassIndex[entTypeNum]++;
 	}
-	if ( firstFreeByClassIndex[entTypeNum] >= ENTITYNUM_MAX_NORMAL ) {
-		Error( "no free entityByClass entities" );
-	}
-	class_entnum = firstFreeByClassIndex[entTypeNum]++;
 
 	//DebugPrintf("Adding %s to the entitiesByType[%d] array...\n", ent->GetName(), entTypeNum);
 
@@ -3789,12 +3792,15 @@ void idGameLocal::AddEntityToHash( const char *name, idEntity *ent ) {
 	idEntity* tmpEnt;
 	tmpEnt = FindEntity( name );
 	if ( tmpEnt ) {
-		if (isClient && mpGame.IsGametypeCoopBased() && !tmpEnt->fl.coopNetworkSync) {
+		if (isClient && mpGame.IsGametypeCoopBased()) {
 			//nonsync coop enities can avoid this crash but it's kinda dangereous (could lead to deleting a NULL pointer later... or even worse).
 #ifdef _DEBUG
 			common->Warning( "[COOP FATAL] Multiple entities named '%s', deleting the old one...\n", name );
 #endif
-			delete tmpEnt;
+			idStr newName = name;
+			newName += " _1";
+			//delete tmpEnt;
+			return AddEntityToHash(newName.c_str(), ent); //try with the new name
 		} else {
 			Error( "Multiple entities named '%s'", name );
 		}
@@ -5041,3 +5047,19 @@ bool idGameLocal::isNPC(idEntity *ent ) const {
 
 	return entityTalks;
 }
+
+/*
+===============
+idGameLocal::GetEntityByUniqueID
+===============
+*/
+idEntity* idGameLocal::GetEntityByUniqueID( const int id ) {
+	idEntity *ent = NULL;
+	for( ent = gameLocal.spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next() ) {
+		if (id == ent->GetUniqueID()) {
+			return ent;
+		}
+	}
+
+	return NULL;
+} 

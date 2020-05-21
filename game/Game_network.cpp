@@ -474,6 +474,7 @@ void idGameLocal::ServerWriteInitialReliableMessages( int clientNum ) {
 		if (mpGame.IsGametypeCoopBased()) {
 			outMsg.WriteBits( event->entityType, idClass::GetTypeNumBits() );
 			outMsg.WriteBits( event->entityIndex, GENTITYNUM_BITS );
+			outMsg.WriteBits( event->uniqueId, 32 ); //new
 			//outMsg.WriteBits( event->coopId, 32 ); //testing coop netsync
 			//outMsg.WriteBits( event->spawnId, 32 ); //added for coop
 		} else {
@@ -524,6 +525,7 @@ void idGameLocal::SaveEntityNetworkEvent( const idEntity *ent, int eventId, cons
 			}
 			event->entityType = ent->GetType()->typeNum;
 			event->entityIndex = ent->entityTypeNumber;
+			event->uniqueId = ent->GetUniqueID();
 			event->event = eventId;
 			event->time = time;
 			if ( msg ) {
@@ -545,6 +547,7 @@ void idGameLocal::SaveEntityNetworkEvent( const idEntity *ent, int eventId, cons
 		event->spawnId = GetSpawnId( ent ); //added for coop
 		event->entityType = ent->GetType()->typeNum;
 		event->entityIndex = ent->entityTypeNumber;
+		event->uniqueId = ent->GetUniqueID();
 	} else {
 		event->spawnId = GetSpawnId( ent );
 	}
@@ -1645,10 +1648,20 @@ void idGameLocal::ClientProcessReliableMessage( int clientNum, const idBitMsg &m
 			// allocate new event
 			
 			if (mpGame.IsGametypeCoopBased()) {
+				idEntity* tmpEnt;
+
 				int typeNum = msg.ReadBits( idClass::GetTypeNumBits() );
 				int typeArrayIndex = msg.ReadBits( GENTITYNUM_BITS  );
+				int uniqueId = msg.ReadBits( 32  );
+				tmpEnt = entitiesByType[typeNum][typeArrayIndex];
+				//tmpEnt = GetEntityByUniqueID(uniqueId);
 				
-				if ( entitiesByType[typeNum][typeArrayIndex]  && (!entitiesByType[typeNum][typeArrayIndex]->spawnNode.Owner() || entitiesByType[typeNum][typeArrayIndex]->GetType()->typeNum != typeNum || !entitiesByType[typeNum][typeArrayIndex]->spawnNode.InList())) {
+				if (!tmpEnt || (tmpEnt && (!tmpEnt->spawnNode.Owner() || tmpEnt->GetType()->typeNum != typeNum || !tmpEnt->spawnNode.InList()))) {
+					tmpEnt =  GetEntityByUniqueID(uniqueId);
+					gameLocal.DebugPrintf( "Entity not found... trying with uniqueID...");
+				}
+
+				if (!tmpEnt || (tmpEnt && (!tmpEnt->spawnNode.Owner() || tmpEnt->GetType()->typeNum != typeNum || !tmpEnt->spawnNode.InList()))) {
 					gameLocal.DebugPrintf( "NET - Received invalid entity at GAME_RELIABLE_MESSAGE_EVENT!");
 					return;
 				}
@@ -2278,7 +2291,7 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 
 	// read all entities from the snapshot
 	for ( i = msg.ReadBits( GENTITYNUM_BITS ); i != ENTITYNUM_NONE; i = msg.ReadBits( GENTITYNUM_BITS ) ) {
-
+		int typeArrayIndex = msg.ReadBits( GENTITYNUM_BITS );
 		base = clientEntityStates[clientNum][i]; //
 		if ( base ) {
 			base->state.BeginReading();
@@ -2286,6 +2299,8 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 		newBase = entityStateAllocator.Alloc();
 		newBase->entityNumber = i; //test
 		newBase->entityCoopNumber = i;
+		newBase->entityTypeNumber = typeArrayIndex;
+		//newBase
 		
 		newBase->next = snapshot->firstEntityState;
 		snapshot->firstEntityState = newBase;
@@ -2307,6 +2322,10 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 		}
 
 		ent = coopentities[i];
+
+		if ( !ent || ent->GetType()->typeNum != typeNum || ent->entityDefNumber != entityDefNumber || coopId != coopIds[ i ]) {
+			ent = entitiesByType[typeNum][typeArrayIndex];
+		}
 		
 		
 		// if there is no entity or an entity of the wrong type
@@ -2323,6 +2342,7 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 
 			args.Clear();
 			args.SetInt( "coop_entnum", i );
+			args.SetInt( "type_entnum", typeArrayIndex );
 			args.Set( "name", va( "entity%d", i ) );
 
 
@@ -2733,7 +2753,7 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 		msg.SaveWriteState( msgSize, msgWriteBit );
 	
 		msg.WriteBits( ent->entityCoopNumber, GENTITYNUM_BITS ); //test new netcode coop sync
-
+		msg.WriteBits( ent->entityTypeNumber, GENTITYNUM_BITS ); //test new netcode coop sync
 
 		base = clientEntityStates[clientNum][ent->entityCoopNumber];
 	
@@ -2742,10 +2762,11 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 		}
 		newBase = entityStateAllocator.Alloc();
 		newBase->entityCoopNumber = ent->entityCoopNumber;
+		newBase->entityTypeNumber = ent->entityTargetNumber;
 
 		newBase->state.Init( newBase->stateBuf, sizeof( newBase->stateBuf ) );
 		newBase->state.BeginWriting();
-
+		
 		deltaMsg.Init( base ? &base->state : NULL, &newBase->state, &msg );
 		deltaMsg.WriteBits( coopIds[ ent->entityCoopNumber ], 32 - GENTITYNUM_BITS ); //testing netsync coop
 		
@@ -2838,6 +2859,7 @@ void idGameLocal::addToServerEventOverFlowList(entityNetEvent_t* event, int clie
 	for (int i=0; i < SERVER_EVENTS_QUEUE_SIZE; i++) {
 		if (serverOverflowEvents[i].eventId == SERVER_EVENT_NONE) {
 			serverOverflowEvents[i].event = event;
+			serverOverflowEvents[i].uniqueId = event->uniqueId; //just in case
 			serverOverflowEvents[i].eventId = event->event;
 			serverOverflowEvents[i].isEventType = true;
 			serverOverflowEvents[i].excludeClient = clientNum; //FIXME Wrong var name: THIS IS NOT excludeClient when the entity is from saved queue
@@ -2867,6 +2889,7 @@ void idGameLocal::addToServerEventOverFlowList(int eventId, const idBitMsg *msg,
 	for (int i=0; i < SERVER_EVENTS_QUEUE_SIZE; i++) {
 		if (serverOverflowEvents[i].eventId == SERVER_EVENT_NONE) {
 			serverOverflowEvents[i].eventEnt = ent;
+			serverOverflowEvents[i].uniqueId = ent->GetUniqueID();
 			serverOverflowEvents[i].entityType = ent->GetType()->typeNum;
 			serverOverflowEvents[i].entityIndex = ent->entityTypeNumber;
 			serverOverflowEvents[i].eventId = eventId;
@@ -2930,6 +2953,7 @@ void idGameLocal::sendServerOverflowEvents( void )
 		if (mpGame.IsGametypeCoopBased()) {
 			outMsg.WriteBits( serverOverflowEvents[i].event->entityType, idClass::GetTypeNumBits() );
 			outMsg.WriteBits(serverOverflowEvents[i].event->entityIndex, GENTITYNUM_BITS );
+			outMsg.WriteBits(serverOverflowEvents[i].event->uniqueId, 32 );
 			//outMsg.WriteBits( serverOverflowEvents[i].event->coopId, 32 ); //testing coop netsync
 			//outMsg.WriteBits( serverOverflowEvents[i].event->spawnId, 32 ); //added for coop
 		} else {
@@ -2954,6 +2978,7 @@ void idGameLocal::sendServerOverflowEvents( void )
 		if (gameLocal.mpGame.IsGametypeCoopBased()) {
 			outMsg.WriteBits( serverOverflowEvents[i].entityType, idClass::GetTypeNumBits() );
 			outMsg.WriteBits( serverOverflowEvents[i].entityIndex, GENTITYNUM_BITS ); //added for coop
+			outMsg.WriteBits( serverOverflowEvents[i].uniqueId, 32 ); //added for coop
 			//outMsg.WriteBits( gameLocal.GetCoopId( serverOverflowEvents[i].eventEnt ), 32 );
 			//outMsg.WriteBits( gameLocal.GetSpawnId( serverOverflowEvents[i].eventEnt ), 32 ); //added for coop
 		} else {
