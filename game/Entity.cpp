@@ -600,47 +600,6 @@ void idEntity::Spawn( void ) {
 		Call_ConstructScriptObject(); //Don't call this if the gametype is coop or survival and if the map is restarting!
 	}
 
-	CalculateUniqueID(); //added for coop new netcode
-}
-
-/*
-================
-idEntity::GetUniqueID
-================
-*/
-
-int idEntity::GetUniqueID( void ) const {
-	return uniqueId;
-}
-
-/*
-================
-idEntity::CalculateUniqueID
-================
-*/
-
-void idEntity::CalculateUniqueID( void ) {
-
-	//int booleanIntData = int(fl.coopNetworkSync) + int(fl.networkSync) + int(canBeCsTarget);
-	int keyPart1 = (int(idMath::Rint(renderEntity.origin.x)) | int(fl.coopNetworkSync)) +
-	(int(idMath::Rint(renderEntity.origin.y)) | int(fl.networkSync)) + 
-	(int(idMath::Rint(renderEntity.origin.z)) | int(canBeCsTarget));
-
-	this->uniqueId = ( keyPart1 + health + entityDefNumber + GetType()->typeNum)*(int(fl.hidden)+1);
-
-	//gameLocal.DebugPrintf("UniqueID: %d\n", this->uniqueId);
-
-	//Check if the ID is duplicated or not, if it is duplicated, to ensure the id is unique
-	idEntity *ent;
-	for( ent = gameLocal.spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next() ) {
-		if (ent->entityNumber == this->entityNumber)
-			continue;
-		if (this->uniqueId == ent->GetUniqueID()) {
-			this->uniqueId++;
-			ent->spawnNode.ListHead();
-			break;
-		}
-	}
 }
 
 /*
@@ -3985,7 +3944,7 @@ void idEntity::ActivateTargets( idEntity *activator ) {
 			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
 				ent->allowClientsideThink = true;
 				ent->BecomeActive( TH_PHYSICS );
-				//gameLocal.DebugPrintf("Client Activating entity %s\n", ent->GetName());
+				gameLocal.DebugPrintf("Client Activating entity %s\n", ent->GetName());
 			}
 		}
 		for ( j = 0; j < MAX_RENDERENTITY_GUI; j++ ) {
@@ -5349,7 +5308,6 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
 		outMsg.WriteBits( GetType()->typeNum, idClass::GetTypeNumBits() );
 		outMsg.WriteBits( entityTypeNumber, GENTITYNUM_BITS );
-		outMsg.WriteBits( uniqueId, 32 );
 	} else {
 		outMsg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
 	}
