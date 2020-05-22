@@ -690,7 +690,7 @@ void idLight::BecomeBroken( idEntity *activator ) {
 	if ( refSound.shader || ( parm && *parm ) ) {
 		StopSound( SND_CHANNEL_ANY, false );
 		const idSoundShader *alternate = refSound.shader ? refSound.shader->GetAltSound() : declManager->FindSound( parm );
-		if ( alternate ) {
+		if ( alternate  && refSound.referenceSound ) {
 			// start it with no diversity, so the leadin break sound plays
 			refSound.referenceSound->StartSound( alternate, SND_CHANNEL_ANY, 0.0, 0 );
 		}
