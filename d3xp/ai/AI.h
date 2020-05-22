@@ -109,7 +109,8 @@ typedef enum {
 	MOVE_STATUS_BLOCKED_BY_WALL,
 	MOVE_STATUS_BLOCKED_BY_OBJECT,
 	MOVE_STATUS_BLOCKED_BY_ENEMY,
-	MOVE_STATUS_BLOCKED_BY_MONSTER
+	MOVE_STATUS_BLOCKED_BY_MONSTER,
+	NUM_MOVE_STATUS
 } moveStatus_t;
 
 //ADDED FOR COOP by Stradex
@@ -527,6 +528,7 @@ protected:
 	//client-side movement for Coop
 	void					CSAnimMove( void );
 	void					CSKilled( void );
+	void					CSResurrected( void ); //hack for coop (I don't like this because it is too specific for doom 3 only :( )
 	void					Event_OverrideAnim( int channel ); //for netaction
 
 	// damage
