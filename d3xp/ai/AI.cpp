@@ -5532,7 +5532,7 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 	if (isInvisible && !IsHidden()) {
 		Hide();
-	} else if (IsHidden()) {
+	} else if (!isInvisible && IsHidden()) {
 		Show();
 	}
 

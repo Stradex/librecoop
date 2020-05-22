@@ -5156,8 +5156,9 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteShort( health );
 	msg.WriteDir( normalizedLastDamageDir, 9 );
 	msg.WriteShort( lastDamageLocation );
-	msg.WriteByte( move.moveCommand );
-	msg.WriteByte( move.moveStatus );
+	msg.WriteBits( move.moveType, idMath::BitsForInteger(NUM_MOVETYPES)); 
+	msg.WriteBits( move.moveCommand, idMath::BitsForInteger(NUM_MOVE_COMMANDS)); 
+	msg.WriteBits( move.moveStatus, idMath::BitsForInteger(NUM_MOVE_STATUS));
 	msg.WriteInt( move.startTime );
 	msg.WriteFloat( move.speed );
 	msg.WriteFloat(move.moveDest.x);
@@ -5166,9 +5167,6 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 
 	msg.WriteDir( moveDirVec, 9 );
 	msg.WriteShort(move.anim);
-	//msg.WriteByte( AI_MOVE_DONE );
-	//msg.WriteByte( AI_FORWARD );
-	//msg.WriteByte( AI_JUMP );
 	msg.WriteFloat(current_yaw);
 	msg.WriteFloat(ideal_yaw);
 	msg.WriteFloat(anim_turn_yaw);
@@ -5178,12 +5176,6 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteShort(currentLegsAnim);
 	msg.WriteByte(currentNetAction);
 	
-	//lastVisibleEnemyPos
-	/*
-	msg.WriteFloat(lastVisibleEnemyPos.x);
-	msg.WriteFloat(lastVisibleEnemyPos.y);
-	msg.WriteFloat(lastVisibleEnemyPos.z);
-	*/
 	msg.WriteFloat(turnTowardPos.x);
 	msg.WriteFloat(turnTowardPos.y);
 	msg.WriteFloat(turnTowardPos.z);
@@ -5248,8 +5240,9 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	health = msg.ReadShort();
 	lastDamageDir = msg.ReadDir( 9 );
 	lastDamageLocation = msg.ReadShort();
-	move.moveCommand = static_cast<moveCommand_t>(msg.ReadByte());
-	move.moveStatus = static_cast<moveStatus_t>(msg.ReadByte());
+	move.moveType = static_cast<moveType_t>(msg.ReadBits(idMath::BitsForInteger(NUM_MOVETYPES)));
+	move.moveCommand = static_cast<moveCommand_t>(msg.ReadBits(idMath::BitsForInteger(NUM_MOVE_COMMANDS)));
+	move.moveStatus = static_cast<moveStatus_t>(msg.ReadBits(idMath::BitsForInteger(NUM_MOVE_STATUS)));
 	move.startTime = msg.ReadInt();
 	move.speed = msg.ReadFloat();
 	move.moveDest.x = msg.ReadFloat();
@@ -5257,9 +5250,6 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	move.moveDest.z = msg.ReadFloat();
 	move.moveDir = msg.ReadDir( 9 );
 	move.anim = msg.ReadShort();
-	//AI_MOVE_DONE = msg.ReadByte();
-	//AI_FORWARD = msg.ReadByte();
-	//AI_JUMP = msg.ReadByte();
 	current_yaw = msg.ReadFloat();
 	ideal_yaw = msg.ReadFloat();
 	anim_turn_yaw = msg.ReadFloat();
@@ -5270,12 +5260,6 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	legsAnimId =  msg.ReadShort();
 	newNetAction = static_cast<netActionType_t>(msg.ReadByte());
 
-	//lastVisibleEnemyPos
-	/*
-	lastVisibleEnemyPos.x = msg.ReadFloat();
-	lastVisibleEnemyPos.y = msg.ReadFloat();
-	lastVisibleEnemyPos.z = msg.ReadFloat();
-	*/
 	turnTowardPos.x= msg.ReadFloat();
 	turnTowardPos.y= msg.ReadFloat();
 	turnTowardPos.z= msg.ReadFloat();
@@ -5317,9 +5301,9 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	}
 	//No more msg read from here 
 
-	if (isInvisible && !fl.hidden) {
+	if (isInvisible && !IsHidden()) {
 		Hide();
-	} else if (!isInvisible && fl.hidden) {
+	} else if (!isInvisible && IsHidden()) {
 		Show();
 	}
 
@@ -5339,7 +5323,9 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	}
 
 
-	if ( oldHealth > 0 && health <= 0 ) {
+	if (oldHealth <= 0 && health > 0) { //Resurrected
+		CSResurrected();
+	} else if ( oldHealth > 0 && health <= 0 ) { 
 		CSKilled();
 	} else if ( health < oldHealth && health > 0 ) {
 		//pain
@@ -5696,6 +5682,22 @@ void idAI::CSKilled( void ) {
 		
 	SetWaitState( "" );
 	animator.ClearAllJoints(); //should this happen?
+}
+
+/*
+=====================
+idAI::CSResurrected
+COOP: Behaviour when resurrected clientside
+=====================
+*/
+void idAI::CSResurrected( void ) {
+	gameLocal.DebugPrintf("%s was resurrected\n", this->GetName());
+	StopMove( MOVE_STATUS_DONE );
+	Hide();
+	StopRagdoll();
+	SetPhysics( &physicsObj );
+	AI_DEAD = false;
+	forceNetworkSync = true;
 }
 
 /*
