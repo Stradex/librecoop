@@ -269,7 +269,7 @@ void idInventory::GivePowerUp( idPlayer *player, int powerup, int msec ) {
 		}
 		if (gameLocal.mpGame.IsGametypeCoopBased() && !def) {
 			common->Warning("[COOP] Trying to give unkwown powerup! THIS IS BAD\n");
-			return; //don't give a shit
+			return;
 		} else {
 			assert( def ); 
 		}

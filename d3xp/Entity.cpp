@@ -541,6 +541,11 @@ void idEntity::Spawn( void ) {
 		fl.coopNetworkSync = ( atoi( networkSync->GetValue() ) != 0 );
 	}
 
+	if (spawnArgs.GetBool("clientside", "0")) { //if this entity is clientside then avoid any kind of sync
+		fl.coopNetworkSync = false;
+		fl.networkSync = false;
+	}
+
 	gameLocal.RegisterEntity( this ); //afer networkSync so coopentities can get updated correctly..
 
 	spawnArgs.GetString( "classname", NULL, &classname );

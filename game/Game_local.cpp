@@ -3444,7 +3444,7 @@ idEntity *idGameLocal::SpawnEntityType( const idTypeInfo &classdef, const idDict
 
 #if _DEBUG
 	if ( isClient ) {
-		assert( bIsClientReadSnapshot ); //Crash reason
+		assert( bIsClientReadSnapshot );
 	}
 #endif
 

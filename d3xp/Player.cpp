@@ -306,7 +306,12 @@ void idInventory::GivePowerUp( idPlayer *player, int powerup, int msec ) {
 				break;*/
 #endif
 		}
-		assert( def );
+		if (gameLocal.mpGame.IsGametypeCoopBased() && !def) {
+			common->Warning("[COOP] Trying to give unkwown powerup! THIS IS BAD\n");
+			return;
+		} else {
+			assert( def ); 
+		}
 		msec = def->dict.GetInt( "time" ) * 1000;
 	}
 	powerups |= 1 << powerup;
