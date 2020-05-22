@@ -5743,7 +5743,7 @@ void idPlayer::UpdateFocus( void ) {
 		realGameLocalTime = gameLocal.time;
 	}
 
-	if ( focusTime <= gameLocal.time ) {
+	if ( focusTime <= realGameLocalTime) {
 		ClearFocus();
 	}
 
