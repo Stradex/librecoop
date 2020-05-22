@@ -2169,18 +2169,20 @@ be correct for single player.
 */
 idPlayer *idGameLocal::GetCoopPlayer() const {
 
-	if (mpGame.IsGametypeCoopBased()) {
+	if (mpGame.IsGametypeCoopBased() && isServer) {
 		if ( localClientNum < 0 || !entities[ localClientNum ] || !entities[ localClientNum ]->IsType( idPlayer::Type )) {
 
-			if (isServer) { //for coop while using a dedicated server
-				for (int i=0; i < gameLocal.numClients; i++) {
-					if (entities[i] && entities[i]->IsType(idPlayer::Type) && !static_cast<idPlayer *>( entities[i] )->spectating) {
-						return static_cast<idPlayer *>( entities[i] );
+			idPlayer* p = NULL;
+
+			for (int i=0; i < gameLocal.numClients; i++) {
+				if (entities[i] && entities[i]->IsType(idPlayer::Type)) {
+					p = static_cast<idPlayer *>( entities[i] );
+					if (!p->spectating) {
+						return p;
 					}
 				}
 			}
-
-			return NULL;
+			return p; //if we reach this point, then we are sending the data of a spectator player
 		}
 	} else {
 		return GetLocalPlayer();

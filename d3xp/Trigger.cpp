@@ -709,9 +709,28 @@ void idTrigger_EntityName::Event_Touch( idEntity *other, trace_t *trace ) {
 		return;
 	}
 
-	if ( !other || ( other->name != entityName ) ) {
+
+	//added for LM
+	bool validEntity = false;
+	if ( other ) {
+		if ( testPartialName ) {
+			if ( other->name.Find( entityName, false ) >= 0 ) {
+				validEntity = true;
+			}
+		}
+		if ( other->name == entityName ) {
+			validEntity = true;
+		}
+	}
+
+	if ( !validEntity ) {
 		return;
 	}
+
+	/*
+	if ( !other || ( other->name != entityName ) ) {
+		return;
+	}*/
 
 	nextTriggerTime = gameLocal.time + 1;
 	if ( delay > 0 ) {

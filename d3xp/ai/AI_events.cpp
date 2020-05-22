@@ -1310,8 +1310,18 @@ void idAI::Event_GetCombatNode( void ) {
 		if ( team == 0 && !gameLocal.mpGame.IsFlagMsgOn() ) { //fix crash in ROE librecoop
 			// find the closest attack node to the player
 			bestNode = NULL;
+
+			idPlayer*	p;
+			if (gameLocal.mpGame.IsGametypeCoopBased()) {
+				p = GetClosestPlayerEnemy();
+				if (!p) {
+					p = gameLocal.GetCoopPlayer();
+				}
+			} else {
+				p =  gameLocal.GetLocalPlayer();
+			}
 			const idVec3 &myPos = physicsObj.GetOrigin();
-			const idVec3 &playerPos = gameLocal.GetLocalPlayer()->GetPhysics()->GetOrigin();
+			const idVec3 &playerPos = p->GetPhysics()->GetOrigin();
 
 			bestDist = ( myPos - playerPos ).LengthSqr();
 
