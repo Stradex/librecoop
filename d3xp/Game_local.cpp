@@ -2728,12 +2728,6 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 		slow.Set( time, previousTime, msec, framenum, realClientTime );
 #endif
 
-		//COOP START
-		if (mpGame.IsGametypeCoopBased()) {
-			sendServerOverflowEvents();
-		}
-		//COOP ENDS
-
 #ifdef GAME_DLL
 		// allow changing SIMD usage on the fly
 		if ( com_forceGenericSIMD.IsModified() ) {
@@ -2915,6 +2909,12 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 		soundSystem->SetMute( false );
 		skipCinematic = false;
 	}
+
+	//COOP START
+	if (mpGame.IsGametypeCoopBased()) {
+		sendServerOverflowEvents();
+	}
+	//COOP ENDS
 
 	// show any debug info for this frame
 	RunDebugInfo();

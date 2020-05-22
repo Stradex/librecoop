@@ -5163,7 +5163,7 @@ idEntity::Event_StartNetSoundShader
 void idEntity::Event_StartNetSoundShader( const char *soundName, int channel, int netSync ) {
 	int length;
 
-	StartSoundShader( declManager->FindSound( soundName ), (s_channelType)channel, netSync, false, &length );
+	StartSoundShader( declManager->FindSound( soundName ), (s_channelType)channel, 0, (netSync != 0), &length );
 	idThread::ReturnFloat( MS2SEC( length ) );
 }
 
@@ -5457,8 +5457,17 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 	}
 
 
-	if (eventId == EVENT_ACTIVATE_TARGETS) {
-		gameLocal.DebugPrintf("Sending EVENT_ACTIVATE_TARGETS\n");
+	eventsSend++;
+
+	if (eventsSend == 1) {
+		nextResetEventCountTime = gameLocal.time + 1000; //1 sec
+	}
+
+	if (eventsSend >= MAX_ENTITY_EVENTS_PER_SEC) {
+		if (!eventSyncVital) {
+			gameLocal.DebugPrintf("Avoiding overflow with entity: %s - %s\n", this->GetName(), this->GetClassname());
+		}
+		nextSendEventTime = gameLocal.time + 1000;
 	}
 
 	if ((gameLocal.serverEventsCount >= MAX_SERVER_EVENTS_PER_FRAME) && gameLocal.mpGame.IsGametypeCoopBased()) {
@@ -5495,16 +5504,6 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 
 	if ( saveEvent ) {
 		gameLocal.SaveEntityNetworkEvent( this, eventId, msg , saveLastOnly);
-	}
-
-	eventsSend++;
-
-	if (eventsSend == 1) {
-		nextResetEventCountTime = gameLocal.time + 1000; //1 sec
-	}
-
-	if (eventsSend >= MAX_ENTITY_EVENTS_PER_SEC) {
-		nextSendEventTime = gameLocal.time + 1000;
 	}
 
 	gameLocal.serverEventsCount++;
