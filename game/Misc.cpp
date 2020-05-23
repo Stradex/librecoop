@@ -982,7 +982,6 @@ idAnimated::idAnimated() {
 	current_anim_index = 0;
 	num_anims = 0;
 	canBeCsTarget = true; //added for coop
-
 }
 
 /*

@@ -2687,7 +2687,7 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 		if (!ent->IsActive() && !ent->IsMasterActive() && !ent->firstTimeInClientPVS[clientNum] && !ent->forceNetworkSync && !ent->inSnapshotQueue[clientNum] && !ent->MasterUseOldNetcode()) { //ignore inactive entities that the player already saw before
 			continue;
 		}
-		if (ent->IsHidden() && !ent->firstTimeInClientPVS[clientNum] && !ent->inSnapshotQueue[clientNum] ) { //this shit is really important to improve server netcode
+		if (ent->IsHidden() && !ent->firstTimeInClientPVS[clientNum] && !ent->inSnapshotQueue[clientNum] && !gameLocal.inCinematic ) { //this shit is really important to improve server netcode
 			continue;
 		}
 		//Since sorting it's a pretty expensive stuff, let's try to have this list the less filled with entities possible
