@@ -3042,7 +3042,9 @@ idPlayer::ExitCinematic
 ===============
 */
 void idPlayer::ExitCinematic( void ) {
-	Show();
+	if (!gameLocal.mpGame.IsGametypeCoopBased() || !spectating) {
+		Show();
+	}
 
 	if ( weaponEnabled && weapon.GetEntity() ) {
 		weapon.GetEntity()->ExitCinematic();
@@ -8431,7 +8433,7 @@ void idPlayer::ClientPredictionThink( void ) {
 	}
 
 	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isNewFrame) {
-		UpdateAir(); //
+		UpdateAir();
 	}
 
 	UpdateHud();

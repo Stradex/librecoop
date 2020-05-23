@@ -2699,6 +2699,13 @@ void idGameLocal::CalcFov( float base_fov, float &fov_x, float &fov_y ) const {
 	y = atan2( 480.0f, x );
 	fov_y = y * 360.0f / idMath::PI;
 
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && fov_y  <= 0) {
+		gameLocal.DebugPrintf("Invalid fov_y at idGameLocal::CalcFov, using player fov\n");
+		fov_x = base_fov;
+		fov_y = base_fov;
+		return;
+	}
+
 	// FIXME: somehow, this is happening occasionally
 	assert( fov_y > 0 );
 	if ( fov_y <= 0 ) {
@@ -4376,6 +4383,10 @@ idGameLocal::SetCamera
 =============
 */
 void idGameLocal::SetCamera( idCamera *cam ) {
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		return SetCameraCoop(cam);
+	}
+
 	int i;
 	idEntity *ent;
 	idAI *ai;
@@ -4977,4 +4988,98 @@ bool idGameLocal::isNPC(idEntity *ent ) const {
 	}
 
 	return entityTalks;
+}
+
+/*
+=============
+idGameLocal::SetCameraCoop
+=============
+*/
+void idGameLocal::SetCameraCoop( idCamera *cam ) {
+	int i;
+	idEntity *ent;
+	idAI *ai;
+
+	// this should fix going into a cinematic when dead.. rare but happens
+	idPlayer *client = GetLocalPlayer();
+	/*
+	if ( client->health <= 0 || client->AI_DEAD ) {
+		return;
+	}
+	*/
+
+	camera = cam;
+	if ( camera ) {
+		inCinematic = true;
+
+		/*
+		//not able to skip cinematics in coop yet
+		if ( skipCinematic && camera->spawnArgs.GetBool( "disconnect" ) ) {
+			camera->spawnArgs.SetBool( "disconnect", false );
+			cvarSystem->SetCVarFloat( "r_znear", 3.0f );
+			cmdSystem->BufferCommandText( CMD_EXEC_APPEND, "disconnect\n" );
+			skipCinematic = false;
+			return;
+		}
+		*/
+
+		if ( time > cinematicStopTime ) {
+			cinematicSkipTime = time + CINEMATIC_SKIP_DELAY;
+		}
+
+		// set r_znear so that transitioning into/out of the player's head doesn't clip through the view
+		//cvarSystem->SetCVarFloat( "r_znear", 1.0f );
+
+		// hide all the player models
+		for( i = 0; i < numClients; i++ ) {
+			if ( entities[ i ] ) {
+				client = static_cast< idPlayer* >( entities[ i ] );
+				client->EnterCinematic();
+			}
+		}
+
+		if ( !cam->spawnArgs.GetBool( "ignore_enemies" ) && gameLocal.isServer) {
+			// kill any active monsters that are enemies of the player
+			for ( ent = spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next() ) {
+				if ( ent->cinematic || ent->fl.isDormant ) {
+					// only kill entities that aren't needed for cinematics and aren't dormant
+					continue;
+				}
+
+				if ( ent->IsType( idAI::Type ) ) {
+					ai = static_cast<idAI *>( ent );
+					if ( !ai->GetEnemy() || !ai->IsActive() ) {
+						// no enemy, or inactive, so probably safe to ignore
+						continue;
+					}
+				} else if ( ent->IsType( idProjectile::Type ) ) {
+					// remove all projectiles
+				} else if ( ent->spawnArgs.GetBool( "cinematic_remove" ) ) {
+					// remove anything marked to be removed during cinematics
+				} else {
+					// ignore everything else
+					continue;
+				}
+
+				// remove it
+				DPrintf( "removing '%s' for cinematic\n", ent->GetName() );
+				ent->PostEventMS( &EV_Remove, 0 );
+			}
+		}
+
+	} else {
+		inCinematic = false;
+		cinematicStopTime = time + msec;
+
+		// restore r_znear
+		cvarSystem->SetCVarFloat( "r_znear", 3.0f );
+
+		// show all the player models
+		for( i = 0; i < numClients; i++ ) {
+			if ( entities[ i ] ) {
+				idPlayer *client = static_cast< idPlayer* >( entities[ i ] );
+				client->ExitCinematic();
+			}
+		}
+	}
 }

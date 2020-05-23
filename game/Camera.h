@@ -45,6 +45,11 @@ class idCamera : public idEntity {
 public:
 	ABSTRACT_PROTOTYPE( idCamera );
 
+	enum {
+		EVENT_ACTIVATE_CINEMATIC = idEntity::EVENT_MAXEVENTS,
+		EVENT_MAXEVENTS
+	};
+
 	void					Spawn( void );
 	virtual void			GetViewParms( renderView_t *view ) = 0;
 	virtual renderView_t *	GetRenderView();
@@ -71,6 +76,7 @@ public:
 	void					Spawn( );
 	virtual void			GetViewParms( renderView_t *view );
 	virtual void			Stop( void );
+	virtual bool			ClientReceiveEvent( int event, int time, const idBitMsg &msg );
 
 protected:
 	void					Event_Activate( idEntity *activator );
@@ -110,6 +116,7 @@ public:
 
 	void					Spawn( void );
 	virtual void			GetViewParms( renderView_t *view );
+	virtual bool			ClientReceiveEvent( int event, int time, const idBitMsg &msg );
 
 private:
 	int						threadNum;
