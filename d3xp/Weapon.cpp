@@ -2827,8 +2827,13 @@ void idWeapon::Event_WeaponState( const char *statename, int blendFrames ) {
 
 	func = scriptObject.GetFunction( statename );
 	if ( !func ) {
-		assert( 0 );
-		gameLocal.Error( "Can't find function '%s' in object '%s'", statename, scriptObject.GetTypeName() );
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			gameLocal.Warning( "Can't find function '%s' in object '%s'", statename, scriptObject.GetTypeName() );
+			return;
+		} else {
+			assert( 0 );
+			gameLocal.Error( "Can't find function '%s' in object '%s'", statename, scriptObject.GetTypeName() );
+		}
 	}
 
 	idealState = statename;
