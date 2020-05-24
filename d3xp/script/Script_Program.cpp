@@ -1617,8 +1617,14 @@ void idProgram::SetEntity( const char *name, idEntity *ent ) {
 	def = GetDef( &type_entity, defName, &def_namespace );
 	if ( def && ( def->initialized != idVarDef::stackVariable ) ) {
 		// 0 is reserved for NULL entity
+		// -1 is reserved for player1 hack for coop
 		if ( !ent ) {
-			*def->value.entityNumberPtr = 0;
+			if (!idStr::Icmp(name, "player1")) {
+				gameLocal.DebugPrintf("[COOP] Doing ugly hack at idProgram::SetEntity\n");
+				*def->value.entityNumberPtr = -1;
+			} else {
+				*def->value.entityNumberPtr = 0;
+			}
 		} else {
 			*def->value.entityNumberPtr = ent->entityNumber + 1;
 		}
