@@ -41,6 +41,8 @@ If you have questions concerning this license or the applicable additional terms
 #include "Trigger.h"
 #include "gamesys/SysCvar.h" //added for netcode optimization stuff
 #include "Camera.h"
+#include "ai/ai.h"
+
 
 #include "Game_local.h"
 
@@ -2680,14 +2682,11 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 			}
 		}
 
-		/*
-		if (gameLocal.inCinematic && ent->forceNetworkSync && ent->IsType(idAI::Type) && static_cast<idAI*>(ent)->GetNumCinematics()) {
-			gameLocal.DebugPrintf("dirty hack\n");
-			//Since sorting it's a pretty expensive stuff, let's try to have this list the less filled with entities possible
+		if (gameLocal.inCinematic && ent->forceNetworkSync && ent->IsType(idAI::Type) && ent->IsActive()) {
+			//dirty hack for cinematics. 
 			sortsnapshotentities[sortSnapCount++] = ent;
 			continue;
 		}
-		*/
 
 		if ( !ent->PhysicsTeamInPVS( pvsHandle ) ) {
 			if (!ent->forceSnapshotUpdateOrigin && ent->PhysicsTeamInPVS_snapshot( pvsHandle, clientNum )) {
