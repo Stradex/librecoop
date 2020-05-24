@@ -6503,12 +6503,14 @@ void idPlayer::UpdateAir( void ) {
 		airTics--;
 		if ( airTics < 0 ) {
 			airTics = 0;
-			// check for damage
-			const idDict *damageDef = gameLocal.FindEntityDefDict( "damage_noair", false );
-			int dmgTiming = 1000 * ((damageDef) ? damageDef->GetFloat( "delay", "3.0" ) : 3.0f );
-			if ( gameLocal.time > lastAirDamage + dmgTiming ) {
-				Damage( NULL, NULL, vec3_origin, "damage_noair", 1.0f, 0 );
-				lastAirDamage = gameLocal.time;
+			if (!gameLocal.mpGame.IsGametypeCoopBased() || gameLocal.isServer) {
+				// check for damage
+				const idDict *damageDef = gameLocal.FindEntityDefDict( "damage_noair", false );
+				int dmgTiming = 1000 * ((damageDef) ? damageDef->GetFloat( "delay", "3.0" ) : 3.0f );
+				if ( gameLocal.time > lastAirDamage + dmgTiming ) {
+					Damage( NULL, NULL, vec3_origin, "damage_noair", 1.0f, 0 );
+					lastAirDamage = gameLocal.time;
+				}
 			}
 		}
 
@@ -9887,6 +9889,10 @@ void idPlayer::ClientPredictionThink( void ) {
 		UpdateWeapon();
 	}
 
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isNewFrame) {
+		UpdateAir();
+	}
+
 	UpdateHud();
 
 	if ( gameLocal.isNewFrame ) {
@@ -10122,6 +10128,7 @@ void idPlayer::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	//extra added for coop
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
 		msg.WriteBits( objectiveSystemOpen, 1);
+		msg.WriteInt( airTics );
 		msg.WriteBits( noclip, 1 );
 		msg.WriteBits( fl.hidden, 1);
 	}
@@ -10189,6 +10196,7 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	bool shouldHide=false;
 
 	objectiveSystemOpen = msg.ReadBits( 1 ) != 0;
+	airTics = msg.ReadInt();
 	noclip = msg.ReadBits( 1 ) != 0;
 	shouldHide = msg.ReadBits( 1 ) != 0;
 	if ( entityNumber != gameLocal.localClientNum ) {
