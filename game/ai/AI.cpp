@@ -3563,8 +3563,6 @@ void idAI::PlayCinematic( void ) {
 	UpdateVisuals();
 	Present();
 
-	gameLocal.DebugPrintf("playing cinematic entity: %s\n", this->GetName());
-
 	if ( head.GetEntity() ) {
 		// since the body anim was updated, we need to run physics to update the position of the head
 		RunPhysics();
@@ -5746,17 +5744,6 @@ void idAI::Event_OverrideAnim( int channel ) {
 
 	return;
 }
-
-/*
-===============
-idAI::GetNumCinematics
-===============
-*/
-
-int	idAI::GetNumCinematics( void ) {
-	return num_cinematics;
-}
-
 
 /***********************************************************************
 
