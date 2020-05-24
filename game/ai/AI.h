@@ -298,6 +298,7 @@ public:
 
 	void					TriggerWeaponEffects( const idVec3 &muzzle ); //moved to public by Stradex for COOP
 	void					Init_CoopScriptFix( void ); //dirty hack for coop fix
+	int						GetNumCinematics( void ); //for coop netcode
 
 protected:
 	// navigation

@@ -39,7 +39,9 @@ If you have questions concerning this license or the applicable additional terms
 #include "Mover.h"
 #include "Misc.h" 
 #include "Trigger.h"
+#include "ai/ai.h"
 #include "gamesys/SysCvar.h" //added for netcode optimization stuff
+#include "Camera.h"
 
 #include "Game_local.h"
 
@@ -2640,7 +2642,12 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 
 	// get PVS for this player
 	// don't use PVSAreas for networking - PVSAreas depends on animations (and md5 bounds), which are not synchronized
-	numSourceAreas = gameRenderWorld->BoundsInAreas( spectated->GetPlayerPhysics()->GetAbsBounds(), sourceAreas, idEntity::MAX_PVS_AREAS );
+	if (gameLocal.inCinematic && gameLocal.GetCamera()) {
+		numSourceAreas = gameRenderWorld->BoundsInAreas( gameLocal.GetCamera()->GetPhysics()->GetAbsBounds(), sourceAreas, idEntity::MAX_PVS_AREAS );
+	} else {
+		numSourceAreas = gameRenderWorld->BoundsInAreas( spectated->GetPlayerPhysics()->GetAbsBounds(), sourceAreas, idEntity::MAX_PVS_AREAS );
+	}
+
 	pvsHandle = gameLocal.pvs.SetupCurrentPVS( sourceAreas, numSourceAreas, PVS_NORMAL );
 
 #if ASYNC_WRITE_TAGS
@@ -2673,6 +2680,16 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 				continue;
 			}
 		}
+
+		/*
+		if (gameLocal.inCinematic && ent->forceNetworkSync && ent->IsType(idAI::Type) && static_cast<idAI*>(ent)->GetNumCinematics()) {
+			gameLocal.DebugPrintf("dirty hack\n");
+			//Since sorting it's a pretty expensive stuff, let's try to have this list the less filled with entities possible
+			sortsnapshotentities[sortSnapCount++] = ent;
+			continue;
+		}
+		*/
+
 		if ( !ent->PhysicsTeamInPVS( pvsHandle ) ) {
 			if (!ent->forceSnapshotUpdateOrigin && ent->PhysicsTeamInPVS_snapshot( pvsHandle, clientNum )) {
 				//ent->ClearPVSAreas_snapshot(clientNum);

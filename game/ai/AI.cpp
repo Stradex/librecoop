@@ -3563,6 +3563,8 @@ void idAI::PlayCinematic( void ) {
 	UpdateVisuals();
 	Present();
 
+	gameLocal.DebugPrintf("playing cinematic entity: %s\n", this->GetName());
+
 	if ( head.GetEntity() ) {
 		// since the body anim was updated, we need to run physics to update the position of the head
 		RunPhysics();
@@ -5189,6 +5191,9 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteShort( currentChannelOverride );
 	msg.WriteBits( disableGravity, 1 );
 	msg.WriteBits(gameLocal.inCinematic, 1);
+	if (gameLocal.inCinematic) {
+		msg.WriteShort(current_cinematic);
+	}
 		
 	msg.WriteBits( fl.hidden, 1);
 
@@ -5287,6 +5292,10 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	disableGravity = msg.ReadBits( 1 ) != 0;
 	snapshotInCinematic = msg.ReadBits( 1 ) != 0;
 
+	if (snapshotInCinematic) {
+		current_cinematic = msg.ReadShort();
+	}
+
 	bool isInvisible=false;
 	isInvisible = msg.ReadBits( 1 ) != 0;
 
@@ -5336,6 +5345,7 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 			//AI_PAIN = Pain( NULL, NULL, oldHealth - health, lastDamageDir, lastDamageLocation ); //causing crash.
 		}
 	} else {
+		gameLocal.DebugPrintf("current anim: %d\n", current_cinematic);
 		if (torsoAnimId != currentTorsoAnim ) {
 			animator.PlayAnim(ANIMCHANNEL_TORSO, torsoAnimId, gameLocal.time, 2);
 		}
@@ -5735,6 +5745,16 @@ void idAI::Event_OverrideAnim( int channel ) {
 	idActor::Event_OverrideAnim(channel);
 
 	return;
+}
+
+/*
+===============
+idAI::GetNumCinematics
+===============
+*/
+
+int	idAI::GetNumCinematics( void ) {
+	return num_cinematics;
 }
 
 
