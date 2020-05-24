@@ -5289,9 +5289,6 @@ void idAI::ClientPredictionThink( void ) {
 		viewAxis = idAngles( 0, current_yaw, 0 ).ToMat3();
 
 		if ( num_cinematics ) {
-			if ( !IsHidden() && torsoAnim.AnimDone( 0 ) ) {
-				PlayCinematic();
-			}
 			RunPhysics();
 		} else if ( !allowHiddenMovement && IsHidden() ) {
 			// hidden monsters
@@ -5420,6 +5417,11 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteShort( currentChannelOverride );
 	msg.WriteBits( disableGravity, 1 );
 
+	msg.WriteBits(gameLocal.inCinematic, 1);
+	if (gameLocal.inCinematic) {
+		msg.WriteShort(current_cinematic);
+	}
+
 	msg.WriteBits( IsHidden(), 1);
 
 	//Head entity info
@@ -5449,6 +5451,8 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 	int		i, oldHealth, enemySpawnId, torsoAnimId, legsAnimId, headAnimId, enemyEntityId, goalEntityId, focusEntityId;
 	bool	newHitToggle, stateHitch, hasEnemy, getOriginInfo, headEntityReceivedInfo;
+	bool	snapshotInCinematic;
+
 	netActionType_t newNetAction;
 	idVec3	tmpOrigin = vec3_zero;
 
@@ -5511,6 +5515,12 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 	disableGravity = msg.ReadBits( 1 ) != 0;
 
+	snapshotInCinematic = msg.ReadBits( 1 ) != 0;
+
+	if (snapshotInCinematic) {
+		current_cinematic = msg.ReadShort();
+	}
+
 	bool isInvisible=false;
 	isInvisible = msg.ReadBits( 1 ) != 0;
 
@@ -5537,6 +5547,8 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	}
 
 
+	if (!snapshotInCinematic || !num_cinematics) {
+
 	if (torsoAnimId != currentTorsoAnim ) {
 		animator.CycleAnim(ANIMCHANNEL_TORSO, torsoAnimId, gameLocal.time, 2);
 	}
@@ -5548,12 +5560,6 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		head.GetEntity()->GetAnimator()->CycleAnim(ANIMCHANNEL_ALL, headAnimId, gameLocal.time, 2);
 	}
 
-	currentTorsoAnim = torsoAnimId;
-	currentLegsAnim = legsAnimId;
-	if (headEntityReceivedInfo) {
-		currentHeadAnim = headAnimId;
-	}
-
 	if (oldHealth <= 0 && health > 0) { //Resurrected
 		CSResurrected();
 	} else if ( oldHealth > 0 && health <= 0 ) { //what if !AI_DEAD && newAiDead ?
@@ -5561,6 +5567,25 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	} else if ( health < oldHealth && health > 0 ) {
 		//pain
 		//AI_PAIN = Pain( NULL, NULL, oldHealth - health, lastDamageDir, lastDamageLocation ); //causing crash.
+	}
+
+
+	} else {
+		if (torsoAnimId != currentTorsoAnim ) {
+			animator.PlayAnim(ANIMCHANNEL_TORSO, torsoAnimId, gameLocal.time, 2);
+		}
+		if (legsAnimId != currentLegsAnim ) {
+			animator.PlayAnim(ANIMCHANNEL_LEGS, legsAnimId, gameLocal.time, 2);
+		}
+		if (headEntityReceivedInfo && head.GetEntity() && currentHeadAnim != headAnimId) {
+			head.GetEntity()->GetAnimator()->PlayAnim(ANIMCHANNEL_ALL, headAnimId, gameLocal.time, 2);
+		}
+	}
+
+	currentTorsoAnim = torsoAnimId;
+	currentLegsAnim = legsAnimId;
+	if (headEntityReceivedInfo) {
+		currentHeadAnim = headAnimId;
 	}
 
 	if ( msg.HasChanged() ) {

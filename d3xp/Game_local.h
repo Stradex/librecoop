@@ -535,6 +535,7 @@ public:
 	pvsHandle_t				GetPlayerPVS()			{ return playerPVS; };
 #endif
 
+	void					SetCameraCoop( idCamera *cam ); //Cinematics in coop testing
 	void					SetCamera( idCamera *cam );
 	idCamera *				GetCamera( void ) const;
 	bool					SkipCinematic( void );

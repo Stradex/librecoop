@@ -3628,7 +3628,9 @@ idPlayer::ExitCinematic
 ===============
 */
 void idPlayer::ExitCinematic( void ) {
-	Show();
+	if (!gameLocal.mpGame.IsGametypeCoopBased() || !spectating) {
+		Show();
+	}
 
 	if ( weaponEnabled && weapon.GetEntity() ) {
 		weapon.GetEntity()->ExitCinematic();
@@ -9183,7 +9185,7 @@ void idPlayer::CalculateRenderView( void ) {
 	renderView->viewID = 0;
 
 	// check if we should be drawing from a camera's POV
-	if ( !noclip && (gameLocal.GetCamera() || privateCameraView) && !gameLocal.mpGame.IsGametypeCoopBased() ) {
+	if ( !noclip && (gameLocal.GetCamera() || privateCameraView) ) {
 		// get origin, axis, and fov
 		if ( privateCameraView ) {
 			privateCameraView->GetViewParms( renderView );

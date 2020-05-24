@@ -35,11 +35,13 @@ If you have questions concerning this license or the applicable additional terms
 #include "Entity.h"
 #include "Player.h"
 
-#include "Sound.h" //FIXME, I need to solve the duplicated entities problem at clientreadsnapshot and serverwritesnapshot
-#include "Mover.h" //FIXME, I need to solve the duplicated entities problem at clientreadsnapshot and serverwritesnapshot
-#include "Misc.h"  //FIXME, I need to solve the duplicated entities problem at clientreadsnapshot and serverwritesnapshot
-#include "Trigger.h"  //FIXME, I need to solve the duplicated entities problem at clientreadsnapshot and serverwritesnapshot
+#include "Sound.h" 
+#include "Mover.h"
+#include "Misc.h"
+#include "Trigger.h"
+#include "ai/ai.h"
 #include "gamesys/SysCvar.h" //added for netcode optimization stuff
+#include "Camera.h"
 
 #include "Game_local.h"
 
@@ -2670,7 +2672,11 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 
 	// get PVS for this player
 	// don't use PVSAreas for networking - PVSAreas depends on animations (and md5 bounds), which are not synchronized
-	numSourceAreas = gameRenderWorld->BoundsInAreas( spectated->GetPlayerPhysics()->GetAbsBounds(), sourceAreas, idEntity::MAX_PVS_AREAS );
+	if (gameLocal.inCinematic && gameLocal.GetCamera()) {
+		numSourceAreas = gameRenderWorld->BoundsInAreas( gameLocal.GetCamera()->GetPhysics()->GetAbsBounds(), sourceAreas, idEntity::MAX_PVS_AREAS );
+	} else {
+		numSourceAreas = gameRenderWorld->BoundsInAreas( spectated->GetPlayerPhysics()->GetAbsBounds(), sourceAreas, idEntity::MAX_PVS_AREAS );
+	}
 	pvsHandle = gameLocal.pvs.SetupCurrentPVS( sourceAreas, numSourceAreas, PVS_NORMAL );
 
 #ifdef _D3XP
@@ -2718,6 +2724,12 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 			}
 		}
 
+		if (gameLocal.inCinematic && ent->forceNetworkSync && ent->IsType(idAI::Type) && ent->IsActive()) {
+			//dirty hack for cinematics. 
+			sortsnapshotentities[sortSnapCount++] = ent;
+			continue;
+		}
+
 		if ( !ent->PhysicsTeamInPVS( pvsHandle ) ) {
 			if (!ent->forceSnapshotUpdateOrigin && ent->PhysicsTeamInPVS_snapshot( pvsHandle, clientNum )) {
 				ent->inSnapshotQueue[clientNum]++; //hack?
@@ -2730,7 +2742,7 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 		if (!ent->IsActive() && !ent->IsMasterActive() && !ent->firstTimeInClientPVS[clientNum] && !ent->forceNetworkSync && !ent->inSnapshotQueue[clientNum] && !ent->MasterUseOldNetcode()) { //ignore inactive entities that the player already saw before
 			continue;
 		}
-		if (ent->IsHidden() && !ent->firstTimeInClientPVS[clientNum] && !ent->inSnapshotQueue[clientNum] ) { //this shit is really important to improve server netcode
+		if (ent->IsHidden() && !ent->firstTimeInClientPVS[clientNum] && !ent->inSnapshotQueue[clientNum] && !gameLocal.inCinematic ) { //this shit is really important to improve server netcode
 			continue;
 		}
 
