@@ -1377,6 +1377,7 @@ idPlayer::idPlayer() {
 	snapshotPriority		= 1;
 	nextSendPhysicsInfoTime = 0;
 	serverOverridePositionTime = 0; //added from Doom 3 BFG Edition for clientside movement
+	nextTimeCoopTeleported = 0;
 }
 
 /*
@@ -8301,6 +8302,9 @@ void idPlayer::Event_ExitTeleporter( void ) {
 	pushVel = exitEnt->spawnArgs.GetFloat( "push", "300" );
 
 	if ( gameLocal.isServer ) {
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			exitEnt->ActivateTargets(exitEnt); //added for opencoop maps compatiblity
+		}
 		ServerSendEvent( EVENT_EXIT_TELEPORTER, NULL, false, -1 );
 	}
 
