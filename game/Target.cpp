@@ -1602,6 +1602,11 @@ CLASS_DECLARATION( idTarget, idTarget_EnableLevelWeapons )
 	EVENT( EV_Activate,	idTarget_EnableLevelWeapons::Event_Activate )
 END_CLASS
 
+idTarget_EnableLevelWeapons::idTarget_EnableLevelWeapons( void ) {
+	for (int i=0; i < MAX_CLIENTS; i++) {
+		alreadyTriggered[i] = false;
+	}
+}
 /*
 ================
 idTarget_EnableLevelWeapons::Event_Activate
@@ -1615,8 +1620,11 @@ void idTarget_EnableLevelWeapons::Event_Activate( idEntity *activator ) {
 
 	if ( spawnArgs.GetBool( "disable" ) ) {
 		for( i = 0; i < gameLocal.numClients; i++ ) {
-			if ( gameLocal.entities[ i ] ) {
+			if ( gameLocal.entities[ i ] && !alreadyTriggered[i] ) {
 				gameLocal.entities[ i ]->ProcessEvent( &EV_Player_DisableWeapon );
+				if (gameLocal.mpGame.IsGametypeCoopBased()) {
+					alreadyTriggered[i] = true; //to avoid bug in coop
+				}
 			}
 		}
 	} else {
@@ -1630,6 +1638,7 @@ void idTarget_EnableLevelWeapons::Event_Activate( idEntity *activator ) {
 			}
 		}
 	}
+
 }
 
 /*
@@ -1772,12 +1781,25 @@ END_CLASS
 
 /*
 ================
+idTarget_RemoveWeapons::idTarget_RemoveWeapons
+================
+*/
+
+idTarget_RemoveWeapons::idTarget_RemoveWeapons( void ) {
+	for (int i=0; i < MAX_CLIENTS; i++) {
+		alreadyTriggered[i] = false;
+	}
+}
+
+/*
+================
 idTarget_RemoveWeapons::Event_Activate
 ================
 */
 void idTarget_RemoveWeapons::Event_Activate( idEntity *activator ) {
+
 	for( int i = 0; i < gameLocal.numClients; i++ ) {
-		if ( gameLocal.entities[ i ] ) {
+		if ( gameLocal.entities[ i ] && !alreadyTriggered[i] ) {
 			idPlayer *player = static_cast< idPlayer* >( gameLocal.entities[i] );
 			const idKeyValue *kv = spawnArgs.MatchPrefix( "weapon", NULL );
 			while ( kv ) {
@@ -1785,8 +1807,12 @@ void idTarget_RemoveWeapons::Event_Activate( idEntity *activator ) {
 				kv = spawnArgs.MatchPrefix( "weapon", kv );
 			}
 			player->SelectWeapon( player->weapon_fists, true );
+			if (gameLocal.mpGame.IsGametypeCoopBased()) {
+				alreadyTriggered[i] = true; //to avoid bug in coop
+			}
 		}
 	}
+
 }
 
 
