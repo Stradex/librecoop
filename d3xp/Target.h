@@ -485,8 +485,10 @@ class idTarget_EnableLevelWeapons : public idTarget {
 public:
 	CLASS_PROTOTYPE( idTarget_EnableLevelWeapons );
 
+						idTarget_EnableLevelWeapons( void );
 private:
 	void				Event_Activate( idEntity *activator );
+	bool				alreadyTriggered[MAX_CLIENTS];
 };
 
 
@@ -542,7 +544,9 @@ idTarget_RemoveWeapons
 class idTarget_RemoveWeapons : public idTarget {
 public:
 	CLASS_PROTOTYPE( idTarget_RemoveWeapons );
+						idTarget_RemoveWeapons( void );
 private:
+	bool				alreadyTriggered[MAX_CLIENTS]; //added for coop
 	void				Event_Activate( idEntity *activator );
 };
 
