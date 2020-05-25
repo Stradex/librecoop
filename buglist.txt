@@ -1,7 +1,6 @@
 Bugs:
 
 - Some GUIs changes are not syncing (Door guis and health station guis for example.)
-- Cinematics not working
 - Clientside cameras guis are not working
 - Elevators working laggy (improved but still laggy)
 - npc binded light not working
@@ -9,11 +8,8 @@ Bugs:
 - Closing pda shows the wrong anim (raise instead of lower)
 - Downloading emails does not work clientside
 - NPCs keep talking if you just look at them (focus) without pressing click to talk again
-- Oxygen level when outside is not shown
 - Location position in player GUIs is not shown
-- Cinematic teleport does not teleport all players but just one (hell for example)
 - Enviro Suit is not working
-- Oxygen enviro items does not work neither
 
 PER MAP:
 
@@ -25,9 +21,6 @@ PER MAP:
 
 - Alpha labs sector 2
 	+ GUI cameras not working
-
-- HELL
-	+ First teleport only teleports the first player that enter it, but does not teleport other players
 
  - Phobos labs 2: After deafiting invulnerability hunter, there is a repeated idMsg bit overflow. (not crash but spam the console each frame)
  - Phobos labs 3: same idMsg bit overflow (I believe this is related to the player picking up the invulnerability hunter artifact upgrade)

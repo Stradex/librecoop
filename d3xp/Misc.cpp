@@ -46,6 +46,9 @@ Various utility objects and functions.
 
 #include "Misc.h"
 
+// added for coop
+const int COOP_TELEPORT_CLEARDELAY = 1000; //1 sec
+
 /*
 ===============================================================================
 
@@ -207,6 +210,7 @@ void idPlayerStart::TeleportPlayer( idPlayer *player ) {
 #endif
 
 	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) { //create a new global checkpoint at this position for Coop
+		player->nextTimeCoopTeleported = gameLocal.time + COOP_TELEPORT_CLEARDELAY;
 		gameLocal.mpGame.CreateNewCheckpoint(GetPhysics()->GetOrigin());
 	}
 
@@ -221,6 +225,11 @@ void idPlayerStart::TeleportPlayer( idPlayer *player ) {
 			player->PostEventSec( &EV_Player_ExitTeleporter, f );
 		}
 	} else {
+
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+			ActivateTargets(this); //for opencoop
+		}
+
 		// direct to exit, Teleport will take care of the killbox
 		player->Teleport( GetPhysics()->GetOrigin(), GetPhysics()->GetAxis().ToAngles(), NULL );
 
@@ -239,6 +248,17 @@ idPlayerStart::Event_TeleportPlayer
 void idPlayerStart::Event_TeleportPlayer( idEntity *activator ) {
 	idPlayer *player;
 
+	if (activator && !activator->IsType(idPlayer::Type) && activator->entityNumber != this->entityNumber) { //for OpenCoop teleport target support
+		for (int i=0; i < gameLocal.numClients; i++) {
+			idPlayer *p = gameLocal.GetClientByNum(i);
+			if (!p || p->nextTimeCoopTeleported >= gameLocal.time) {
+				continue;
+			}
+			activator = p;
+			break;
+		}
+	}
+
 	if (activator && activator->IsType( idPlayer::Type ) ) { //edited to avoid crash in coop
 		player = static_cast<idPlayer*>( activator );
 	} else if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.GetCoopPlayer()) {
@@ -247,6 +267,7 @@ void idPlayerStart::Event_TeleportPlayer( idEntity *activator ) {
 		player = gameLocal.GetLocalPlayer();
 	}
 	if ( player ) {
+		player->nextTimeCoopTeleported = gameLocal.time + COOP_TELEPORT_CLEARDELAY;
 		if ( spawnArgs.GetBool( "visualFx" ) ) {
 
 			teleportStage = 0;
