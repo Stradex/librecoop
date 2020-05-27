@@ -563,7 +563,7 @@ void idCameraAnim::Start( void ) {
 	BecomeActive( TH_THINK );
 
 	// if the player has already created the renderview for this frame, have him update it again so that the camera starts this frame
-	if (gameLocal.GetLocalPlayer() && gameLocal.GetLocalPlayer()->GetRenderView()->time == gameLocal.time ) {
+	if (gameLocal.GetLocalPlayer() && ((gameLocal.isClient && !gameLocal.GetLocalPlayer()->GetRenderView()) || gameLocal.GetLocalPlayer()->GetRenderView()->time == gameLocal.time) ) {
 		gameLocal.GetLocalPlayer()->CalculateRenderView();
 	}
 }

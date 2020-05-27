@@ -566,7 +566,9 @@ void idCameraAnim::Start( void ) {
 	}*/
 
 	BecomeActive( TH_THINK );
-	if (gameLocal.GetLocalPlayer() && gameLocal.GetLocalPlayer()->GetRenderView()->time == gameLocal.time ) {
+
+
+	if (gameLocal.GetLocalPlayer() && ((gameLocal.isClient && !gameLocal.GetLocalPlayer()->GetRenderView()) || gameLocal.GetLocalPlayer()->GetRenderView()->time == gameLocal.time) ) {
 		gameLocal.GetLocalPlayer()->CalculateRenderView();
 	}
 }
