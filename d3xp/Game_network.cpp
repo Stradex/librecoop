@@ -39,7 +39,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "Mover.h"
 #include "Misc.h"
 #include "Trigger.h"
-#include "ai/ai.h"
+#include "ai/AI.h"
 #include "gamesys/SysCvar.h" //added for netcode optimization stuff
 #include "Camera.h"
 

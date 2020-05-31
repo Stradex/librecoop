@@ -41,7 +41,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "Trigger.h"
 #include "gamesys/SysCvar.h" //added for netcode optimization stuff
 #include "Camera.h"
-#include "ai/ai.h"
+#include "ai/AI.h"
 
 
 #include "Game_local.h"
