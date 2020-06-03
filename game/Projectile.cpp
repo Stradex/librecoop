@@ -522,7 +522,31 @@ bool idProjectile::Collide( const trace_t &collision, const idVec3 &velocity ) {
 	if ( gameLocal.isClient ) {
 		if ( ClientPredictionCollide( this, spawnArgs, collision, velocity, !spawnArgs.GetBool( "net_instanthit" ) ) ) {
 			AddDefaultDamageEffect( collision, collision.c.normal ); //added for coop
-			Explode( collision, NULL );
+			ent = gameLocal.entities[ collision.c.entityNum ];
+			ignore = NULL;
+			if (g_clientsideDamage.GetBool() && selfClientside && owner.GetEntity() && owner.GetEntity()->entityNumber == gameLocal.localClientNum && ent && ent->IsType(idAI::Type)) {
+				if ( !projectileFlags.detonate_on_actor ) {
+					Explode( collision, NULL );
+					return true;
+				}
+
+				damageDefName = spawnArgs.GetString( "def_damage" );
+
+				// if the hit entity takes damage
+				if ( ent->fl.takedamage ) {
+					if ( damagePower ) {
+						damageScale = damagePower;
+					} else {
+						damageScale = 1.0f;
+					}
+
+					if ( damageDefName[0] != '\0' ) {
+						ent->Damage( this, owner.GetEntity(), dir, damageDefName, damageScale, CLIPMODEL_ID_TO_JOINT_HANDLE( collision.c.id ) );
+						ignore = ent;
+					}
+				}
+			}
+			Explode( collision, ignore );
 			return true;
 		}
 
@@ -617,7 +641,9 @@ bool idProjectile::Collide( const trace_t &collision, const idVec3 &velocity ) {
 		}
 
 		if ( damageDefName[0] != '\0' ) {
-			ent->Damage( this, owner.GetEntity(), dir, damageDefName, damageScale, CLIPMODEL_ID_TO_JOINT_HANDLE( collision.c.id ) );
+			if (!g_clientsideDamage.GetBool() || !selfClientside || !owner.GetEntity() || !owner.GetEntity()->IsType(idPlayer::Type) || !ent->IsType(idAI::Type) || (owner.GetEntity() && owner.GetEntity()->entityNumber == gameLocal.localClientNum)) {
+				ent->Damage( this, owner.GetEntity(), dir, damageDefName, damageScale, CLIPMODEL_ID_TO_JOINT_HANDLE( collision.c.id ) );
+			}
 			ignore = ent;
 		}
 	}

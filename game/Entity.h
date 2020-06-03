@@ -354,6 +354,9 @@ public:
 							// notifies this entity that is has been killed
 	virtual void			Killed( idEntity *inflictor, idEntity *attacker, int damage, const idVec3 &dir, int location );
 
+	// applies damage to this entity (received by client)
+	virtual	void			ClientReceivedDamage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir, int damage, const int location );
+
 	// scripting
 	virtual bool			ShouldConstructScriptObjectAtSpawn( void ) const;
 	virtual idThread *		ConstructScriptObject( void );
@@ -388,6 +391,7 @@ public:
 		EVENT_ACTIVATE_TARGETS,
 		EVENT_SETNETSHADERPARM,
 		EVENT_SETGUIPARM, //added by Stradex for coop
+		EVENT_CLIENTDAMAGE, //added by Stradex for g_clientsideDamage 1
 		EVENT_MAXEVENTS
 	};
 

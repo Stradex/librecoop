@@ -3295,7 +3295,7 @@ bool idAI::Pain( idEntity *inflictor, idEntity *attacker, int damage, const idVe
 			AI_SPECIAL_DAMAGE = 0;
 		}
 
-		if ( enemy.GetEntity() != attacker && attacker->IsType( idActor::Type ) ) {
+		if ( enemy.GetEntity() != attacker && attacker->IsType( idActor::Type ) && !gameLocal.isClient ) {
 			actor = ( idActor * )attacker;
 			if ( ReactionTo( actor ) & ATTACK_ON_DAMAGE ) {
 				gameLocal.AlertAI( actor );
@@ -3384,6 +3384,11 @@ idAI::Killed
 =====================
 */
 void idAI::Killed( idEntity *inflictor, idEntity *attacker, int damage, const idVec3 &dir, int location ) {
+
+	if (gameLocal.isClient) {
+		return CSKilled();
+	}
+
 	idAngles ang;
 	const char *modelDeath;
 
@@ -5041,6 +5046,26 @@ void idAI::ClientPredictionThink( void ) {
 
 	//this->Think();
 
+	if (gameLocal.isNewFrame) {
+		if (clientsideDamageInflicted > 0) {
+			idBitMsg	msg;
+			byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+
+			msg.Init( msgBuf, sizeof( msgBuf ) );
+			msg.BeginWriting();
+			msg.WriteBits( gameLocal.GetLocalPlayer()->entityCoopNumber, idMath::BitsForInteger(MAX_CLIENTS) );
+			msg.WriteShort(clientsideDamageInflicted);
+			msg.WriteShort(clientsideDamageLocation);
+			msg.WriteFloat( clientsideDamageDir.x );
+			msg.WriteFloat( clientsideDamageDir.y );
+			msg.WriteFloat( clientsideDamageDir.z );
+			ClientSendEvent( EVENT_CLIENTDAMAGE, &msg );
+
+			gameLocal.Printf( "EVENT_CLIENTDAMAGE\n");
+		}
+		clientsideDamageInflicted = 0;
+	}
+
 	if ( thinkFlags & TH_PHYSICS ) { //edited
 
 		idActor *enemyEnt = enemy.GetEntity();
@@ -5194,6 +5219,7 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	}
 		
 	msg.WriteBits( fl.hidden, 1);
+	msg.WriteBits( fl.takedamage, 1 );
 
 	//Head entity info
 	int headEntitySendInfo = head.GetEntity() ? 1 : 0;
@@ -5296,6 +5322,8 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 	bool isInvisible=false;
 	isInvisible = msg.ReadBits( 1 ) != 0;
+
+	fl.takedamage = msg.ReadBits( 1 ) != 0;
 
 	//Head entity info
 	headEntityReceivedInfo = msg.ReadBits( 1 ) != 0;

@@ -261,6 +261,7 @@ extern idCVar	si_lives; //survival lives
 extern idCVar	net_clientSideMovement; //added by Stradex (experimental, works only with high ping)
 extern idCVar	g_spawnInCheckpoints; //Allow players to spawn in librecoop checkpoints system
 extern idCVar	g_keepItemsAfterRespawn; //Allow players to keep weapons and ammo after dying
+extern idCVar	g_clientsideDamage;	//added for COOP clientside damage
 //stradex end
 
 

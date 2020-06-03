@@ -3291,6 +3291,7 @@ inflictor, attacker, dir, and point can be NULL for environmental effects
 */
 void idEntity::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir,
 					  const char *damageDefName, const float damageScale, const int location ) {
+
 	if ( !fl.takedamage ) {
 		return;
 	}
@@ -3312,9 +3313,10 @@ void idEntity::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 
 	// inform the attacker that they hit someone
 	attacker->DamageFeedback( this, inflictor, damage );
-	if ( damage ) {
-		// do the damage
+
+	if (damage) {
 		health -= damage;
+
 		if ( health <= 0 ) {
 			if ( health < -999 ) {
 				health = -999;
@@ -3324,6 +3326,50 @@ void idEntity::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 		} else {
 			Pain( inflictor, attacker, damage, dir, location );
 		}
+
+	}
+}
+
+
+/*
+============
+ClientReceivedDamage
+
+this		entity that is being damaged
+inflictor	entity that is causing the damage
+attacker	entity that caused the inflictor to damage targ
+	example: this=monster, inflictor=rocket, attacker=player
+
+dir			direction of the attack for knockback in global space
+damage		amount of damage being inflicted
+
+inflictor, attacker, dir, and point can be NULL for environmental effects
+
+============
+*/
+void idEntity::ClientReceivedDamage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir, int damage, const int location ) {
+	if ( !fl.takedamage ) {
+		return;
+	}
+
+	if ( !inflictor ) {
+		inflictor = gameLocal.world;
+	}
+
+	if ( !attacker ) {
+		attacker = gameLocal.world;
+	}
+
+	// do the damage
+	health -= damage;
+	if ( health <= 0 ) {
+		if ( health < -999 ) {
+			health = -999;
+		}
+
+		Killed( inflictor, attacker, damage, dir, location );
+	} else {
+		Pain( inflictor, attacker, damage, dir, location );
 	}
 }
 
@@ -5308,9 +5354,11 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 	}
 
 	if (eventsSend >= MAX_ENTITY_EVENTS_PER_SEC) {
+		/*
 		if (!eventSyncVital) {
 			gameLocal.DebugPrintf("Avoiding overflow with entity: %s - %s\n", this->GetName(), this->GetClassname());
 		}
+		*/
 		nextSendEventTime = gameLocal.time + 1000;
 	}
 
@@ -5402,7 +5450,18 @@ idEntity::ServerReceiveEvent
 */
 bool idEntity::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 	switch( event ) {
-		case 0: {
+		case EVENT_CLIENTDAMAGE: {
+			int clientEntityNum, damageToInflict, location;
+			idVec3 tmpDir = vec3_zero;
+			
+			clientEntityNum = msg.ReadBits(idMath::BitsForInteger(MAX_CLIENTS));
+			damageToInflict = msg.ReadShort();
+			location = msg.ReadShort();
+			tmpDir.x = msg.ReadFloat();
+			tmpDir.y = msg.ReadFloat();
+			tmpDir.z = msg.ReadFloat();
+
+			ClientReceivedDamage(NULL, gameLocal.coopentities[clientEntityNum], tmpDir, damageToInflict, location);
 		}
 		default: {
 			return false;

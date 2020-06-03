@@ -7090,7 +7090,7 @@ callback function for when another entity received damage from this entity.  dam
 ================
 */
 void idPlayer::DamageFeedback( idEntity *victim, idEntity *inflictor, int &damage ) {
-	assert( !gameLocal.isClient );
+	//assert( !gameLocal.isClient );
 	damage *= PowerUpModifier( BERSERK );
 	if ( damage && ( victim != this ) && victim->IsType( idActor::Type ) ) {
 		SetLastHitTime( gameLocal.time );

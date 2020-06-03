@@ -166,6 +166,7 @@ public:
 							// damage
 	void					SetupDamageGroups( void );
 	virtual	void			Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir, const char *damageDefName, const float damageScale, const int location );
+	virtual	void			ClientReceivedDamage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir, int damage, const int location ); //coop added
 	int						GetDamageForLocation( int damage, int location );
 	const char *			GetDamageGroup( int location );
 	void					ClearPain( void );
@@ -210,6 +211,7 @@ public:
 	virtual void			SpawnGibs( const idVec3 &dir, const char *damageDefName );
 
 	void					Event_OverrideAnim( int channel ); //Public for coop. Was private
+	virtual bool			ServerReceiveEvent( int event, int time, const idBitMsg &msg ); //added for coop
 
 protected:
 	friend class			idAnimState;
@@ -230,6 +232,11 @@ protected:
 	bool						use_combat_bbox;	// whether to use the bounding box for combat collision
 	idEntityPtr<idAFAttachment>	head;
 	idList<copyJoints_t>		copyJoints;			// copied from the body animation to the head model
+
+	int						nextTimeHealthReaded; //for g_clientsideDamage 1
+	int						clientsideDamageInflicted; // for g_clientsideDamage 1
+	int						clientsideDamageLocation; // for g_clientsideDamage 1
+	idVec3					clientsideDamageDir;  // for g_clientsideDamage 1
 
 	// state variables
 	const function_t		*state;
