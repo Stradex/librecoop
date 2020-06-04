@@ -526,7 +526,7 @@ bool idProjectile::Collide( const trace_t &collision, const idVec3 &velocity ) {
 			ignore = NULL;
 			if (g_clientsideDamage.GetBool() && ent &&
 				((selfClientside && owner.GetEntity() && owner.GetEntity()->entityNumber == gameLocal.localClientNum && ent->IsType(idAI::Type))
-				|| (ent->entityNumber == gameLocal.localClientNum))
+				|| (ent->entityNumber == gameLocal.localClientNum ))
 			) {
 				if ( !projectileFlags.detonate_on_actor ) {
 					Explode( collision, NULL );

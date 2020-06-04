@@ -5477,6 +5477,9 @@ bool  idAI::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			tmpDir.x = msg.ReadFloat();
 			tmpDir.y = msg.ReadFloat();
 			tmpDir.z = msg.ReadFloat();
+			if (this->health > 0) {
+				this->health = 0;
+			}
 			Killed( NULL, gameLocal.coopentities[clientEntityNum], 1, tmpDir, location );
 		}
 	}
