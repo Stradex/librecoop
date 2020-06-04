@@ -524,7 +524,10 @@ bool idProjectile::Collide( const trace_t &collision, const idVec3 &velocity ) {
 			AddDefaultDamageEffect( collision, collision.c.normal ); //added for coop
 			ent = gameLocal.entities[ collision.c.entityNum ];
 			ignore = NULL;
-			if (g_clientsideDamage.GetBool() && selfClientside && owner.GetEntity() && owner.GetEntity()->entityNumber == gameLocal.localClientNum && ent && ent->IsType(idAI::Type)) {
+			if (g_clientsideDamage.GetBool() && ent &&
+				((selfClientside && owner.GetEntity() && owner.GetEntity()->entityNumber == gameLocal.localClientNum && ent->IsType(idAI::Type))
+				|| (ent->entityNumber == gameLocal.localClientNum))
+			) {
 				if ( !projectileFlags.detonate_on_actor ) {
 					Explode( collision, NULL );
 					return true;
@@ -541,7 +544,7 @@ bool idProjectile::Collide( const trace_t &collision, const idVec3 &velocity ) {
 					}
 
 					if ( damageDefName[0] != '\0' ) {
-						ent->Damage( this, owner.GetEntity(), dir, damageDefName, damageScale, CLIPMODEL_ID_TO_JOINT_HANDLE( collision.c.id ) );
+						ent->Damage( this, owner.GetEntity(), dir, damageDefName, damageScale, CLIPMODEL_ID_TO_JOINT_HANDLE( collision.c.id ), true );
 						ignore = ent;
 					}
 				}
@@ -1028,6 +1031,19 @@ void idProjectile::Explode( const trace_t &collision, idEntity *ignore ) {
 			this->ClientPredictionThink();
 			CancelEvents( &EV_Explode );
 			CS_PostEventMS( &EV_Remove, removeTime );
+		}
+
+		// splash damage
+		if ( !projectileFlags.noSplashDamage && gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() ) {
+			float delay = spawnArgs.GetFloat( "delay_splash" );
+			if ( delay ) {
+				if ( removeTime < delay * 1000 ) {
+					removeTime = ( delay + 0.10 ) * 1000;
+				}
+				CS_PostEventSec( &EV_RadiusDamage, delay, ignore );
+			} else {
+				Event_RadiusDamage( ignore );
+			}
 		}
 		return;
 	}

@@ -256,6 +256,10 @@ class idAI : public idActor {
 public:
 	CLASS_PROTOTYPE( idAI );
 
+	enum {
+		EVENT_CLIENTKILL = idEntity::EVENT_MAXEVENTS,
+	};
+
 							idAI();
 							~idAI();
 
@@ -435,6 +439,7 @@ protected:
 	bool					thereWasEnemy;
 	int						currentChannelOverride;
 	int						currentHeadAnim;
+	int						currentAttackDefNum;
 
 
 	// script variables
@@ -558,7 +563,7 @@ protected:
 	void					RemoveProjectile( void );
 	idProjectile			*LaunchProjectile( const char *jointname, idEntity *target, bool clampToAttackCone );
 	virtual void			DamageFeedback( idEntity *victim, idEntity *inflictor, int &damage );
-	void					DirectDamage( const char *meleeDefName, idEntity *ent );
+	void					DirectDamage( const char *meleeDefName, idEntity *ent, const bool canBeClientDamage = false);
 	bool					TestMelee( void ) const;
 	bool					AttackMelee( const char *meleeDefName );
 	void					BeginAttack( const char *name );

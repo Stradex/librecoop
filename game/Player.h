@@ -244,6 +244,7 @@ public:
 		EVENT_SPECTATE,
 		EVENT_PLAYERPHYSICS, //addded by stradex
 		EVENT_PLAYERSPAWN, //addded by stradex
+		EVENT_SENDDAMAGE, //addded by stradex
 		EVENT_MAXEVENTS
 	};
 
@@ -412,7 +413,7 @@ public:
 	virtual void			DamageFeedback( idEntity *victim, idEntity *inflictor, int &damage );
 	void					CalcDamagePoints(  idEntity *inflictor, idEntity *attacker, const idDict *damageDef,
 							   const float damageScale, const int location, int *health, int *armor );
-	virtual	void			Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir, const char *damageDefName, const float damageScale, const int location );
+	virtual	void			Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir, const char *damageDefName, const float damageScale, const int location, const bool canBeClientDamage = false );
 
 							// use exitEntityNum to specify a teleport with private camera view and delayed exit
 	virtual void			Teleport( const idVec3 &origin, const idAngles &angles, idEntity *destination );
@@ -623,6 +624,7 @@ private:
 	bool					airless;
 	int						airTics;				// set to pm_airTics at start, drops in vacuum
 	int						lastAirDamage;
+	int						playerDamageReceived;	//for g_clientsideDamage 1
 
 	bool					gibDeath;
 	bool					gibsLaunched;

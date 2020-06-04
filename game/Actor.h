@@ -165,7 +165,7 @@ public:
 
 							// damage
 	void					SetupDamageGroups( void );
-	virtual	void			Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir, const char *damageDefName, const float damageScale, const int location );
+	virtual	void			Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir, const char *damageDefName, const float damageScale, const int location, const bool canBeClientDamage = false );
 	virtual	void			ClientReceivedDamage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir, int damage, const int location ); //coop added
 	int						GetDamageForLocation( int damage, int location );
 	const char *			GetDamageGroup( int location );

@@ -1378,6 +1378,7 @@ idPlayer::idPlayer() {
 	nextSendPhysicsInfoTime = 0;
 	serverOverridePositionTime = 0; //added from Doom 3 BFG Edition for clientside movement
 	nextTimeCoopTeleported = 0;
+	playerDamageReceived	= 0;	//added g_clientsideDamage 1
 }
 
 /*
@@ -6972,6 +6973,13 @@ void idPlayer::Killed( idEntity *inflictor, idEntity *attacker, int damage, cons
 
 	assert( !gameLocal.isClient );
 
+	if ( !inflictor ) {
+		inflictor = gameLocal.world;
+	}
+	if ( !attacker ) {
+		attacker = gameLocal.world;
+	}
+
 	if (gameLocal.mpGame.IsGametypeCoopBased()){
 		spawnArgs.Clear(); //with this only should be enough
 		spawnArgs.Copy(originalSpawnArgs); //I think there's no need for this.
@@ -7114,10 +7122,12 @@ void idPlayer::CalcDamagePoints( idEntity *inflictor, idEntity *attacker, const 
 	damageDef->GetInt( "damage", "20", damage );
 	damage = GetDamageForLocation( damage, location );
 
+	int gSkill = (gameLocal.isMultiplayer && gameLocal.mpGame.IsGametypeCoopBased()) ? gameLocal.serverInfo.GetInt("g_skill")  : g_skill.GetInteger();
+
 	idPlayer *player = attacker->IsType( idPlayer::Type ) ? static_cast<idPlayer*>(attacker) : NULL;
 	if ( !gameLocal.isMultiplayer || gameLocal.mpGame.IsGametypeCoopBased() ) {
-		if ( inflictor != gameLocal.world ) {
-			switch ( g_skill.GetInteger() ) {
+		if ( inflictor != gameLocal.world || gameLocal.isClient ) {
+			switch ( gSkill ) {
 				case 0:
 					damage *= 0.80f;
 					if ( damage < 1 ) {
@@ -7135,7 +7145,7 @@ void idPlayer::CalcDamagePoints( idEntity *inflictor, idEntity *attacker, const 
 			}
 		}
 	}
-
+	
 	damage *= damageScale;
 
 	// always give half damage if hurting self
@@ -7213,7 +7223,7 @@ inflictor, attacker, dir, and point can be NULL for environmental effects
 ============
 */
 void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir,
-					   const char *damageDefName, const float damageScale, const int location ) {
+					   const char *damageDefName, const float damageScale, const int location , const bool canBeClientDamage ) {
 	idVec3		kick;
 	int			damage;
 	int			armorSave;
@@ -7223,7 +7233,8 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 	float		attackerPushScale;
 
 	// damage is only processed on server
-	if ( gameLocal.isClient ) {
+	
+	if ( gameLocal.isClient && (!g_clientsideDamage.GetBool() || !gameLocal.mpGame.IsGametypeCoopBased()) ) {
 		return;
 	}
 
@@ -7238,7 +7249,9 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 		attacker = gameLocal.world;
 	}
 
-	if ( attacker->IsType( idAI::Type ) ) {
+	int gSkill = (gameLocal.isMultiplayer && gameLocal.mpGame.IsGametypeCoopBased()) ? gameLocal.serverInfo.GetInt("g_skill")  : g_skill.GetInteger();
+
+	if ( attacker->IsType( idAI::Type ) || gameLocal.isClient ) {
 		if ( PowerUpActive( BERSERK ) ) {
 			return;
 		}
@@ -7263,7 +7276,9 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 	// determine knockback
 	damageDef->dict.GetInt( "knockback", "20", knockback );
 
-	if ( knockback != 0 && !fl.noknockback ) {
+	if (!gameLocal.isClient) {
+
+	if ( knockback != 0 && !fl.noknockback  ) {
 		if ( attacker == this ) {
 			damageDef->dict.GetFloat( "attackerPushScale", "0", attackerPushScale );
 		} else {
@@ -7279,15 +7294,21 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 		physicsObj.SetKnockBack( idMath::ClampInt( 50, 200, knockback * 2 ) );
 	}
 
+
+	}
+
 	// give feedback on the player view and audibly when armor is helping
 	if ( armorSave ) {
 		inventory.armor -= armorSave;
 
-		if ( gameLocal.time > lastArmorPulse + 200 ) {
+		
+		if ( (gameLocal.time > lastArmorPulse + 200) && !gameLocal.isClient ) {
 			StartSound( "snd_hitArmor", SND_CHANNEL_ITEM, 0, false, NULL );
 		}
 		lastArmorPulse = gameLocal.time;
 	}
+
+	if (!gameLocal.isClient) {
 
 	if ( damageDef->dict.GetBool( "burn" ) ) {
 		StartSound( "snd_burn", SND_CHANNEL_BODY3, 0, false, NULL );
@@ -7302,6 +7323,8 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 			entityNumber, health, damage, armorSave );
 	}
 
+	}
+
 	// move the world direction vector to local coordinates
 	damage_from = dir;
 	damage_from.Normalize();
@@ -7311,7 +7334,7 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 	// add to the damage inflicted on a player this frame
 	// the total will be turned into screen blends and view angle kicks
 	// at the end of the frame
-	if ( health > 0 ) {
+	if ( health > 0 && !gameLocal.isClient ) {
 		playerView.DamageImpulse( localDamageVector, &damageDef->dict );
 	}
 
@@ -7320,7 +7343,7 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 
 		if ( !gameLocal.isMultiplayer || gameLocal.mpGame.IsGametypeCoopBased() ) {
 			float scale = g_damageScale.GetFloat();
-			if ( g_useDynamicProtection.GetBool() && g_skill.GetInteger() < 2 ) {
+			if ( g_useDynamicProtection.GetBool() && gSkill < 2 && !gameLocal.isClient ) {
 				if ( gameLocal.time > lastDmgTime + 500 && scale > 0.25f ) {
 					scale -= 0.05f;
 					g_damageScale.SetFloat( scale );
@@ -7336,7 +7359,14 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 			damage = 1;
 		}
 
-		health -= damage;
+		if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && gameLocal.localClientNum == this->entityNumber && canBeClientDamage) {
+			playerDamageReceived += damage;
+		} else if (!gameLocal.mpGame.IsGametypeCoopBased() || !g_clientsideDamage.GetBool() || !canBeClientDamage ||
+			(gameLocal.isServer && gameLocal.localClientNum == this->entityNumber)) {
+			health -= damage;
+		}
+
+		if (!gameLocal.isClient) {
 
 		if ( health <= 0 ) {
 
@@ -7359,7 +7389,9 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 				lastDmgTime = gameLocal.time;
 			}
 		}
-	} else {
+
+		}
+	} else if (!gameLocal.isClient) {
 		// don't accumulate impulses
 		if ( af.IsLoaded() ) {
 			// clear impacts
@@ -8437,6 +8469,22 @@ void idPlayer::ClientPredictionThink( void ) {
 	}
 
 	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isNewFrame) {
+
+		if (g_clientsideDamage.GetBool() && playerDamageReceived > 0 && gameLocal.localClientNum == this->entityNumber  ) {
+			idBitMsg	msg;
+			byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+			msg.Init( msgBuf, sizeof( msgBuf ) );
+			msg.BeginWriting();
+			msg.WriteShort(playerDamageReceived);
+			msg.WriteShort(lastDamageLocation);
+			msg.WriteFloat( lastDamageDir.x );
+			msg.WriteFloat( lastDamageDir.y );
+			msg.WriteFloat( lastDamageDir.z );
+			ClientSendEvent(EVENT_SENDDAMAGE, &msg);
+			gameLocal.DebugPrintf("EVENT_SENDDAMAGE: %d\n", playerDamageReceived);
+			playerDamageReceived = 0;
+		}
+
 		UpdateAir();
 	}
 
@@ -8715,6 +8763,7 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	}
 
 	// no msg reading below this
+
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
 		if ( weapon.SetCoopId( weaponCoopId ) ) {
 			if ( weapon.GetCoopEntity() ) {
@@ -8903,6 +8952,52 @@ bool idPlayer::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			deltaViewAngles[1] = msg.ReadDeltaFloat( 0.0f );
 			deltaViewAngles[2] = msg.ReadDeltaFloat( 0.0f );
 			//RunPhysics_RemoteClientCorrection(); //this is giving me trouble by now
+			return true;
+		}
+
+		case EVENT_SENDDAMAGE: {
+
+			gameLocal.DebugPrintf("server: EVENT_SENDDAMAGE\n");
+
+			int clientEntityNum, damageToInflict, location;
+			idVec3 tmpDir = vec3_zero;
+			
+			//clientEntityNum = msg.ReadBits(idMath::BitsForInteger(MAX_CLIENTS));
+			damageToInflict = msg.ReadShort();
+			location = msg.ReadShort();
+			tmpDir.x = msg.ReadFloat();
+			tmpDir.y = msg.ReadFloat();
+			tmpDir.z = msg.ReadFloat();
+
+			if ( noclip || spectating || gameLocal.inCinematic ) {
+				return true;
+			}
+
+			if (damageToInflict < 1) {
+				damageToInflict = 1;
+			}
+
+			health -= damageToInflict;
+
+			if ( health <= 0 ) {
+
+				if ( health < -999 ) {
+					health = -999;
+				}
+
+				lastDmgTime = gameLocal.time;
+				Killed( NULL, NULL, damageToInflict, tmpDir, location );
+
+			} else {
+				// force a blink
+				blink_time = 0;
+				// let the anim script know we took damage
+				AI_PAIN = Pain( NULL, NULL, damageToInflict, tmpDir, location );
+				if ( !g_testDeath.GetBool() ) {
+					lastDmgTime = gameLocal.time;
+				}
+			}
+
 			return true;
 		}
 		default: {

@@ -343,8 +343,8 @@ public:
 	// damage
 							// returns true if this entity can be damaged from the given origin
 	virtual bool			CanDamage( const idVec3 &origin, idVec3 &damagePoint ) const;
-							// applies damage to this entity
-	virtual	void			Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir, const char *damageDefName, const float damageScale, const int location );
+							// applies damage to this entity (canBeClientDamage  added by Stradex for g_clientsideDamage 1)
+	virtual	void			Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir, const char *damageDefName, const float damageScale, const int location, const bool canBeClientDamage = false );
 							// adds a damage effect like overlays, blood, sparks, debris etc.
 	virtual void			AddDamageEffect( const trace_t &collision, const idVec3 &velocity, const char *damageDefName );
 							// callback function for when another entity received damage from this entity.  damage can be adjusted and returned to the caller.

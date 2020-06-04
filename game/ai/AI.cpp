@@ -397,6 +397,7 @@ idAI::idAI() {
 	currentTorsoAnim = 0;
 	currentLegsAnim = 0;
 	currentHeadAnim = 0;
+	currentAttackDefNum = -1;
 
 	currentNetAction = NETACTION_NONE;
 	forceNetworkSync = true; //added by Stradex for Coop
@@ -2775,7 +2776,7 @@ void idAI::AnimMove( void ) {
 	}
 
 	if ( !af_push_moveables && attack.Length() && TestMelee() ) {
-		DirectDamage( attack, enemy.GetEntity() );
+		DirectDamage( attack, enemy.GetEntity(), true );
 	} else {
 		idEntity *blockEnt = physicsObj.GetSlideMoveEntity();
 		if ( blockEnt && blockEnt->IsType( idMoveable::Type ) && blockEnt->GetPhysics()->IsPushable() ) {
@@ -2907,7 +2908,7 @@ void idAI::SlideMove( void ) {
 	}
 
 	if ( !af_push_moveables && attack.Length() && TestMelee() ) {
-		DirectDamage( attack, enemy.GetEntity() );
+		DirectDamage( attack, enemy.GetEntity(), true );
 	} else {
 		idEntity *blockEnt = physicsObj.GetSlideMoveEntity();
 		if ( blockEnt && blockEnt->IsType( idMoveable::Type ) && blockEnt->GetPhysics()->IsPushable() ) {
@@ -3157,7 +3158,7 @@ void idAI::FlyMove( void ) {
 
 	monsterMoveResult_t	moveResult = physicsObj.GetMoveResult();
 	if ( !af_push_moveables && attack.Length() && TestMelee() ) {
-		DirectDamage( attack, enemy.GetEntity() );
+		DirectDamage( attack, enemy.GetEntity(), true );
 	} else {
 		idEntity *blockEnt = physicsObj.GetSlideMoveEntity();
 		if ( blockEnt && blockEnt->IsType( idMoveable::Type ) && blockEnt->GetPhysics()->IsPushable() ) {
@@ -3211,7 +3212,7 @@ void idAI::StaticMove( void ) {
 	AI_ONGROUND = false;
 
 	if ( !af_push_moveables && attack.Length() && TestMelee() ) {
-		DirectDamage( attack, enemyEnt );
+		DirectDamage( attack, enemyEnt, true );
 	}
 
 	if ( ai_debugMove.GetBool() ) {
@@ -3386,6 +3387,18 @@ idAI::Killed
 void idAI::Killed( idEntity *inflictor, idEntity *attacker, int damage, const idVec3 &dir, int location ) {
 
 	if (gameLocal.isClient) {
+		idBitMsg	msg;
+		byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+
+		msg.Init( msgBuf, sizeof( msgBuf ) );
+		msg.BeginWriting();
+		msg.WriteBits( gameLocal.GetLocalPlayer()->entityCoopNumber, idMath::BitsForInteger(MAX_CLIENTS) );
+		msg.WriteShort(clientsideDamageLocation);
+		msg.WriteFloat( clientsideDamageDir.x );
+		msg.WriteFloat( clientsideDamageDir.y );
+		msg.WriteFloat( clientsideDamageDir.z );
+		ClientSendEvent( EVENT_CLIENTKILL, NULL );
+		nextTimeHealthReaded = gameLocal.clientsideTime + 1000;
 		return CSKilled();
 	}
 
@@ -4126,7 +4139,19 @@ idAI::BeginAttack
 =====================
 */
 void idAI::BeginAttack( const char *name ) {
+
+
 	attack = name;
+
+	if (attack.Length() && gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+		const idDeclEntityDef *meleeDef = gameLocal.FindEntityDef( attack, false );
+		if ( !meleeDef ) {
+			gameLocal.Error( "Unknown damage def '%s' on '%s'", attack, this->name.c_str() );
+		}
+		currentAttackDefNum = meleeDef->Index();
+	}
+
+
 	lastAttackTime = gameLocal.time;
 }
 
@@ -4137,6 +4162,7 @@ idAI::EndAttack
 */
 void idAI::EndAttack( void ) {
 	attack = "";
+	currentAttackDefNum = -1; 
 }
 
 /*
@@ -4334,7 +4360,8 @@ kickDir is specified in the monster's coordinate system, and gives the direction
 that the view kick and knockback should go
 =====================
 */
-void idAI::DirectDamage( const char *meleeDefName, idEntity *ent ) {
+void idAI::DirectDamage( const char *meleeDefName, idEntity *ent, const bool canBeClientDamage ) {
+
 	const idDict *meleeDef;
 	const char *p;
 	const idSoundShader *shader;
@@ -4344,7 +4371,7 @@ void idAI::DirectDamage( const char *meleeDefName, idEntity *ent ) {
 		gameLocal.Error( "Unknown damage def '%s' on '%s'", meleeDefName, name.c_str() );
 	}
 
-	if ( !ent->fl.takedamage ) {
+	if ( !ent->fl.takedamage && !gameLocal.isClient ) {
 		const idSoundShader *shader = declManager->FindSound(meleeDef->GetString( "snd_miss" ));
 
 		if (gameLocal.mpGame.IsGametypeCoopBased()) {
@@ -4360,7 +4387,7 @@ void idAI::DirectDamage( const char *meleeDefName, idEntity *ent ) {
 	// do the damage
 	//
 	p = meleeDef->GetString( "snd_hit" );
-	if ( p && *p ) {
+	if ( p && *p && !gameLocal.isClient ) {
 		shader = declManager->FindSound( p );
 
 		if (gameLocal.mpGame.IsGametypeCoopBased()) {
@@ -4376,7 +4403,7 @@ void idAI::DirectDamage( const char *meleeDefName, idEntity *ent ) {
 	idVec3	globalKickDir;
 	globalKickDir = ( viewAxis * physicsObj.GetGravityAxis() ) * kickDir;
 
-	ent->Damage( this, this, globalKickDir, meleeDefName, 1.0f, INVALID_JOINT );
+	ent->Damage( this, this, globalKickDir, meleeDefName, 1.0f, INVALID_JOINT, canBeClientDamage );
 
 	// end the attack if we're a multiframe attack
 	EndAttack();
@@ -5221,6 +5248,13 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteBits( fl.hidden, 1);
 	msg.WriteBits( fl.takedamage, 1 );
 
+	if (currentAttackDefNum != -1) {
+		msg.WriteBits(true, 1);
+		msg.WriteBits( gameLocal.ServerRemapDecl( -1, DECL_ENTITYDEF, currentAttackDefNum ), gameLocal.entityDefBits );
+	} else {
+		msg.WriteBits(false, 1);
+	}
+
 	//Head entity info
 	int headEntitySendInfo = head.GetEntity() ? 1 : 0;
 	msg.WriteBits( headEntitySendInfo, 1 );
@@ -5248,11 +5282,12 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 	int		i, oldHealth, enemySpawnId, torsoAnimId, legsAnimId, headAnimId, enemyEntityId, goalEntityId, focusEntityId;
 	bool	newHitToggle, stateHitch, hasEnemy, getOriginInfo, headEntityReceivedInfo;
-	int		newTorsoFrame, newLegsFrame, newHeadFrame;
+	int		newTorsoFrame, newLegsFrame, newHeadFrame, oldCurrentDefAttack;
 	bool	snapshotInCinematic;
 	netActionType_t newNetAction;
 	idVec3	tmpOrigin = vec3_zero;
 
+	oldCurrentDefAttack = currentAttackDefNum;
 	oldHealth = health;
 
 	getOriginInfo  = msg.ReadBits( 1 ) != 0;
@@ -5303,11 +5338,9 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 	if (enemyEntityId >= 0 && gameLocal.coopentities[enemyEntityId] && gameLocal.coopentities[enemyEntityId]->IsType(idActor::Type)) {
 		enemy = static_cast<idActor*>(gameLocal.coopentities[enemyEntityId]);
-		//enemy.SetSpawnId(gameLocal.GetSpawnId(gameLocal.coopentities[enemyEntityId])); //should I use SetSpawnId or better SetCoopId?
 	}
 	if (goalEntityId >= 0 && gameLocal.coopentities[goalEntityId]) {
 		move.goalEntity = gameLocal.coopentities[goalEntityId];
-		//move.goalEntity.SetSpawnId(gameLocal.GetSpawnId(gameLocal.coopentities[goalEntityId])); //should I use SetSpawnId or better SetCoopId?
 	}
 
 
@@ -5324,6 +5357,12 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	isInvisible = msg.ReadBits( 1 ) != 0;
 
 	fl.takedamage = msg.ReadBits( 1 ) != 0;
+
+	if ( msg.ReadBits( 1 ) ) {
+		currentAttackDefNum = gameLocal.ClientRemapDecl( DECL_ENTITYDEF, msg.ReadBits( gameLocal.entityDefBits ) );
+	} else {
+		currentAttackDefNum = -1;
+	}
 
 	//Head entity info
 	headEntityReceivedInfo = msg.ReadBits( 1 ) != 0;
@@ -5344,6 +5383,28 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		Hide();
 	} else if (!isInvisible && IsHidden()) {
 		Show();
+	}
+
+	if (nextTimeHealthReaded > gameLocal.clientsideTime) {
+		health = oldHealth; //avoid bug with g_clientsideDamage 1
+	}
+
+	if (oldCurrentDefAttack != currentAttackDefNum) {
+		const idDeclEntityDef *tmpDef;
+		//ugly avoid crash in coop
+		int declTypeCount = declManager->GetNumDecls(DECL_ENTITYDEF);
+		if (lastDamageDef < 0 || lastDamageDef >= declTypeCount) {
+			tmpDef = NULL;
+		} else {
+			tmpDef = static_cast<const idDeclEntityDef *>( declManager->DeclByIndex( DECL_ENTITYDEF, lastDamageDef, false ) );
+		}
+		//avoid crash in coop
+		if ( tmpDef ) {
+			BeginAttack(tmpDef->GetName());
+		} else {
+			EndAttack();
+		}
+
 	}
 
 	if (!snapshotInCinematic || !num_cinematics) {
@@ -5404,11 +5465,23 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 */
 bool  idAI::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 
-	if ( idEntity::ServerReceiveEvent( event, time, msg ) ) {
-		return true;
+
+	// client->server events
+	switch( event ) {
+		case EVENT_CLIENTKILL: {
+			int clientEntityNum, damageToInflict, location;
+			idVec3 tmpDir = vec3_zero;
+			
+			clientEntityNum = msg.ReadBits(idMath::BitsForInteger(MAX_CLIENTS));
+			location = msg.ReadShort();
+			tmpDir.x = msg.ReadFloat();
+			tmpDir.y = msg.ReadFloat();
+			tmpDir.z = msg.ReadFloat();
+			Killed( NULL, gameLocal.coopentities[clientEntityNum], 1, tmpDir, location );
+		}
 	}
 
-	return false;
+	return idActor::ServerReceiveEvent( event, time, msg );
 }
 
 /*
@@ -5654,7 +5727,7 @@ void idAI::CSAnimMove( void ) {
 	}
 
 	if ( !af_push_moveables && attack.Length() && TestMelee() ) {
-		//DirectDamage( attack, enemy.GetEntity() ); //No damage in COOP
+		DirectDamage( attack, enemy.GetEntity(), true ); //No damage in COOP
 	} else {
 		idEntity *blockEnt = physicsObj.GetSlideMoveEntity();
 		if ( blockEnt && blockEnt->IsType( idMoveable::Type ) && blockEnt->GetPhysics()->IsPushable() ) {

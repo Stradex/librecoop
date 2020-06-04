@@ -2163,7 +2163,7 @@ calls Damage()
 ============
 */
 void idActor::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir,
-					  const char *damageDefName, const float damageScale, const int location ) {
+					  const char *damageDefName, const float damageScale, const int location, const bool canBeClientDamage ) {
 
 	if (gameLocal.isClient && (!g_clientsideDamage.GetBool() || !inflictor || !inflictor->clientsideNode.InList() || !attacker || attacker->entityNumber != gameLocal.localClientNum)) {
 		return;
@@ -2198,16 +2198,14 @@ void idActor::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir
 		int oldHealth = health;
 		health -= damage;
 
-		if ( gameLocal.isClient ) {
-			if (oldHealth > 0 && health <= 0) {
-				health = 1; //don't let entities die clientside... yet
-			}
+		if (oldHealth > 0) {
+			clientsideDamageLocation = location; // for g_clientsideDamage 1
+			clientsideDamageDir.x = dir.x;
+			clientsideDamageDir.y = dir.y;
+			clientsideDamageDir.z = dir.z;
+
+			clientsideDamageInflicted += damage;
 		}
-		clientsideDamageLocation = location; // for g_clientsideDamage 1
-		clientsideDamageDir.x = dir.x;
-		clientsideDamageDir.y = dir.y;
-		clientsideDamageDir.z = dir.z;
-		clientsideDamageInflicted += damage;
 
 		if ( health <= 0 ) {
 			if ( health < -999 ) {
@@ -2306,6 +2304,14 @@ idActor::Pain
 =====================
 */
 bool idActor::Pain( idEntity *inflictor, idEntity *attacker, int damage, const idVec3 &dir, int location ) {
+
+	if ( !inflictor ) {
+		inflictor = gameLocal.world;
+	}
+	if ( !attacker ) {
+		attacker = gameLocal.world;
+	}
+
 	if ( af.IsLoaded() ) {
 		// clear impacts
 		af.Rest();
