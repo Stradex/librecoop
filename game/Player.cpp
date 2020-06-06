@@ -7196,11 +7196,12 @@ void idPlayer::CalcDamagePoints( idEntity *inflictor, idEntity *attacker, const 
 	if ( ((gameLocal.gameType == GAME_TDM) || (gameLocal.mpGame.IsGametypeCoopBased())) //Team damage cvar working now in Coop
 		&& !gameLocal.serverInfo.GetBool( "si_teamDamage" )
 		&& !damageDef->GetBool( "noTeam" )
-		&& player
-		&& player != this		// you get self damage no matter what
-		&& (player->team == team || gameLocal.mpGame.IsGametypeCoopBased())) {
-			damage = 0;
+		&& ((player && player != this && (player->team == team || gameLocal.mpGame.IsGametypeCoopBased()))
+			|| (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && g_clientsideDamage.GetBool() && inflictor && inflictor->IsType(idProjectile::Type) && static_cast<idProjectile*>(inflictor)->selfClientside && (!static_cast<idProjectile*>(inflictor)->GetOwner() || (static_cast<idProjectile*>(inflictor)->GetOwner()->IsType(idPlayer::Type) && static_cast<idProjectile*>(inflictor)->GetOwner() != this )) ))  ) {
+		damage = 0;
 	}
+
+
 
 	*health = damage;
 	*armor = armorSave;

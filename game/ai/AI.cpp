@@ -3386,13 +3386,13 @@ idAI::Killed
 */
 void idAI::Killed( idEntity *inflictor, idEntity *attacker, int damage, const idVec3 &dir, int location ) {
 
-	if (gameLocal.isClient) {
+	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool()) {
 		idBitMsg	msg;
 		byte		msgBuf[MAX_EVENT_PARAM_SIZE];
 
 		msg.Init( msgBuf, sizeof( msgBuf ) );
 		msg.BeginWriting();
-		msg.WriteBits( gameLocal.GetLocalPlayer()->entityCoopNumber, idMath::BitsForInteger(MAX_CLIENTS) );
+		msg.WriteBits( gameLocal.localClientNum, idMath::BitsForInteger(MAX_CLIENTS) );
 		msg.WriteShort(clientsideDamageLocation);
 		msg.WriteFloat( clientsideDamageDir.x );
 		msg.WriteFloat( clientsideDamageDir.y );
@@ -3509,7 +3509,10 @@ void idAI::Killed( idEntity *inflictor, idEntity *attacker, int damage, const id
 		gameLocal.mpGame.IncrementFrags(static_cast<idPlayer*>(attacker));
 	}
 
-	if ( ( attacker && attacker->IsType( idPlayer::Type ) ) && ( inflictor && !inflictor->IsType( idSoulCubeMissile::Type ) ) ) {
+	if ( ( attacker && attacker->IsType( idPlayer::Type ) ) &&
+		( ((!gameLocal.mpGame.IsGametypeCoopBased() || !g_clientsideDamage.GetBool()) && inflictor && !inflictor->IsType( idSoulCubeMissile::Type ) ) ||
+		(gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && (!inflictor || !inflictor->IsType( idSoulCubeMissile::Type )) )
+		) ) {
 		static_cast< idPlayer* >( attacker )->AddAIKill();
 	}
 }
@@ -5073,22 +5076,19 @@ void idAI::ClientPredictionThink( void ) {
 
 	//this->Think();
 
-	if (gameLocal.isNewFrame) {
+	if (gameLocal.isNewFrame && g_clientsideDamage.GetBool()) {
 		if (clientsideDamageInflicted > 0) {
 			idBitMsg	msg;
 			byte		msgBuf[MAX_EVENT_PARAM_SIZE];
-
 			msg.Init( msgBuf, sizeof( msgBuf ) );
 			msg.BeginWriting();
-			msg.WriteBits( gameLocal.GetLocalPlayer()->entityCoopNumber, idMath::BitsForInteger(MAX_CLIENTS) );
+			msg.WriteBits( gameLocal.localClientNum, idMath::BitsForInteger(MAX_CLIENTS) );
 			msg.WriteShort(clientsideDamageInflicted);
 			msg.WriteShort(clientsideDamageLocation);
 			msg.WriteFloat( clientsideDamageDir.x );
 			msg.WriteFloat( clientsideDamageDir.y );
 			msg.WriteFloat( clientsideDamageDir.z );
 			ClientSendEvent( EVENT_CLIENTDAMAGE, &msg );
-
-			gameLocal.Printf( "EVENT_CLIENTDAMAGE\n");
 		}
 		clientsideDamageInflicted = 0;
 	}
@@ -5480,7 +5480,12 @@ bool  idAI::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			if (this->health > 0) {
 				this->health = 0;
 			}
-			Killed( NULL, gameLocal.coopentities[clientEntityNum], 1, tmpDir, location );
+
+			if (gameLocal.entities[clientEntityNum] && gameLocal.entities[clientEntityNum]->IsType(idPlayer::Type)) {
+				lastPlayerDamage = gameLocal.entities[clientEntityNum];
+			}
+
+			Killed( NULL, lastPlayerDamage, 1, tmpDir, location );
 		}
 	}
 

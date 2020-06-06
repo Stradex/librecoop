@@ -35,7 +35,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "WorldSpawn.h"
 
 #include "Actor.h"
-
+#include "Player.h" //test only
 
 /***********************************************************************
 
@@ -463,6 +463,7 @@ idActor::idActor( void ) {
 	clientsideDamageInflicted = 0; //added for clientside damage
 	clientsideDamageLocation = 0; // for g_clientsideDamage 1
 	clientsideDamageDir = vec3_zero;  // for g_clientsideDamage 1
+	lastPlayerDamage = NULL;
 }
 
 /*
@@ -2198,7 +2199,7 @@ void idActor::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir
 		int oldHealth = health;
 		health -= damage;
 
-		if (oldHealth > 0) {
+		if (oldHealth > 0 && gameLocal.isClient) {
 			clientsideDamageLocation = location; // for g_clientsideDamage 1
 			clientsideDamageDir.x = dir.x;
 			clientsideDamageDir.y = dir.y;
@@ -2247,6 +2248,7 @@ inflictor, attacker, dir, and point can be NULL for environmental effects
 ============
 */
 void idActor::ClientReceivedDamage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir, int damage, const int location ) {
+
 	if ( !fl.takedamage ) {
 		return;
 	}
@@ -3386,7 +3388,11 @@ bool idActor::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			tmpDir.y = msg.ReadFloat();
 			tmpDir.z = msg.ReadFloat();
 
-			ClientReceivedDamage(NULL, gameLocal.coopentities[clientEntityNum], tmpDir, damageToInflict, location);
+			if (gameLocal.entities[clientEntityNum] && gameLocal.entities[clientEntityNum]->IsType(idPlayer::Type)) {
+				lastPlayerDamage = gameLocal.entities[clientEntityNum];
+			}
+
+			ClientReceivedDamage(NULL, lastPlayerDamage, tmpDir, damageToInflict, location);
 		}
 	}
 

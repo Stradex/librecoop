@@ -237,6 +237,7 @@ protected:
 	int						clientsideDamageInflicted; // for g_clientsideDamage 1
 	int						clientsideDamageLocation; // for g_clientsideDamage 1
 	idVec3					clientsideDamageDir;  // for g_clientsideDamage 1
+	idEntity*				lastPlayerDamage; // for g_clientsideDamage 1
 
 	// state variables
 	const function_t		*state;
