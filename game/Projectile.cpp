@@ -1328,7 +1328,9 @@ void idProjectile::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	}
 
 	if ( msg.HasChanged() ) {
-		owner.forceCoopEntity = true; //criminal hack
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			owner.forceCoopEntity = true; //criminal hack
+		}
 		UpdateVisuals();
 	}
 }
