@@ -4162,7 +4162,7 @@ void idGameLocal::RadiusDamage( const idVec3 &origin, idEntity *inflictor, idEnt
 				damageScale *= attackerDamageScale;
 			}
 
-			if ( gameLocal.isClient || !gameLocal.mpGame.IsGametypeCoopBased() || !g_clientsideDamage.GetBool() || !inflictor || !inflictor->clientsideNode.InList() 
+			if ( !gameLocal.mpGame.IsGametypeCoopBased() || !g_clientsideDamage.GetBool() || (gameLocal.isClient && inflictor && inflictor->clientsideNode.InList()) 
 				|| (gameLocal.isServer &&  ent->entityNumber == this->localClientNum)) {
 				ent->Damage( inflictor, attacker, dir, damageDefName, damageScale, INVALID_JOINT, true );
 			}

@@ -3051,7 +3051,6 @@ idAnimator::idAnimator() {
 	numJoints				= 0;
 	joints					= NULL;
 	lastTransformTime		= -1;
-	lastCallFrameTime		= -1;
 	stoppedAnimatingUpdate	= false;
 	removeOriginOffset		= false;
 	forceUpdate				= false;

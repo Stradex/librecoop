@@ -391,11 +391,11 @@ void idProjectile::Launch( const idVec3 &start, const idVec3 &dir, const idVec3 
 
 	if ( !gameLocal.isClient || this->clientsideNode.InList() ) {
 		if ( fuse <= 0 ) {
-			// run physics for 1 second
-			RunPhysics();
 			if (gameLocal.isClient) {
 				CS_PostEventMS( &EV_Remove, spawnArgs.GetInt( "remove_time", "1500" ) );
 			} else {
+				// run physics for 1 second
+				RunPhysics();
 				PostEventMS( &EV_Remove, spawnArgs.GetInt( "remove_time", "1500" ) );
 			}
 		} else if ( spawnArgs.GetBool( "detonate_on_fuse" ) ) {
@@ -414,9 +414,9 @@ void idProjectile::Launch( const idVec3 &start, const idVec3 &dir, const idVec3 
 				fuse = 0.0f;
 			}
 			if (gameLocal.isClient) {
-				PostEventSec( &EV_Fizzle, fuse );
-			} else {
 				CS_PostEventSec( &EV_Fizzle, fuse );
+			} else {
+				PostEventSec( &EV_Fizzle, fuse );
 			}
 		}
 	}
@@ -445,6 +445,10 @@ void idProjectile::Launch( const idVec3 &start, const idVec3 &dir, const idVec3 
 		renderEntity.shaderParms[SHADERPARM_DIVERSITY] = f;
 	}
 
+
+	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased() && this->clientsideNode.InList()) {
+		RunPhysics(); //run physics atleast once
+	}
 	UpdateVisuals();
 
 	state = LAUNCHED;
@@ -806,6 +810,10 @@ void idProjectile::Fizzle( void ) {
 	state = FIZZLED;
 
 	if ( gameLocal.isClient ) {
+		if (gameLocal.mpGame.IsGametypeCoopBased() && clientsideNode.InList()) {
+			CancelEvents( &EV_Fizzle );
+			CS_PostEventMS( &EV_Remove, spawnArgs.GetInt( "remove_time", "1500" ) );
+		}
 		return;
 	}
 
@@ -1200,10 +1208,12 @@ idProjectile::ClientPredictionThink
 ================
 */
 void idProjectile::ClientPredictionThink( void ) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && clientsideNode.InList() && owner.GetEntity() && owner.GetEntity()->IsType(idAI::Type)) {
+		return Think();
+	}
 	if ( !renderEntity.hModel && ((owner.GetEntity() && (owner.GetEntity()->entityNumber != gameLocal.localClientNum)) || !gameLocal.mpGame.IsGametypeCoopBased()) ) {
 		return;
 	}
-	
 	if ((owner.GetEntity() && (owner.GetEntity()->entityNumber != gameLocal.localClientNum)) && gameLocal.mpGame.IsGametypeCoopBased()) {
 		thinkFlags |= TH_THINK;
 	}

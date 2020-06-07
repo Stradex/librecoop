@@ -630,7 +630,11 @@ void idAI::Event_AttackMissile( const char *jointname ) {
 
 	idProjectile *proj;
 
-	proj = LaunchProjectile( jointname, enemy.GetEntity(), true );
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && enemy.GetEntity()) {
+		proj = LaunchProjectile( jointname, enemy.GetEntity(), false );
+	} else {
+		proj = LaunchProjectile( jointname, enemy.GetEntity(), true );
+	}
 	idThread::ReturnEntity( proj );
 }
 

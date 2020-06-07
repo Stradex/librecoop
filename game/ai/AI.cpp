@@ -4199,7 +4199,9 @@ idProjectile *idAI::CreateProjectile( const idVec3 &pos, const idVec3 &dir ) {
 		}
 		projectile = ( idProjectile * )ent;
 	}
-
+	if (g_clientsideDamage.GetBool() && gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) {
+		projectile.GetEntity()->allowClientsideThink = true;
+	}
 	projectile.GetEntity()->Create( this, pos, dir );
 
 	return projectile.GetEntity();
@@ -5412,7 +5414,7 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteBits( headEntitySendInfo, 1 );
 	if (headEntitySendInfo) {
 		msg.WriteShort(currentHeadAnim);
-		msg.WriteBits(head.GetEntity()->GetAnimator()->GetAllowFrameCommands(ANIMCHANNEL_HEAD), 1);
+		msg.WriteBits(head.GetEntity()->GetAnimator()->GetAllowFrameCommands(ANIMCHANNEL_ALL), 1);
 		int focusEntityNum = focusEntity.GetEntity() ? focusEntity.GetEntity()->entityCoopNumber : -1;
 		msg.WriteInt( focusEntityNum );
 		msg.WriteInt( alignHeadTime );
@@ -5572,8 +5574,8 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 			animator.CycleAnim(ANIMCHANNEL_LEGS, legsAnimId, gameLocal.time, 2);
 		}
 		if (headEntityReceivedInfo && head.GetEntity() && currentHeadAnim != headAnimId) {
-			head.GetEntity()->GetAnimator()->CycleAnim(ANIMCHANNEL_HEAD, headAnimId, gameLocal.time, 2);
-			head.GetEntity()->GetAnimator()->SetAllowFrameCommands(ANIMCHANNEL_HEAD, headAllowCommandsFrame); 
+			head.GetEntity()->GetAnimator()->CycleAnim(ANIMCHANNEL_ALL, headAnimId, gameLocal.time, 2);
+			head.GetEntity()->GetAnimator()->SetAllowFrameCommands(ANIMCHANNEL_ALL, headAllowCommandsFrame); 
 		}
 		currentTorsoAnim = torsoAnimId;
 		currentLegsAnim = legsAnimId;
@@ -5597,8 +5599,8 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 			animator.PlayAnim(ANIMCHANNEL_LEGS, legsAnimId, gameLocal.time, 2);
 		}
 		if (headEntityReceivedInfo && head.GetEntity() && currentHeadAnim != headAnimId) {
-			head.GetEntity()->GetAnimator()->PlayAnim(ANIMCHANNEL_HEAD, headAnimId, gameLocal.time, 2);
-			head.GetEntity()->GetAnimator()->SetAllowFrameCommands(ANIMCHANNEL_HEAD, headAllowCommandsFrame); 
+			head.GetEntity()->GetAnimator()->PlayAnim(ANIMCHANNEL_ALL, headAnimId, gameLocal.time, 2);
+			head.GetEntity()->GetAnimator()->SetAllowFrameCommands(ANIMCHANNEL_ALL, headAllowCommandsFrame); 
 		}
 
 		currentTorsoAnim = torsoAnimId;
@@ -5628,6 +5630,7 @@ bool  idAI::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 	switch( event ) {
 		case EVENT_CLIENTKILL: {
 			int clientEntityNum, damageToInflict, location;
+			bool gibEntity=false;
 			idVec3 tmpDir = vec3_zero;
 			
 			clientEntityNum = msg.ReadBits(idMath::BitsForInteger(MAX_CLIENTS));
@@ -5636,6 +5639,9 @@ bool  idAI::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			tmpDir.y = msg.ReadFloat();
 			tmpDir.z = msg.ReadFloat();
 			if (this->health > 0) {
+				if (spawnArgs.GetBool( "gib" )) { //instant gib in coop
+					gibEntity = true;
+				}
 				this->health = 0;
 			}
 
@@ -5644,6 +5650,9 @@ bool  idAI::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			}
 
 			Killed( NULL, lastPlayerDamage, 1, tmpDir, location );
+			if (gibEntity) {
+				Gib( tmpDir, NULL );
+			}
 		}
 	}
 

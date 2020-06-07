@@ -583,7 +583,6 @@ private:
 	idJointMat *				joints;
 
 	mutable int					lastTransformTime;		// mutable because the value is updated in CreateFrame
-	mutable int					lastCallFrameTime;		// added for g_clientsideDamage 1
 	mutable bool				stoppedAnimatingUpdate;
 	bool						removeOriginOffset;
 	bool						forceUpdate;
