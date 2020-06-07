@@ -7798,7 +7798,7 @@ idVec3 idPlayer::GetEyePosition( void ) const {
 	idVec3 org;
 
 	// use the smoothed origin if spectating another player in multiplayer
-	if ( gameLocal.isClient && entityNumber != gameLocal.localClientNum ) {
+	if ( gameLocal.isClient && (entityNumber != gameLocal.localClientNum || allowClientsideMovement) ) {
 		org = smoothedOrigin;
 	} else {
 		org = GetPhysics()->GetOrigin();
@@ -8455,7 +8455,9 @@ void idPlayer::ClientPredictionThink( void ) {
 		}
 		smoothedAngles = viewAngles;
 	}
-	smoothedOriginUpdated = false;
+	if (IsPhysicsFrameClientside()) {
+		smoothedOriginUpdated = false;
+	}
 
 	// if we have an active gui, we will unrotate the view angles as
 	// we turn the mouse movements into gui events
@@ -8482,7 +8484,7 @@ void idPlayer::ClientPredictionThink( void ) {
 	UpdateFocus();
 
 	// service animations
-	if ( !spectating && !af.IsActive() /* && IsPhysicsFrameClientside() */ ) {
+	if ( !spectating && !af.IsActive() && IsPhysicsFrameClientside() ) {
 		UpdateConditions();
 		UpdateAnimState();
 		CheckBlink();
@@ -8491,14 +8493,14 @@ void idPlayer::ClientPredictionThink( void ) {
 	// clear out our pain flag so we can tell if we recieve any damage between now and the next time we think
 	AI_PAIN = false;
 
-	//if (IsPhysicsFrameClientside()) {
+	if (IsPhysicsFrameClientside()) {
 		// calculate the exact bobbed view position, which is used to
 		// position the view weapon, among other things
 		CalculateFirstPersonView();
 
 		// this may use firstPersonView, or a thirdPerson / camera view
 		CalculateRenderView();
-	//}
+	}
 
 	if ( !gameLocal.inCinematic && weapon.GetEntity() && ( health > 0 ) && !( gameLocal.isMultiplayer && spectating ) ) {
 		UpdateWeapon();
@@ -8564,7 +8566,7 @@ void idPlayer::ClientPredictionThink( void ) {
 		headRenderEnt->suppressShadowInLightID = LIGHTID_VIEW_MUZZLE_FLASH + entityNumber;
 	}
 
-	if ( !gameLocal.inCinematic /* && IsPhysicsFrameClientside() */ ) {
+	if ( !gameLocal.inCinematic && IsPhysicsFrameClientside() ) {
 		UpdateAnimation();
 	}
 
@@ -8608,9 +8610,9 @@ void idPlayer::ClientPredictionThink( void ) {
 	}
 
 	// service animations
-	//if (IsPhysicsFrameClientside()) {
+	if (IsPhysicsFrameClientside()) {
 		Present();
-	//}
+	}
 
 	UpdateDamageEffects();
 
@@ -8634,7 +8636,7 @@ bool idPlayer::GetPhysicsToVisualTransform( idVec3 &origin, idMat3 &axis ) {
 
 	// smoothen the rendered origin and angles of other clients
 	// smooth self origin if snapshots are telling us prediction is off
-	if ( gameLocal.isClient && gameLocal.framenum >= smoothedFrame && ( entityNumber != gameLocal.localClientNum || selfSmooth ) ) {
+	if ( gameLocal.isClient && gameLocal.framenum >= smoothedFrame && ( entityNumber != gameLocal.localClientNum || selfSmooth || allowClientsideMovement ) ) {
 		// render origin and axis
 		idMat3 renderAxis = viewAxis * GetPhysics()->GetAxis();
 		idVec3 renderOrigin = GetPhysics()->GetOrigin() + modelOffset * renderAxis;
@@ -8644,7 +8646,7 @@ bool idPlayer::GetPhysicsToVisualTransform( idVec3 &origin, idMat3 &axis ) {
 			idVec2 originDiff = renderOrigin.ToVec2() - smoothedOrigin.ToVec2();
 			if ( originDiff.LengthSqr() < Square( 100.0f ) ) {
 				// smoothen by pushing back to the previous position
-				if ( selfSmooth ) {
+				if ( selfSmooth || allowClientsideMovement ) {
 					assert( entityNumber == gameLocal.localClientNum );
 					renderOrigin.ToVec2() -= net_clientSelfSmoothing.GetFloat() * originDiff;
 				} else {
@@ -8657,11 +8659,14 @@ bool idPlayer::GetPhysicsToVisualTransform( idVec3 &origin, idMat3 &axis ) {
 			smoothedOriginUpdated = true;
 		}
 
-		axis = idAngles( 0.0f, smoothedAngles.yaw, 0.0f ).ToMat3();
-		origin = ( smoothedOrigin - GetPhysics()->GetOrigin() ) * axis.Transpose();
-
+		if (!allowClientsideMovement || selfSmooth) {
+			axis = idAngles( 0.0f, smoothedAngles.yaw, 0.0f ).ToMat3();
+			origin = ( smoothedOrigin - GetPhysics()->GetOrigin() ) * axis.Transpose();
+		} else {
+			axis = viewAxis;
+			origin = modelOffset;
+		}
 	} else {
-
 		axis = viewAxis;
 		origin = modelOffset;
 	}
