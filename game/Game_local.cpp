@@ -219,6 +219,7 @@ void idGameLocal::Clear( void ) {
 	cinematicMaxSkipTime = 0;
 	framenum = 0;
 	previousTime = 0;
+	previousClientsideTime = 0;
 	time = 0;
 	vacuumAreaNum = 0;
 	mapFileName.Clear();
@@ -977,6 +978,7 @@ void idGameLocal::LoadMap( const char *mapName, int randseed ) {
 	lastAIAlertTime = 0;
 
 	previousTime	= 0;
+	previousClientsideTime = 0;
 	time			= 0;
 	framenum		= 0;
 	sessionCommand = "";
@@ -2490,6 +2492,7 @@ gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
 		// update the game time
 		framenum++;
 		previousTime = time;
+		previousClientsideTime = time;
 		time += msec;
 		realClientTime = time;
 		clientsideTime = time;
@@ -4159,7 +4162,7 @@ void idGameLocal::RadiusDamage( const idVec3 &origin, idEntity *inflictor, idEnt
 				damageScale *= attackerDamageScale;
 			}
 
-			if ( gameLocal.isClient || !gameLocal.mpGame.IsGametypeCoopBased() || !g_clientsideDamage.GetBool() || !attacker || !attacker->IsType( idAI::Type ) 
+			if ( gameLocal.isClient || !gameLocal.mpGame.IsGametypeCoopBased() || !g_clientsideDamage.GetBool() || !inflictor || !inflictor->clientsideNode.InList() 
 				|| (gameLocal.isServer &&  ent->entityNumber == this->localClientNum)) {
 				ent->Damage( inflictor, attacker, dir, damageDefName, damageScale, INVALID_JOINT, true );
 			}

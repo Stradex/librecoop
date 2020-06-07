@@ -337,6 +337,7 @@ public:
 													// are kept up to date with changes to serverInfo
 	int						framenum;
 	int						previousTime;			// time in msec of last frame
+	int						previousClientsideTime;	// time in msec of last frame (for clientsidecoop)
 	int						time;					// in msec
 	static const int		msec = USERCMD_MSEC;	// time since last update in milliseconds
 

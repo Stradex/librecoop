@@ -4111,7 +4111,7 @@ bool idAI::GetAimDir( const idVec3 &firePos, idEntity *aimAtEnt, const idEntity 
 		CreateProjectileClipModel();
 	}
 
-	if ( aimAtEnt == enemy.GetEntity() ) {
+	if ( aimAtEnt == enemy.GetEntity() && !gameLocal.isClient ) {
 		static_cast<idActor *>( aimAtEnt )->GetAIAimTargets( lastVisibleEnemyPos, targetPos1, targetPos2 );
 	} else if ( aimAtEnt->IsType( idActor::Type ) ) {
 		static_cast<idActor *>( aimAtEnt )->GetAIAimTargets( aimAtEnt->GetPhysics()->GetOrigin(), targetPos1, targetPos2 );
@@ -4178,7 +4178,16 @@ idProjectile *idAI::CreateProjectile( const idVec3 &pos, const idVec3 &dir ) {
 	const char *clsname;
 
 	if ( !projectile.GetEntity() ) {
-		gameLocal.SpawnEntityDef( *projectileDef, &ent, false );
+
+		if (gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool()) {
+			idDict			args;
+			args.Clear();
+			args.Copy(*projectileDef);
+			args.Set("clientside", "1");
+			gameLocal.SpawnEntityDef( args, &ent, false , true );
+		} else {
+			gameLocal.SpawnEntityDef( *projectileDef, &ent, false );
+		}
 		if ( !ent ) {
 			clsname = projectileDef->GetString( "classname" );
 			gameLocal.Error( "Could not spawn entityDef '%s'", clsname );
@@ -4203,9 +4212,143 @@ idAI::RemoveProjectile
 */
 void idAI::RemoveProjectile( void ) {
 	if ( projectile.GetEntity() ) {
-		projectile.GetEntity()->PostEventMS( &EV_Remove, 0 );
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && projectile.GetEntity()->clientsideNode.InList()) {
+			projectile.GetEntity()->CS_PostEventMS( &EV_Remove, 0 );
+		} else {
+			projectile.GetEntity()->PostEventMS( &EV_Remove, 0 );
+		}
 		projectile = NULL;
 	}
+}
+
+/*
+=====================
+idAI::CS_LaunchProjectile
+=====================
+*/
+
+idProjectile *idAI::CS_LaunchProjectile( idVec3 muzzle, idVec3 inidir, idEntity *target, bool clampToAttackCone ) {
+	idVec3				dir;
+	idVec3				start;
+	trace_t				tr;
+	idBounds			projBounds;
+	float				distance;
+	const idClipModel	*projClip;
+	float				attack_accuracy;
+	float				attack_cone;
+	float				projectile_spread;
+	float				diff;
+	float				angle;
+	float				spin;
+	idAngles			ang;
+	int					num_projectiles;
+	int					i;
+	idMat3				axis;
+	idVec3				tmp;
+	idProjectile		*lastProjectile;
+
+	if ( !projectileDef ) {
+		gameLocal.Warning( "%s (%s) doesn't have a projectile specified", name.c_str(), GetEntityDefName() );
+		return NULL;
+	}
+
+	attack_accuracy = spawnArgs.GetFloat( "attack_accuracy", "7" );
+	attack_cone = spawnArgs.GetFloat( "attack_cone", "70" );
+	projectile_spread = spawnArgs.GetFloat( "projectile_spread", "0" );
+	num_projectiles = spawnArgs.GetInt( "num_projectiles", "1" );
+
+	if ( !projectile.GetEntity() ) {
+		CreateProjectile( muzzle, inidir );
+	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && !projectile.GetEntity()->clientsideNode.InList()) {
+		projectile.GetEntity()->fl.coopNetworkSync = false;
+		projectile.GetEntity()->fl.networkSync = false;
+		projectile.GetEntity()->clientsideNode.AddToEnd( gameLocal.clientsideEntities );  //hack
+
+	}
+
+	lastProjectile = projectile.GetEntity();
+
+	if ( target != NULL ) {
+		tmp = target->GetPhysics()->GetAbsBounds().GetCenter() - muzzle;
+		tmp.Normalize();
+		axis = tmp.ToMat3();
+	} else {
+		axis = viewAxis;
+	}
+
+	// rotate it because the cone points up by default
+	tmp = axis[2];
+	axis[2] = axis[0];
+	axis[0] = -tmp;
+
+	// make sure the projectile starts inside the monster bounding box
+	const idBounds &ownerBounds = physicsObj.GetAbsBounds();
+	projClip = lastProjectile->GetPhysics()->GetClipModel();
+	projBounds = projClip->GetBounds().Rotate( axis );
+
+	// check if the owner bounds is bigger than the projectile bounds
+	if ( ( ( ownerBounds[1][0] - ownerBounds[0][0] ) > ( projBounds[1][0] - projBounds[0][0] ) ) &&
+		( ( ownerBounds[1][1] - ownerBounds[0][1] ) > ( projBounds[1][1] - projBounds[0][1] ) ) &&
+		( ( ownerBounds[1][2] - ownerBounds[0][2] ) > ( projBounds[1][2] - projBounds[0][2] ) ) ) {
+		if ( (ownerBounds - projBounds).RayIntersection( muzzle, viewAxis[ 0 ], distance ) ) {
+			start = muzzle + distance * viewAxis[ 0 ];
+		} else {
+			start = ownerBounds.GetCenter();
+		}
+	} else {
+		// projectile bounds bigger than the owner bounds, so just start it from the center
+		start = ownerBounds.GetCenter();
+	}
+
+	gameLocal.clip.Translation( tr, start, muzzle, projClip, axis, MASK_SHOT_RENDERMODEL, this );
+	muzzle = tr.endpos;
+
+	// set aiming direction
+	GetAimDir( muzzle, target, this, dir );
+	ang = dir.ToAngles();
+
+	// adjust his aim so it's not perfect.  uses sine based movement so the tracers appear less random in their spread.
+	float t = MS2SEC( gameLocal.time + entityNumber * 497 );
+	ang.pitch += idMath::Sin16( t * 5.1 ) * attack_accuracy;
+	ang.yaw	+= idMath::Sin16( t * 6.7 ) * attack_accuracy;
+
+	if ( clampToAttackCone ) {
+		// clamp the attack direction to be within monster's attack cone so he doesn't do
+		// things like throw the missile backwards if you're behind him
+		diff = idMath::AngleDelta( ang.yaw, current_yaw );
+		if ( diff > attack_cone ) {
+			ang.yaw = current_yaw + attack_cone;
+		} else if ( diff < -attack_cone ) {
+			ang.yaw = current_yaw - attack_cone;
+		}
+	}
+
+	axis = ang.ToMat3();
+
+	float spreadRad = DEG2RAD( projectile_spread );
+	for( i = 0; i < num_projectiles; i++ ) {
+		// spread the projectiles out
+		angle = idMath::Sin( spreadRad * gameLocal.random.RandomFloat() );
+		spin = (float)DEG2RAD( 360.0f ) * gameLocal.random.RandomFloat();
+		dir = axis[ 0 ] + axis[ 2 ] * ( angle * idMath::Sin( spin ) ) - axis[ 1 ] * ( angle * idMath::Cos( spin ) );
+		dir.Normalize();
+
+		// launch the projectile
+		if ( !projectile.GetEntity() ) {
+			CreateProjectile( muzzle, dir );
+		}
+		lastProjectile = projectile.GetEntity();
+		lastProjectile->Launch( muzzle, dir, vec3_origin );
+		projectile = NULL;
+	}
+
+	TriggerWeaponEffects( muzzle );
+
+	lastAttackTime = gameLocal.time;
+
+	return lastProjectile;
 }
 
 /*
@@ -4248,6 +4391,13 @@ idProjectile *idAI::LaunchProjectile( const char *jointname, idEntity *target, b
 
 	if ( !projectile.GetEntity() ) {
 		CreateProjectile( muzzle, axis[ 0 ] );
+	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && !projectile.GetEntity()->clientsideNode.InList()) {
+		projectile.GetEntity()->fl.coopNetworkSync = false;
+		projectile.GetEntity()->fl.networkSync = false;
+		projectile.GetEntity()->clientsideNode.AddToEnd( gameLocal.clientsideEntities );  //hack
+
 	}
 
 	lastProjectile = projectile.GetEntity();
@@ -5226,6 +5376,8 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteFloat(anim_turn_angles);
 	msg.WriteShort(currentTorsoAnim);
 	msg.WriteShort(currentLegsAnim);
+	msg.WriteBits(animator.GetAllowFrameCommands(ANIMCHANNEL_TORSO), 1);
+	msg.WriteBits(animator.GetAllowFrameCommands(ANIMCHANNEL_LEGS), 1);
 	msg.WriteByte(currentNetAction);
 	
 	msg.WriteFloat(turnTowardPos.x);
@@ -5260,6 +5412,7 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteBits( headEntitySendInfo, 1 );
 	if (headEntitySendInfo) {
 		msg.WriteShort(currentHeadAnim);
+		msg.WriteBits(head.GetEntity()->GetAnimator()->GetAllowFrameCommands(ANIMCHANNEL_HEAD), 1);
 		int focusEntityNum = focusEntity.GetEntity() ? focusEntity.GetEntity()->entityCoopNumber : -1;
 		msg.WriteInt( focusEntityNum );
 		msg.WriteInt( alignHeadTime );
@@ -5283,7 +5436,7 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	int		i, oldHealth, enemySpawnId, torsoAnimId, legsAnimId, headAnimId, enemyEntityId, goalEntityId, focusEntityId;
 	bool	newHitToggle, stateHitch, hasEnemy, getOriginInfo, headEntityReceivedInfo;
 	int		newTorsoFrame, newLegsFrame, newHeadFrame, oldCurrentDefAttack;
-	bool	snapshotInCinematic;
+	bool	snapshotInCinematic, headAllowCommandsFrame;
 	netActionType_t newNetAction;
 	idVec3	tmpOrigin = vec3_zero;
 
@@ -5325,6 +5478,8 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 	torsoAnimId =  msg.ReadShort();
 	legsAnimId =  msg.ReadShort();
+	animator.SetAllowFrameCommands(ANIMCHANNEL_TORSO, (msg.ReadBits(1) != 0));
+	animator.SetAllowFrameCommands(ANIMCHANNEL_LEGS, (msg.ReadBits(1) != 0));
 	newNetAction = static_cast<netActionType_t>(msg.ReadByte());
 
 	turnTowardPos.x= msg.ReadFloat();
@@ -5368,6 +5523,7 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	headEntityReceivedInfo = msg.ReadBits( 1 ) != 0;
 	if (headEntityReceivedInfo) {
 		headAnimId = msg.ReadShort();
+		headAllowCommandsFrame = msg.ReadBits(1);
 		focusEntityId = msg.ReadInt();
 		if (focusEntityId >= 0 && gameLocal.coopentities[focusEntityId]) {
 			focusEntity = gameLocal.coopentities[focusEntityId];
@@ -5416,7 +5572,8 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 			animator.CycleAnim(ANIMCHANNEL_LEGS, legsAnimId, gameLocal.time, 2);
 		}
 		if (headEntityReceivedInfo && head.GetEntity() && currentHeadAnim != headAnimId) {
-			head.GetEntity()->GetAnimator()->CycleAnim(ANIMCHANNEL_ALL, headAnimId, gameLocal.time, 2);
+			head.GetEntity()->GetAnimator()->CycleAnim(ANIMCHANNEL_HEAD, headAnimId, gameLocal.time, 2);
+			head.GetEntity()->GetAnimator()->SetAllowFrameCommands(ANIMCHANNEL_HEAD, headAllowCommandsFrame); 
 		}
 		currentTorsoAnim = torsoAnimId;
 		currentLegsAnim = legsAnimId;
@@ -5440,7 +5597,8 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 			animator.PlayAnim(ANIMCHANNEL_LEGS, legsAnimId, gameLocal.time, 2);
 		}
 		if (headEntityReceivedInfo && head.GetEntity() && currentHeadAnim != headAnimId) {
-			head.GetEntity()->GetAnimator()->PlayAnim(ANIMCHANNEL_ALL, headAnimId, gameLocal.time, 2);
+			head.GetEntity()->GetAnimator()->PlayAnim(ANIMCHANNEL_HEAD, headAnimId, gameLocal.time, 2);
+			head.GetEntity()->GetAnimator()->SetAllowFrameCommands(ANIMCHANNEL_HEAD, headAllowCommandsFrame); 
 		}
 
 		currentTorsoAnim = torsoAnimId;
@@ -5793,6 +5951,9 @@ void idAI::CSKilled( void ) {
 
 	// end our looping ambient sound
 	StopSound( SND_CHANNEL_AMBIENT, false );
+
+	//RemoveAttachments(); //fix this later
+	RemoveProjectile();
 
 	StopMove( MOVE_STATUS_DONE );
 

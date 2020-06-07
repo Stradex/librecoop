@@ -1791,6 +1791,7 @@ gameReturn_t idGameLocal::ClientPrediction( int clientNum, const usercmd_t *clie
 	if ( time > realClientTime ) {
 		realClientTime = time;
 		isNewFrame = true;
+		previousClientsideTime = clientsideTime;
 		clientsideTime += msec; //added for clientside movement code and events
 	} else {
 		isNewFrame = false;
@@ -2236,6 +2237,7 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 	framenum = gameFrame;
 	time = gameTime;
 	previousTime = time - msec;
+
 
 	// so that StartSound/StopSound doesn't risk skipping
 	isNewFrame = true;

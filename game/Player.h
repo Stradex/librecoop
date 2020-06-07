@@ -565,6 +565,7 @@ public:
 	int						nextSendPhysicsInfoTime; // COOP: added for clientside movement code 
 	idAI*					GetFocusCharacter( void ); // COOP
 	int						nextTimeCoopTeleported; //Hack for opencoop maps
+	int						nextTimeReadHealth; //for g_clientsideDamage 1
 
 	//Client-side stuff for coop
 	bool					CS_Give( const char *statname, const char *value );

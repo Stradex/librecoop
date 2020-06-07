@@ -524,8 +524,8 @@ bool idProjectile::Collide( const trace_t &collision, const idVec3 &velocity ) {
 			AddDefaultDamageEffect( collision, collision.c.normal ); //added for coop
 			ent = gameLocal.entities[ collision.c.entityNum ];
 			ignore = NULL;
-			if (g_clientsideDamage.GetBool() && ent &&
-				((selfClientside && owner.GetEntity() && owner.GetEntity()->entityNumber == gameLocal.localClientNum && ent->IsType(idAI::Type))
+			if (gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && clientsideNode.InList() && ent &&
+				((owner.GetEntity() && owner.GetEntity()->entityNumber == gameLocal.localClientNum && ent->IsType(idAI::Type))
 				|| (ent->entityNumber == gameLocal.localClientNum ))
 			) {
 				if ( !projectileFlags.detonate_on_actor ) {
@@ -645,7 +645,7 @@ bool idProjectile::Collide( const trace_t &collision, const idVec3 &velocity ) {
 
 		if ( damageDefName[0] != '\0' ) {
 			if (!g_clientsideDamage.GetBool() || !selfClientside || !owner.GetEntity() || !owner.GetEntity()->IsType(idPlayer::Type) || !ent->IsType(idAI::Type) || (owner.GetEntity() && owner.GetEntity()->entityNumber == gameLocal.localClientNum)) {
-				ent->Damage( this, owner.GetEntity(), dir, damageDefName, damageScale, CLIPMODEL_ID_TO_JOINT_HANDLE( collision.c.id ) );
+				ent->Damage( this, owner.GetEntity(), dir, damageDefName, damageScale, CLIPMODEL_ID_TO_JOINT_HANDLE( collision.c.id ), true );
 			}
 			ignore = ent;
 		}
@@ -1325,6 +1325,7 @@ void idProjectile::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		axis[2] = axis[0];
 		axis[0] = -tmp;
 		physicsObj.SetAxis( axis );
+
 	}
 
 	if ( msg.HasChanged() ) {

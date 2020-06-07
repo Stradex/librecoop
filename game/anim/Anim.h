@@ -566,6 +566,9 @@ public:
 	int							AnimLength( int animnum ) const;
 	const idVec3				&TotalMovementDelta( int animnum ) const;
 
+	bool						GetAllowFrameCommands( int channelNum) const; //added for COOP
+	void						SetAllowFrameCommands( int channelNum, bool allow);
+
 private:
 	void						FreeData( void );
 	void						PushAnims( int channel, int currentTime, int blendTime );
@@ -580,6 +583,7 @@ private:
 	idJointMat *				joints;
 
 	mutable int					lastTransformTime;		// mutable because the value is updated in CreateFrame
+	mutable int					lastCallFrameTime;		// added for g_clientsideDamage 1
 	mutable bool				stoppedAnimatingUpdate;
 	bool						removeOriginOffset;
 	bool						forceUpdate;

@@ -893,7 +893,7 @@ void idAnim::CallFrameCommands( idEntity *ent, int from, int to ) const {
 				case FC_LAUNCHMISSILE: {
 					if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) { //COOP, to force triggerweaponeffects in clients
 						//fake muzzleflash by force
-						if (ent && ent->IsType(idAI::Type)){
+						if (ent && ent->IsType(idAI::Type) && !g_clientsideDamage.GetBool()){
 							idAI* tmpAI = static_cast<idAI*>(ent);
 							tmpAI->TriggerWeaponEffects(vec3_zero);
 						}
@@ -3051,6 +3051,7 @@ idAnimator::idAnimator() {
 	numJoints				= 0;
 	joints					= NULL;
 	lastTransformTime		= -1;
+	lastCallFrameTime		= -1;
 	stoppedAnimatingUpdate	= false;
 	removeOriginOffset		= false;
 	forceUpdate				= false;
@@ -3605,6 +3606,34 @@ void idAnimator::SyncAnimChannels( int channelNum, int fromChannelNum, int curre
 
 /*
 =====================
+idAnimator::GetAllowFrameCommands
+=====================
+*/
+bool idAnimator::GetAllowFrameCommands(int channelNum) const {
+	if ( ( channelNum < 0 ) || ( channelNum >= ANIM_NumAnimChannels ) ) {
+		gameLocal.Error( "idAnimator::GetAllowFrameCommands : channel out of range" );
+		return false;
+	}
+
+	return channels[ channelNum ][ 0 ].allowFrameCommands;
+}
+
+/*
+=====================
+idAnimator::SetAllowFrameCommands
+=====================
+*/
+void idAnimator::SetAllowFrameCommands( int channelNum, bool allow) {
+	if ( ( channelNum < 0 ) || ( channelNum >= ANIM_NumAnimChannels ) ) {
+		gameLocal.Error( "idAnimator::GetAllowFrameCommands : channel out of range" );
+		return;
+	}
+
+	channels[ channelNum ][ 0 ].allowFrameCommands = allow;
+}
+
+/*
+=====================
 idAnimator::SetJointPos
 =====================
 */
@@ -4123,6 +4152,7 @@ void idAnimator::ServiceAnims( int fromtime, int totime ) {
 	}
 
 	if ( modelDef->ModelHandle() ) {
+
 		blend = channels[ 0 ];
 		for( i = 0; i < ANIM_NumAnimChannels; i++ ) {
 			for( j = 0; j < ANIM_MaxAnimsPerChannel; j++, blend++ ) {

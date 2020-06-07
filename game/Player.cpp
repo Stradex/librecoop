@@ -92,6 +92,9 @@ const int HEALTHPULSE_TIME = 333;
 // minimum speed to bob and play run/walk animations at
 const float MIN_BOB_SPEED = 5.0f;
 
+// delay for reading health after g_clientside 1 damage
+const int READHEALTH_DELAY_AFTERDAMAGE = 400; //200ms ping as max
+
 const idEventDef EV_Player_GetButtons( "getButtons", NULL, 'd' );
 const idEventDef EV_Player_GetMove( "getMove", NULL, 'v' );
 const idEventDef EV_Player_GetViewAngles( "getViewAngles", NULL, 'v' );
@@ -820,17 +823,18 @@ idInventory::Give
 ==============
 */
 bool idInventory::Give( idPlayer *owner, const idDict &spawnArgs, const char *statname, const char *value, int *idealWeapon, bool updateHud ) {
-	int						i;
+	int						i, j;
 	const char				*pos;
 	const char				*end;
 	int						len;
 	idStr					weaponString;
 	int						max;
-	const idDeclEntityDef	*weaponDecl;
+	const idDeclEntityDef	*weaponDecl, *ammoDecl;
 	bool					tookWeapon;
 	int						amount;
 	idItemInfo				info;
 	const char				*name;
+	const idKeyValue		*arg;
 
 	if ( !idStr::Icmpn( statname, "ammo_", 5 ) ) {
 		i = AmmoIndexForAmmoClass( statname );
@@ -937,7 +941,20 @@ bool idInventory::Give( idPlayer *owner, const idDict &spawnArgs, const char *st
 			}
 
 			idStr ammoName( pos, 0, len );
-			owner->GiveItem(ammoName);
+
+			ammoDecl = gameLocal.FindEntityDef( ammoName, false ); 
+
+			if (!ammoDecl) {
+				gameLocal.Warning("ammospawn: %s item does not exists\n", ammoName.c_str());
+				continue;
+			}
+			for( j = 0; j < ammoDecl->dict.GetNumKeyVals(); j++ ) {
+				arg = ammoDecl->dict.GetKeyVal( j );
+				if ( arg->GetKey().Left( 4 ) == "inv_" ) {
+					Give( owner, owner->spawnArgs, arg->GetKey().Right( arg->GetKey().Length() - 4 ), arg->GetValue(), NULL,  true );
+				}
+			}
+			//owner->GiveItem(ammoName);
 		}
 		return true;
 	} else if ( !idStr::Icmp( statname, "item" ) || !idStr::Icmp( statname, "icon" ) || !idStr::Icmp( statname, "name" ) ) {
@@ -1379,6 +1396,7 @@ idPlayer::idPlayer() {
 	serverOverridePositionTime = 0; //added from Doom 3 BFG Edition for clientside movement
 	nextTimeCoopTeleported = 0;
 	playerDamageReceived	= 0;	//added g_clientsideDamage 1
+	nextTimeReadHealth		= 0; 	//added g_clientsideDamage 1
 }
 
 /*
@@ -1656,6 +1674,7 @@ void idPlayer::Init( void ) {
 	allowClientsideMovement = false; //added by Stradex
 
 	nextSendPhysicsInfoTime = gameLocal.clientsideTime + PLAYER_CLIENT_SEND_MOVEMENT*2; //disable clientside movement two seconds
+	nextTimeReadHealth = 0; //added for g_clientsideDamage 1
 	//coop ends
 
 	if ( hud ) {
@@ -4457,6 +4476,13 @@ void idPlayer::UpdateWeapon( void ) {
 	// always make sure the weapon is correctly setup before accessing it
 	if ( !weapon.GetEntity()->IsLinked() ) {
 		if ( idealWeapon != -1 ) {
+
+			if (!weapon.GetEntity()->GetOwner() && gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) { //crash fix in coop
+				weapon.forceCoopEntity = true; //little hack
+				weapon.GetEntity()->SetOwner(this);
+				weapon.GetCoopEntity()->SetOwner(this);
+				gameLocal.Warning("[FATAL]: Avoid crash at idPlayer::UpdateWeapon\n");
+			}
 			animPrefix = spawnArgs.GetString( va( "def_weapon%d", idealWeapon ) );
 			weapon.GetEntity()->GetWeaponDef( animPrefix, inventory.clip[ idealWeapon ] );
 			assert( weapon.GetEntity()->IsLinked() );
@@ -7235,7 +7261,7 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 
 	// damage is only processed on server
 	
-	if ( gameLocal.isClient && (!g_clientsideDamage.GetBool() || !gameLocal.mpGame.IsGametypeCoopBased()) ) {
+	if ( gameLocal.isClient && (!g_clientsideDamage.GetBool() || !gameLocal.mpGame.IsGametypeCoopBased() || gameLocal.localClientNum != this->entityNumber) ) {
 		return;
 	}
 
@@ -7360,9 +7386,15 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 			damage = 1;
 		}
 
-		if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && gameLocal.localClientNum == this->entityNumber && canBeClientDamage) {
+		if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && gameLocal.localClientNum == this->entityNumber && canBeClientDamage && attacker && attacker->IsType(idAI::Type)) {
 			playerDamageReceived += damage;
-		} else if (!gameLocal.mpGame.IsGametypeCoopBased() || !g_clientsideDamage.GetBool() || !canBeClientDamage ||
+			if (health > 0) {
+				health -= damage;
+				if (health <= 0) {
+					health = 1; //don't let a player die clientside... yet
+				}
+			}
+		} else if (!gameLocal.mpGame.IsGametypeCoopBased() || !g_clientsideDamage.GetBool() || !canBeClientDamage || !attacker || !attacker->IsType(idAI::Type) || 
 			(gameLocal.isServer && gameLocal.localClientNum == this->entityNumber)) {
 			health -= damage;
 		}
@@ -8482,7 +8514,8 @@ void idPlayer::ClientPredictionThink( void ) {
 			msg.WriteFloat( lastDamageDir.y );
 			msg.WriteFloat( lastDamageDir.z );
 			ClientSendEvent(EVENT_SENDDAMAGE, &msg);
-			gameLocal.DebugPrintf("EVENT_SENDDAMAGE: %d\n", playerDamageReceived);
+			//gameLocal.DebugPrintf("EVENT_SENDDAMAGE: %d\n", playerDamageReceived);
+			nextTimeReadHealth = gameLocal.clientsideTime + READHEALTH_DELAY_AFTERDAMAGE;
 			playerDamageReceived = 0;
 		}
 
@@ -8766,6 +8799,11 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	// no msg reading below this
 
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+
+		if (g_clientsideDamage.GetBool() && gameLocal.clientsideTime < nextTimeReadHealth && oldHealth > 0 && health > 0) {
+			health = oldHealth; //bit of delay for reading health clientside after local clientside damage 
+		}
+
 		if ( weapon.SetCoopId( weaponCoopId ) ) {
 			if ( weapon.GetCoopEntity() ) {
 				// maintain ownership locally

@@ -562,6 +562,7 @@ protected:
 	idProjectile			*CreateProjectile( const idVec3 &pos, const idVec3 &dir );
 	void					RemoveProjectile( void );
 	idProjectile			*LaunchProjectile( const char *jointname, idEntity *target, bool clampToAttackCone );
+	idProjectile			*CS_LaunchProjectile( idVec3 muzzle, idVec3 inidir, idEntity *target, bool clampToAttackCone ); //Launch projectile clientside while using g_clientsideDamage 1
 	virtual void			DamageFeedback( idEntity *victim, idEntity *inflictor, int &damage );
 	void					DirectDamage( const char *meleeDefName, idEntity *ent, const bool canBeClientDamage = false);
 	bool					TestMelee( void ) const;

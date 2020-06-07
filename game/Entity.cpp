@@ -5642,7 +5642,7 @@ void idAnimatedEntity::Think( void ) {
 
 /*
 ================
-idAnimatedEntity::UpdateAnimation
+idAnimatedEntity::UpdateAnimation (overload this function at idAI for specific g_clientsideDamage 1 stuff
 ================
 */
 void idAnimatedEntity::UpdateAnimation( void ) {
@@ -5657,13 +5657,16 @@ void idAnimatedEntity::UpdateAnimation( void ) {
 		return;
 	}
 
+	int currentTime, oldTime;
+	oldTime = gameLocal.previousTime;
+	currentTime = gameLocal.time;
 	// call any frame commands that have happened in the past frame
 	if ( !fl.hidden ) {
-		animator.ServiceAnims( gameLocal.previousTime, gameLocal.time );
+		animator.ServiceAnims( oldTime, currentTime );
 	}
 
 	// if the model is animating then we have to update it
-	if ( !animator.FrameHasChanged( gameLocal.time ) ) {
+	if ( !animator.FrameHasChanged( currentTime ) ) {
 		// still fine the way it was
 		return;
 	}
