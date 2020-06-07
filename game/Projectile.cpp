@@ -829,7 +829,12 @@ idProjectile::Event_RadiusDamage
 void idProjectile::Event_RadiusDamage( idEntity *ignore ) {
 	const char *splash_damage = spawnArgs.GetString( "def_splash_damage" );
 	if ( splash_damage[0] != '\0' ) {
-		gameLocal.RadiusDamage( physicsObj.GetOrigin(), this, owner.GetEntity(), ignore, this, splash_damage, damagePower );
+		if (gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && owner.GetEntity() &&
+			(owner.GetEntity()->IsType(idAI::Type) || selfClientside) ) {
+			gameLocal.RadiusDamage( physicsObj.GetOrigin(), this, owner.GetEntity(), ignore, this, splash_damage, damagePower, true );
+		} else {
+			gameLocal.RadiusDamage( physicsObj.GetOrigin(), this, owner.GetEntity(), ignore, this, splash_damage, damagePower );
+		}
 	}
 }
 
@@ -1208,7 +1213,7 @@ idProjectile::ClientPredictionThink
 ================
 */
 void idProjectile::ClientPredictionThink( void ) {
-	if (gameLocal.mpGame.IsGametypeCoopBased() && clientsideNode.InList() && owner.GetEntity() && owner.GetEntity()->IsType(idAI::Type)) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && clientsideNode.InList() && owner.GetEntity() && (owner.GetEntity()->IsType(idAI::Type) || owner.GetEntity()->entityNumber == gameLocal.localClientNum)) {
 		return Think();
 	}
 	if ( !renderEntity.hModel && ((owner.GetEntity() && (owner.GetEntity()->entityNumber != gameLocal.localClientNum)) || !gameLocal.mpGame.IsGametypeCoopBased()) ) {

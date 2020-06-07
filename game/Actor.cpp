@@ -2166,7 +2166,7 @@ calls Damage()
 void idActor::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir,
 					  const char *damageDefName, const float damageScale, const int location, const bool canBeClientDamage ) {
 
-	if (gameLocal.isClient && (!g_clientsideDamage.GetBool() || !inflictor || !inflictor->clientsideNode.InList() || !attacker || attacker->entityNumber != gameLocal.localClientNum)) {
+	if (gameLocal.isClient && (!g_clientsideDamage.GetBool() || !canBeClientDamage || !inflictor || !inflictor->clientsideNode.InList() || !attacker || attacker->entityNumber != gameLocal.localClientNum)) {
 		return;
 	}
 

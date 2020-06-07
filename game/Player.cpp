@@ -7261,7 +7261,7 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 
 	// damage is only processed on server
 	
-	if ( gameLocal.isClient && (!g_clientsideDamage.GetBool() || !gameLocal.mpGame.IsGametypeCoopBased() || gameLocal.localClientNum != this->entityNumber) ) {
+	if ( gameLocal.isClient && (!g_clientsideDamage.GetBool() || !canBeClientDamage || !gameLocal.mpGame.IsGametypeCoopBased() || gameLocal.localClientNum != this->entityNumber) ) {
 		return;
 	}
 
@@ -7386,7 +7386,7 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 			damage = 1;
 		}
 
-		if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && gameLocal.localClientNum == this->entityNumber && canBeClientDamage && attacker && attacker->IsType(idAI::Type)) {
+		if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && gameLocal.localClientNum == this->entityNumber && attacker && attacker->IsType(idAI::Type)) {
 			playerDamageReceived += damage;
 			if (health > 0) {
 				health -= damage;

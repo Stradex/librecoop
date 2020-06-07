@@ -4068,7 +4068,7 @@ idActor *idGameLocal::GetAlertEntity( void ) {
 idGameLocal::RadiusDamage
 ============
 */
-void idGameLocal::RadiusDamage( const idVec3 &origin, idEntity *inflictor, idEntity *attacker, idEntity *ignoreDamage, idEntity *ignorePush, const char *damageDefName, float dmgPower ) {
+void idGameLocal::RadiusDamage( const idVec3 &origin, idEntity *inflictor, idEntity *attacker, idEntity *ignoreDamage, idEntity *ignorePush, const char *damageDefName, float dmgPower, bool clientsideDamage  ) {
 	float		dist, damageScale, attackerDamageScale, attackerPushScale;
 	idEntity *	ent;
 	idEntity *	entityList[ MAX_GENTITIES ];
@@ -4162,9 +4162,10 @@ void idGameLocal::RadiusDamage( const idVec3 &origin, idEntity *inflictor, idEnt
 				damageScale *= attackerDamageScale;
 			}
 
-			if ( !gameLocal.mpGame.IsGametypeCoopBased() || !g_clientsideDamage.GetBool() || (gameLocal.isClient && inflictor && inflictor->clientsideNode.InList()) 
-				|| (gameLocal.isServer &&  ent->entityNumber == this->localClientNum)) {
-				ent->Damage( inflictor, attacker, dir, damageDefName, damageScale, INVALID_JOINT, true );
+			if ( !gameLocal.mpGame.IsGametypeCoopBased() || !g_clientsideDamage.GetBool() || !clientsideDamage
+				|| (gameLocal.isClient && inflictor && inflictor->clientsideNode.InList()) 
+				|| (gameLocal.isServer && ent->entityNumber == this->localClientNum) ) {
+				ent->Damage( inflictor, attacker, dir, damageDefName, damageScale, INVALID_JOINT, clientsideDamage );
 			}
 		}
 	}
