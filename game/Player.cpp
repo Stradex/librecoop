@@ -8427,9 +8427,10 @@ void idPlayer::ClientPredictionThink( void ) {
 		usercmd.upmove = 0;
 	}
 
-
-	// clear the ik before we do anything else so the skeleton doesn't get updated twice
-	walkIK.ClearJointMods();
+	if (IsPhysicsFrameClientside()) {
+		// clear the ik before we do anything else so the skeleton doesn't get updated twice
+		walkIK.ClearJointMods();
+	}
 
 	if ( gameLocal.isNewFrame ) {
 		if ( ( usercmd.flags & UCF_IMPULSE_SEQUENCE ) != ( oldFlags & UCF_IMPULSE_SEQUENCE ) ) {
@@ -8463,7 +8464,7 @@ void idPlayer::ClientPredictionThink( void ) {
 		RouteGuiMouse( gui );
 	}
 
-	if ( !af.IsActive() ) {
+	if ( !af.IsActive() && IsPhysicsFrameClientside() ) {
 		AdjustBodyAngles();
 	}
 
@@ -8481,7 +8482,7 @@ void idPlayer::ClientPredictionThink( void ) {
 	UpdateFocus();
 
 	// service animations
-	if ( !spectating && !af.IsActive() ) {
+	if ( !spectating && !af.IsActive() /* && IsPhysicsFrameClientside() */ ) {
 		UpdateConditions();
 		UpdateAnimState();
 		CheckBlink();
@@ -8490,12 +8491,14 @@ void idPlayer::ClientPredictionThink( void ) {
 	// clear out our pain flag so we can tell if we recieve any damage between now and the next time we think
 	AI_PAIN = false;
 
-	// calculate the exact bobbed view position, which is used to
-	// position the view weapon, among other things
-	CalculateFirstPersonView();
+	//if (IsPhysicsFrameClientside()) {
+		// calculate the exact bobbed view position, which is used to
+		// position the view weapon, among other things
+		CalculateFirstPersonView();
 
-	// this may use firstPersonView, or a thirdPerson / camera view
-	CalculateRenderView();
+		// this may use firstPersonView, or a thirdPerson / camera view
+		CalculateRenderView();
+	//}
 
 	if ( !gameLocal.inCinematic && weapon.GetEntity() && ( health > 0 ) && !( gameLocal.isMultiplayer && spectating ) ) {
 		UpdateWeapon();
@@ -8561,7 +8564,7 @@ void idPlayer::ClientPredictionThink( void ) {
 		headRenderEnt->suppressShadowInLightID = LIGHTID_VIEW_MUZZLE_FLASH + entityNumber;
 	}
 
-	if ( !gameLocal.inCinematic ) {
+	if ( !gameLocal.inCinematic /* && IsPhysicsFrameClientside() */ ) {
 		UpdateAnimation();
 	}
 
@@ -8604,7 +8607,10 @@ void idPlayer::ClientPredictionThink( void ) {
 		nextSendPhysicsInfoTime = gameLocal.clientsideTime + PLAYER_CLIENT_SEND_MOVEMENT;
 	}
 
-	Present();
+	// service animations
+	//if (IsPhysicsFrameClientside()) {
+		Present();
+	//}
 
 	UpdateDamageEffects();
 
@@ -9087,8 +9093,10 @@ bool idPlayer::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 		case EVENT_PLAYERSPAWN: {
 			//physicsObj.ReadFromEvent(msg);
 			if (net_clientSideMovement.GetBool()) {
-				allowClientsideMovement = true;  //hack for clientsidemovement
-				nextSendPhysicsInfoTime = gameLocal.clientsideTime; //hack for clientsidemovement
+				if (gameLocal.localClientNum == this->entityNumber) {
+					allowClientsideMovement = true;  //hack for clientsidemovement
+					nextSendPhysicsInfoTime = gameLocal.clientsideTime; //hack for clientsidemovement
+				}
 				idVec3	tmpOrigin = vec3_zero;
 				tmpOrigin.x = msg.ReadFloat();
 				tmpOrigin.y = msg.ReadFloat();
@@ -9676,6 +9684,16 @@ void idPlayer::RunPhysics_RemoteClientCorrection( void )
 			
 		physicsObj.SetLinearVelocity( normalizedVelocity * idMath::Sqrt( clientSpeedSquared ) );
 	}
+}
+
+/*
+================
+idPlayer::IsPhysicsFrameClientside
+================
+*/
+
+bool idPlayer::IsPhysicsFrameClientside( void ) {
+	return !net_clientSideMovement.GetBool() || !allowClientsideMovement || entityNumber != gameLocal.localClientNum || gameLocal.isNewFrame;
 }
 
 /*

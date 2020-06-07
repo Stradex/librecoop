@@ -2237,7 +2237,7 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 	framenum = gameFrame;
 	time = gameTime;
 	previousTime = time - msec;
-
+	//clientsideTime += msec;
 
 	// so that StartSound/StopSound doesn't risk skipping
 	isNewFrame = true;

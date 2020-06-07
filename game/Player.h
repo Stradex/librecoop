@@ -728,6 +728,7 @@ private:
 	void					SetSpectateOrigin( void );
 	void					RunPhysics_RemoteClientCorrection( void ); //added from BFG Edition, for Clientside movement
 	bool					AllowClientAuthPhysics();  //added from BFG Edition, for Clientside movement
+	bool					IsPhysicsFrameClientside( void ); //added for net_clientsideMovement 1
 
 	void					ClearFocus( void );
 	void					UpdateFocus( void );
