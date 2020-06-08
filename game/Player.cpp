@@ -5058,6 +5058,7 @@ void idPlayer::CrashLand( const idVec3 &oldOrigin, const idVec3 &oldVelocity ) {
 	float		a, b, c, den;
 	waterLevel_t waterLevel;
 	bool		noDamage;
+	int			localTimeToUse;
 
 	AI_SOFTLANDING = false;
 	AI_HARDLANDING = false;
@@ -5134,10 +5135,15 @@ void idPlayer::CrashLand( const idVec3 &oldOrigin, const idVec3 &oldVelocity ) {
 		hardDelta	= 45.0f;
 	}
 
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && gameLocal.localClientNum == entityNumber && net_clientSideMovement.GetBool() && allowClientsideMovement) {
+		localTimeToUse = gameLocal.clientsideTime;
+	} else {
+		localTimeToUse = gameLocal.time;
+	}
 	if ( delta > fatalDelta ) {
 		AI_HARDLANDING = true;
 		landChange = -32;
-		landTime = gameLocal.time;
+		landTime = localTimeToUse;
 		if ( !noDamage ) {
 			pain_debounce_time = gameLocal.time + pain_delay + 1;  // ignore pain since we'll play our landing anim
 			Damage( NULL, NULL, idVec3( 0, 0, -1 ), "damage_fatalfall", 1.0f, 0 );
@@ -5145,7 +5151,7 @@ void idPlayer::CrashLand( const idVec3 &oldOrigin, const idVec3 &oldVelocity ) {
 	} else if ( delta > hardDelta ) {
 		AI_HARDLANDING = true;
 		landChange	= -24;
-		landTime	= gameLocal.time;
+		landTime	= localTimeToUse;
 		if ( !noDamage ) {
 			pain_debounce_time = gameLocal.time + pain_delay + 1;  // ignore pain since we'll play our landing anim
 			Damage( NULL, NULL, idVec3( 0, 0, -1 ), "damage_hardfall", 1.0f, 0 );
@@ -5153,7 +5159,7 @@ void idPlayer::CrashLand( const idVec3 &oldOrigin, const idVec3 &oldVelocity ) {
 	} else if ( delta > 30 ) {
 		AI_HARDLANDING = true;
 		landChange	= -16;
-		landTime	= gameLocal.time;
+		landTime	= localTimeToUse;
 		if ( !noDamage ) {
 			pain_debounce_time = gameLocal.time + pain_delay + 1;  // ignore pain since we'll play our landing anim
 			Damage( NULL, NULL, idVec3( 0, 0, -1 ), "damage_softfall", 1.0f, 0 );
@@ -5161,7 +5167,7 @@ void idPlayer::CrashLand( const idVec3 &oldOrigin, const idVec3 &oldVelocity ) {
 	} else if ( delta > 7 ) {
 		AI_SOFTLANDING = true;
 		landChange	= -8;
-		landTime	= gameLocal.time;
+		landTime	= localTimeToUse;
 	} else if ( delta > 3 ) {
 		// just walk on
 	}
@@ -5174,13 +5180,14 @@ idPlayer::BobCycle
 */
 void idPlayer::BobCycle( const idVec3 &pushVelocity ) {
 	float		bobmove;
-	int			old, deltaTime;
+	int			localGameTime;
+	int			old, deltaTime = 0;
 	idVec3		vel, gravityDir, velocity;
 	idMat3		viewaxis;
 	float		bob;
 	float		delta;
 	float		speed;
-	float		f;
+	float		f=0.0;
 
 	//
 	// calculate speed and cycle to be used for
@@ -5198,6 +5205,12 @@ void idPlayer::BobCycle( const idVec3 &pushVelocity ) {
 		viewBobAngles.Zero();
 		viewBob.Zero();
 		return;
+	}
+
+	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased() && net_clientSideMovement.GetBool() && allowClientsideMovement ) {
+		localGameTime = gameLocal.clientsideTime;
+	} else {
+		localGameTime = gameLocal.time;
 	}
 
 	if ( !physicsObj.HasGroundContacts() || influenceActive == INFLUENCE_LEVEL2 || ( gameLocal.isMultiplayer && spectating ) ) {
@@ -5259,10 +5272,15 @@ void idPlayer::BobCycle( const idVec3 &pushVelocity ) {
 	// calculate position for view bobbing
 	viewBob.Zero();
 
+	if (gameLocal.isClient && stepUpTime > localGameTime) {
+		stepUpTime = localGameTime -  STEPUP_TIME;
+		stepUpDelta = 0.0f;
+	}
+
 	if ( physicsObj.HasSteppedUp() ) {
 
 		// check for stepping up before a previous step is completed
-		deltaTime = gameLocal.time - stepUpTime;
+		deltaTime = localGameTime - stepUpTime;
 		if ( deltaTime < STEPUP_TIME ) {
 			stepUpDelta = stepUpDelta * ( STEPUP_TIME - deltaTime ) / STEPUP_TIME + physicsObj.GetStepUp();
 		} else {
@@ -5271,13 +5289,13 @@ void idPlayer::BobCycle( const idVec3 &pushVelocity ) {
 		if ( stepUpDelta > 2.0f * pm_stepsize.GetFloat() ) {
 			stepUpDelta = 2.0f * pm_stepsize.GetFloat();
 		}
-		stepUpTime = gameLocal.time;
+		stepUpTime = localGameTime;
 	}
 
 	idVec3 gravity = physicsObj.GetGravityNormal();
 
 	// if the player stepped up recently
-	deltaTime = gameLocal.time - stepUpTime;
+	deltaTime = localGameTime - stepUpTime;
 	if ( deltaTime < STEPUP_TIME ) {
 		viewBob += gravity * ( stepUpDelta * ( STEPUP_TIME - deltaTime ) / STEPUP_TIME );
 	}
@@ -5290,7 +5308,10 @@ void idPlayer::BobCycle( const idVec3 &pushVelocity ) {
 	viewBob[2] += bob;
 
 	// add fall height
-	delta = gameLocal.time - landTime;
+	delta = localGameTime - landTime;
+	if (gameLocal.isClient && delta < 0) {
+		delta = 0;
+	}
 	if ( delta < LAND_DEFLECT_TIME ) {
 		f = delta / LAND_DEFLECT_TIME;
 		viewBob -= gravity * ( landChange * f );
@@ -5299,6 +5320,11 @@ void idPlayer::BobCycle( const idVec3 &pushVelocity ) {
 		f = 1.0 - ( delta / LAND_RETURN_TIME );
 		viewBob -= gravity * ( landChange * f );
 	}
+	/*
+	if (gameLocal.isClient) {
+		gameLocal.DebugPrintf("gravity: %s\nstepUpDelta: %f\nstepUpTime: %d\ndeltaTime:%d\nf: %f\nlandChange: %d\n", gravity.ToString(), stepUpDelta, stepUpTime, deltaTime, f, landChange);
+	}*/
+
 }
 
 /*
@@ -7664,7 +7690,7 @@ void idPlayer::CalculateViewWeaponPos( idVec3 &origin, idMat3 &axis ) {
 	float		scale;
 	float		fracsin;
 	idAngles	angles;
-	int			delta;
+	int			delta, localTimeToUse;
 
 	// CalculateRenderView must have been called first
 	const idVec3 &viewOrigin = firstPersonViewOrigin;
@@ -7701,7 +7727,19 @@ void idPlayer::CalculateViewWeaponPos( idVec3 &origin, idMat3 &axis ) {
 	idVec3 gravity = physicsObj.GetGravityNormal();
 
 	// drop the weapon when landing after a jump / fall
-	delta = gameLocal.time - landTime;
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && net_clientSideMovement.GetBool() && allowClientsideMovement && entityNumber == gameLocal.localClientNum) {
+		localTimeToUse =  gameLocal.clientsideTime;
+
+	} else {
+		localTimeToUse =  gameLocal.time;
+	}
+
+	if (landTime > localTimeToUse) {
+		landTime = localTimeToUse;
+	}
+
+	delta = localTimeToUse - landTime;
+
 	if ( delta < LAND_DEFLECT_TIME ) {
 		origin -= gravity * ( landChange*0.25f * delta / LAND_DEFLECT_TIME );
 	} else if ( delta < LAND_DEFLECT_TIME + LAND_RETURN_TIME ) {
@@ -8957,9 +8995,15 @@ idPlayer::ReadPlayerStateFromSnapshot
 void idPlayer::ReadPlayerStateFromSnapshot( const idBitMsgDelta &msg ) {
 	int i, ammo;
 
-	bobCycle = msg.ReadByte();
-	stepUpTime = msg.ReadInt();
-	stepUpDelta = msg.ReadFloat();
+	if (gameLocal.mpGame.IsGametypeCoopBased() && net_clientSideMovement.GetBool() && allowClientsideMovement && gameLocal.localClientNum == this->entityNumber) {
+		msg.ReadByte();
+		msg.ReadInt();
+		msg.ReadFloat();
+	} else {
+		bobCycle = msg.ReadByte();
+		stepUpTime = msg.ReadInt();
+		stepUpDelta = msg.ReadFloat();
+	}
 	inventory.weapons = msg.ReadShort();
 	inventory.armor = msg.ReadByte();
 
@@ -9006,8 +9050,6 @@ bool idPlayer::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 		}
 
 		case EVENT_SENDDAMAGE: {
-
-			gameLocal.DebugPrintf("server: EVENT_SENDDAMAGE\n");
 
 			int clientEntityNum, damageToInflict, location;
 			idVec3 tmpDir = vec3_zero;
