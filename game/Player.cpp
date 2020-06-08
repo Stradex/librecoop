@@ -8646,7 +8646,7 @@ bool idPlayer::GetPhysicsToVisualTransform( idVec3 &origin, idMat3 &axis ) {
 			idVec2 originDiff = renderOrigin.ToVec2() - smoothedOrigin.ToVec2();
 			if ( originDiff.LengthSqr() < Square( 100.0f ) ) {
 				// smoothen by pushing back to the previous position
-				if ( selfSmooth || allowClientsideMovement ) {
+				if ( (selfSmooth || allowClientsideMovement) && (entityNumber == gameLocal.localClientNum)  ) {
 					assert( entityNumber == gameLocal.localClientNum );
 					renderOrigin.ToVec2() -= net_clientSelfSmoothing.GetFloat() * originDiff;
 				} else {
