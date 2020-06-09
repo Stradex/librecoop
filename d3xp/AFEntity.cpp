@@ -1235,12 +1235,16 @@ void idAFEntity_Gibbable::Gib( const idVec3 &dir, const char *damageDefName ) {
 	noGrab = true;
 #endif
 
-	const idDict *damageDef = gameLocal.FindEntityDefDict( damageDefName );
-	if ( !damageDef ) {
+	const idDict *damageDef = NULL;
+
+	if (damageDefName) {
+		damageDef = gameLocal.FindEntityDefDict( damageDefName );
+	}
+	if ( !damageDef  && !gameLocal.mpGame.IsGametypeCoopBased()) {
 		gameLocal.Error( "Unknown damageDef '%s'", damageDefName );
 	}
 
-	if ( damageDef->GetBool( "gibNonSolid" ) ) {
+	if ( damageDef && damageDef->GetBool( "gibNonSolid" ) ) {
 		GetAFPhysics()->SetContents( 0 );
 		GetAFPhysics()->SetClipMask( 0 );
 		GetAFPhysics()->UnlinkClip();
@@ -1255,7 +1259,9 @@ void idAFEntity_Gibbable::Gib( const idVec3 &dir, const char *damageDefName ) {
 	if ( g_bloodEffects.GetBool() && !gameLocal.mpGame.IsGametypeCoopBased() ) { //unable to spawn gibs yet in coop
 		if ( gameLocal.time > gameLocal.GetGibTime() ) {
 			gameLocal.SetGibTime( gameLocal.time + GIB_DELAY );
-			SpawnGibs( dir, damageDefName );
+			if (damageDef) {
+				SpawnGibs( dir, damageDefName );
+			}
 			renderEntity.noShadow = true;
 			renderEntity.shaderParms[ SHADERPARM_TIME_OF_DEATH ] = gameLocal.time * 0.001f;
 			StartSound( "snd_gibbed", SND_CHANNEL_ANY, 0, false, NULL );

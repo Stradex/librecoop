@@ -403,6 +403,7 @@ idAI::idAI() {
 	fl.coopNetworkSync		= true;
 	currentTorsoAnim = 0;
 	currentLegsAnim = 0;
+	currentAttackDefNum = -1;
 	currentNetAction = NETACTION_NONE;
 	forceNetworkSync = true; //added by Stradex for Coop
 	snapshotPriority = 2; //added by Stradex for coop. High priority for this
@@ -2862,7 +2863,7 @@ void idAI::AnimMove( void ) {
 	}
 
 	if ( !af_push_moveables && attack.Length() && TestMelee() ) {
-		DirectDamage( attack, enemy.GetEntity() );
+		DirectDamage( attack, enemy.GetEntity(), true);
 	} else {
 		idEntity *blockEnt = physicsObj.GetSlideMoveEntity();
 		if ( blockEnt && blockEnt->IsType( idMoveable::Type ) && blockEnt->GetPhysics()->IsPushable() ) {
@@ -2994,7 +2995,7 @@ void idAI::SlideMove( void ) {
 	}
 
 	if ( !af_push_moveables && attack.Length() && TestMelee() ) {
-		DirectDamage( attack, enemy.GetEntity() );
+		DirectDamage( attack, enemy.GetEntity(), true );
 	} else {
 		idEntity *blockEnt = physicsObj.GetSlideMoveEntity();
 		if ( blockEnt && blockEnt->IsType( idMoveable::Type ) && blockEnt->GetPhysics()->IsPushable() ) {
@@ -3244,7 +3245,7 @@ void idAI::FlyMove( void ) {
 
 	monsterMoveResult_t	moveResult = physicsObj.GetMoveResult();
 	if ( !af_push_moveables && attack.Length() && TestMelee() ) {
-		DirectDamage( attack, enemy.GetEntity() );
+		DirectDamage( attack, enemy.GetEntity(), true );
 	} else {
 		idEntity *blockEnt = physicsObj.GetSlideMoveEntity();
 		if ( blockEnt && blockEnt->IsType( idMoveable::Type ) && blockEnt->GetPhysics()->IsPushable() ) {
@@ -3298,7 +3299,7 @@ void idAI::StaticMove( void ) {
 	AI_ONGROUND = false;
 
 	if ( !af_push_moveables && attack.Length() && TestMelee() ) {
-		DirectDamage( attack, enemyEnt );
+		DirectDamage( attack, enemyEnt, true );
 	}
 
 	if ( ai_debugMove.GetBool() ) {
@@ -3382,7 +3383,7 @@ bool idAI::Pain( idEntity *inflictor, idEntity *attacker, int damage, const idVe
 			AI_SPECIAL_DAMAGE = 0;
 		}
 
-		if ( enemy.GetEntity() != attacker && attacker->IsType( idActor::Type ) ) {
+		if ( enemy.GetEntity() != attacker && attacker->IsType( idActor::Type ) && !gameLocal.isClient  ) {
 			actor = ( idActor * )attacker;
 			if ( ReactionTo( actor ) & ATTACK_ON_DAMAGE ) {
 				gameLocal.AlertAI( actor );
@@ -3471,6 +3472,23 @@ idAI::Killed
 =====================
 */
 void idAI::Killed( idEntity *inflictor, idEntity *attacker, int damage, const idVec3 &dir, int location ) {
+
+	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool()) {
+		idBitMsg	msg;
+		byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+
+		msg.Init( msgBuf, sizeof( msgBuf ) );
+		msg.BeginWriting();
+		msg.WriteBits( gameLocal.localClientNum, idMath::BitsForInteger(MAX_CLIENTS) );
+		msg.WriteShort(clientsideDamageLocation);
+		msg.WriteFloat( clientsideDamageDir.x );
+		msg.WriteFloat( clientsideDamageDir.y );
+		msg.WriteFloat( clientsideDamageDir.z );
+		ClientSendEvent( EVENT_CLIENTKILL, NULL );
+		nextTimeHealthReaded = gameLocal.clientsideTime + 1000;
+		return CSKilled();
+	}
+
 	idAngles ang;
 	const char *modelDeath;
 
@@ -4193,7 +4211,7 @@ bool idAI::GetAimDir( const idVec3 &firePos, idEntity *aimAtEnt, const idEntity 
 		CreateProjectileClipModel();
 	}
 
-	if ( aimAtEnt == enemy.GetEntity() ) {
+	if ( aimAtEnt == enemy.GetEntity() && !gameLocal.isClient  ) {
 		static_cast<idActor *>( aimAtEnt )->GetAIAimTargets( lastVisibleEnemyPos, targetPos1, targetPos2 );
 	} else if ( aimAtEnt->IsType( idActor::Type ) ) {
 		static_cast<idActor *>( aimAtEnt )->GetAIAimTargets( aimAtEnt->GetPhysics()->GetOrigin(), targetPos1, targetPos2 );
@@ -4232,6 +4250,15 @@ idAI::BeginAttack
 */
 void idAI::BeginAttack( const char *name ) {
 	attack = name;
+
+	if (attack.Length() && gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+		const idDeclEntityDef *meleeDef = gameLocal.FindEntityDef( attack, false );
+		if ( !meleeDef ) {
+			gameLocal.Error( "Unknown damage def '%s' on '%s'", attack, this->name.c_str() );
+		}
+		currentAttackDefNum = meleeDef->Index();
+	}
+
 	lastAttackTime = gameLocal.time;
 }
 
@@ -4242,6 +4269,7 @@ idAI::EndAttack
 */
 void idAI::EndAttack( void ) {
 	attack = "";
+	currentAttackDefNum = -1; 
 }
 
 /*
@@ -4254,7 +4282,15 @@ idProjectile *idAI::CreateProjectile( const idVec3 &pos, const idVec3 &dir ) {
 	const char *clsname;
 
 	if ( !projectile.GetEntity() ) {
-		gameLocal.SpawnEntityDef( *projectileDef, &ent, false );
+		if (gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool()) {
+			idDict			args;
+			args.Clear();
+			args.Copy(*projectileDef);
+			args.Set("clientside", "1");
+			gameLocal.SpawnEntityDef( args, &ent, false , true );
+		} else {
+			gameLocal.SpawnEntityDef( *projectileDef, &ent, false );
+		}
 		if ( !ent ) {
 			clsname = projectileDef->GetString( "classname" );
 			gameLocal.Error( "Could not spawn entityDef '%s'", clsname );
@@ -4265,6 +4301,10 @@ idProjectile *idAI::CreateProjectile( const idVec3 &pos, const idVec3 &dir ) {
 			gameLocal.Error( "'%s' is not an idProjectile", clsname );
 		}
 		projectile = ( idProjectile * )ent;
+	}
+
+	if (g_clientsideDamage.GetBool() && gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) {
+		projectile.GetEntity()->allowClientsideThink = true;
 	}
 
 	projectile.GetEntity()->Create( this, pos, dir );
@@ -4279,7 +4319,11 @@ idAI::RemoveProjectile
 */
 void idAI::RemoveProjectile( void ) {
 	if ( projectile.GetEntity() ) {
-		projectile.GetEntity()->PostEventMS( &EV_Remove, 0 );
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && projectile.GetEntity()->clientsideNode.InList()) {
+			projectile.GetEntity()->CS_PostEventMS( &EV_Remove, 0 );
+		} else {
+			projectile.GetEntity()->PostEventMS( &EV_Remove, 0 );
+		}
 		projectile = NULL;
 	}
 }
@@ -4331,6 +4375,13 @@ idProjectile *idAI::LaunchProjectile( const char *jointname, idEntity *target, b
 
 	if ( !projectile.GetEntity() ) {
 		CreateProjectile( muzzle, axis[ 0 ] );
+	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && !projectile.GetEntity()->clientsideNode.InList()) {
+		projectile.GetEntity()->fl.coopNetworkSync = false;
+		projectile.GetEntity()->fl.networkSync = false;
+		projectile.GetEntity()->clientsideNode.AddToEnd( gameLocal.clientsideEntities );  //hack
+
 	}
 
 	lastProjectile = projectile.GetEntity();
@@ -4423,6 +4474,150 @@ idProjectile *idAI::LaunchProjectile( const char *jointname, idEntity *target, b
 }
 
 /*
+=====================
+idAI::CS_LaunchProjectile
+=====================
+*/
+
+idProjectile *idAI::CS_LaunchProjectile( idVec3 muzzle, idVec3 inidir, idEntity *target, bool clampToAttackCone ) {
+	idVec3				dir;
+	idVec3				start;
+	trace_t				tr;
+	idBounds			projBounds;
+	float				distance;
+	const idClipModel	*projClip;
+	float				attack_accuracy;
+	float				attack_cone;
+	float				projectile_spread;
+	float				diff;
+	float				angle;
+	float				spin;
+	idAngles			ang;
+	int					num_projectiles;
+	int					i;
+	idMat3				axis;
+	idVec3				tmp;
+	idProjectile		*lastProjectile;
+#ifdef _D3XP
+	idMat3				proj_axis;
+	bool				forceMuzzle;
+#endif
+
+	if ( !projectileDef ) {
+		gameLocal.Warning( "%s (%s) doesn't have a projectile specified", name.c_str(), GetEntityDefName() );
+		return NULL;
+	}
+
+	attack_accuracy = spawnArgs.GetFloat( "attack_accuracy", "7" );
+	attack_cone = spawnArgs.GetFloat( "attack_cone", "70" );
+	projectile_spread = spawnArgs.GetFloat( "projectile_spread", "0" );
+	num_projectiles = spawnArgs.GetInt( "num_projectiles", "1" );
+#ifdef _D3XP
+	forceMuzzle = spawnArgs.GetBool( "forceMuzzle", "0" );
+#endif
+
+	if ( !projectile.GetEntity() ) {
+		CreateProjectile( muzzle, inidir );
+	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && !projectile.GetEntity()->clientsideNode.InList()) {
+		projectile.GetEntity()->fl.coopNetworkSync = false;
+		projectile.GetEntity()->fl.networkSync = false;
+		projectile.GetEntity()->clientsideNode.AddToEnd( gameLocal.clientsideEntities );  //hack
+
+	}
+
+	lastProjectile = projectile.GetEntity();
+
+	if ( target != NULL ) {
+		tmp = target->GetPhysics()->GetAbsBounds().GetCenter() - muzzle;
+		tmp.Normalize();
+		axis = tmp.ToMat3();
+	} else {
+		axis = viewAxis;
+	}
+
+	// rotate it because the cone points up by default
+	tmp = axis[2];
+	axis[2] = axis[0];
+	axis[0] = -tmp;
+
+#ifdef _D3XP
+	proj_axis = axis;
+#endif
+
+	if ( !forceMuzzle ) {	// _D3XP
+		// make sure the projectile starts inside the monster bounding box
+		const idBounds &ownerBounds = physicsObj.GetAbsBounds();
+		projClip = lastProjectile->GetPhysics()->GetClipModel();
+		projBounds = projClip->GetBounds().Rotate( axis );
+
+		// check if the owner bounds is bigger than the projectile bounds
+		if ( ( ( ownerBounds[1][0] - ownerBounds[0][0] ) > ( projBounds[1][0] - projBounds[0][0] ) ) &&
+			( ( ownerBounds[1][1] - ownerBounds[0][1] ) > ( projBounds[1][1] - projBounds[0][1] ) ) &&
+			( ( ownerBounds[1][2] - ownerBounds[0][2] ) > ( projBounds[1][2] - projBounds[0][2] ) ) ) {
+			if ( (ownerBounds - projBounds).RayIntersection( muzzle, viewAxis[ 0 ], distance ) ) {
+				start = muzzle + distance * viewAxis[ 0 ];
+			} else {
+				start = ownerBounds.GetCenter();
+			}
+		} else {
+			// projectile bounds bigger than the owner bounds, so just start it from the center
+			start = ownerBounds.GetCenter();
+		}
+
+		gameLocal.clip.Translation( tr, start, muzzle, projClip, axis, MASK_SHOT_RENDERMODEL, this );
+		muzzle = tr.endpos;
+	}
+
+	// set aiming direction
+	GetAimDir( muzzle, target, this, dir );
+	ang = dir.ToAngles();
+
+	// adjust his aim so it's not perfect.  uses sine based movement so the tracers appear less random in their spread.
+	float t = MS2SEC( gameLocal.time + entityNumber * 497 );
+	ang.pitch += idMath::Sin16( t * 5.1 ) * attack_accuracy;
+	ang.yaw	+= idMath::Sin16( t * 6.7 ) * attack_accuracy;
+
+	if ( clampToAttackCone ) {
+		// clamp the attack direction to be within monster's attack cone so he doesn't do
+		// things like throw the missile backwards if you're behind him
+		diff = idMath::AngleDelta( ang.yaw, current_yaw );
+		if ( diff > attack_cone ) {
+			ang.yaw = current_yaw + attack_cone;
+		} else if ( diff < -attack_cone ) {
+			ang.yaw = current_yaw - attack_cone;
+		}
+	}
+
+	axis = ang.ToMat3();
+
+	float spreadRad = DEG2RAD( projectile_spread );
+	for( i = 0; i < num_projectiles; i++ ) {
+		// spread the projectiles out
+		angle = idMath::Sin( spreadRad * gameLocal.random.RandomFloat() );
+		spin = (float)DEG2RAD( 360.0f ) * gameLocal.random.RandomFloat();
+		dir = axis[ 0 ] + axis[ 2 ] * ( angle * idMath::Sin( spin ) ) - axis[ 1 ] * ( angle * idMath::Cos( spin ) );
+		dir.Normalize();
+
+		// launch the projectile
+		if ( !projectile.GetEntity() ) {
+			CreateProjectile( muzzle, dir );
+		}
+		lastProjectile = projectile.GetEntity();
+		lastProjectile->Launch( muzzle, dir, vec3_origin );
+		projectile = NULL;
+	}
+
+	TriggerWeaponEffects( muzzle );
+
+	lastAttackTime = gameLocal.time;
+
+	return lastProjectile;
+}
+
+
+/*
 ================
 idAI::DamageFeedback
 
@@ -4452,7 +4647,7 @@ kickDir is specified in the monster's coordinate system, and gives the direction
 that the view kick and knockback should go
 =====================
 */
-void idAI::DirectDamage( const char *meleeDefName, idEntity *ent ) {
+void idAI::DirectDamage( const char *meleeDefName, idEntity *ent, const bool canBeClientDamage ) {
 	const idDict *meleeDef;
 	const char *p;
 	const idSoundShader *shader;
@@ -4462,7 +4657,7 @@ void idAI::DirectDamage( const char *meleeDefName, idEntity *ent ) {
 		gameLocal.Error( "Unknown damage def '%s' on '%s'", meleeDefName, name.c_str() );
 	}
 
-	if ( !ent->fl.takedamage ) {
+	if ( !ent->fl.takedamage && !gameLocal.isClient  ) {
 		const idSoundShader *shader = declManager->FindSound(meleeDef->GetString( "snd_miss" ));
 		if (gameLocal.mpGame.IsGametypeCoopBased()) {
 			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, true, NULL ); //broadcast sound in coop
@@ -4476,7 +4671,7 @@ void idAI::DirectDamage( const char *meleeDefName, idEntity *ent ) {
 	// do the damage
 	//
 	p = meleeDef->GetString( "snd_hit" );
-	if ( p && *p ) {
+	if ( p && *p && !gameLocal.isClient ) {
 		shader = declManager->FindSound( p );
 		if (gameLocal.mpGame.IsGametypeCoopBased()) {
 			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, true, NULL );  //broadcast in coop
@@ -4491,7 +4686,7 @@ void idAI::DirectDamage( const char *meleeDefName, idEntity *ent ) {
 	idVec3	globalKickDir;
 	globalKickDir = ( viewAxis * physicsObj.GetGravityAxis() ) * kickDir;
 
-	ent->Damage( this, this, globalKickDir, meleeDefName, 1.0f, INVALID_JOINT );
+	ent->Damage( this, this, globalKickDir, meleeDefName, 1.0f, INVALID_JOINT, canBeClientDamage );
 
 	// end the attack if we're a multiframe attack
 	EndAttack();
@@ -5270,6 +5465,22 @@ void idAI::ClientPredictionThink( void ) {
 		return idEntity::ClientPredictionThink(); //original non-coop
 	}
 
+	if (gameLocal.isNewFrame && g_clientsideDamage.GetBool()) {
+		if (clientsideDamageInflicted > 0) {
+			idBitMsg	msg;
+			byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+			msg.Init( msgBuf, sizeof( msgBuf ) );
+			msg.BeginWriting();
+			msg.WriteBits( gameLocal.localClientNum, idMath::BitsForInteger(MAX_CLIENTS) );
+			msg.WriteShort(clientsideDamageInflicted);
+			msg.WriteShort(clientsideDamageLocation);
+			msg.WriteFloat( clientsideDamageDir.x );
+			msg.WriteFloat( clientsideDamageDir.y );
+			msg.WriteFloat( clientsideDamageDir.z );
+			ClientSendEvent( EVENT_CLIENTDAMAGE, &msg );
+		}
+		clientsideDamageInflicted = 0;
+	}
 
 	if ( thinkFlags & TH_PHYSICS ) { //edited
 
@@ -5402,6 +5613,8 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteFloat(anim_turn_angles);
 	msg.WriteShort(currentTorsoAnim);
 	msg.WriteShort(currentLegsAnim);
+	msg.WriteBits(animator.GetAllowFrameCommands(ANIMCHANNEL_TORSO), 1);
+	msg.WriteBits(animator.GetAllowFrameCommands(ANIMCHANNEL_LEGS), 1);
 	msg.WriteByte(currentNetAction);
 	
 	msg.WriteFloat(turnTowardPos.x);
@@ -5422,13 +5635,22 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 		msg.WriteShort(current_cinematic);
 	}
 
-	msg.WriteBits( IsHidden(), 1);
+	msg.WriteBits( fl.hidden, 1);
+	msg.WriteBits( fl.takedamage, 1 );
+
+	if (currentAttackDefNum != -1) {
+		msg.WriteBits(true, 1);
+		msg.WriteBits( gameLocal.ServerRemapDecl( -1, DECL_ENTITYDEF, currentAttackDefNum ), gameLocal.entityDefBits );
+	} else {
+		msg.WriteBits(false, 1);
+	}
 
 	//Head entity info
 	int headEntitySendInfo = head.GetEntity() ? 1 : 0;
 	msg.WriteBits( headEntitySendInfo, 1 );
 	if (headEntitySendInfo) {
 		msg.WriteShort(currentHeadAnim);
+		msg.WriteBits(head.GetEntity()->GetAnimator()->GetAllowFrameCommands(ANIMCHANNEL_ALL), 1);
 		int focusEntityNum = focusEntity.GetEntity() ? focusEntity.GetEntity()->entityCoopNumber : -1;
 		msg.WriteInt( focusEntityNum );
 		msg.WriteInt( alignHeadTime );
@@ -5449,13 +5671,14 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		return idEntity::ReadFromSnapshot(msg); //original non-coop 
 	}
 
-	int		i, oldHealth, enemySpawnId, torsoAnimId, legsAnimId, headAnimId, enemyEntityId, goalEntityId, focusEntityId;
+	int		i, oldHealth, enemySpawnId, torsoAnimId, legsAnimId, headAnimId, enemyEntityId, goalEntityId, focusEntityId, oldCurrentDefAttack;
 	bool	newHitToggle, stateHitch, hasEnemy, getOriginInfo, headEntityReceivedInfo;
-	bool	snapshotInCinematic;
+	bool	snapshotInCinematic, headAllowCommandsFrame;
 
 	netActionType_t newNetAction;
 	idVec3	tmpOrigin = vec3_zero;
 
+	oldCurrentDefAttack = currentAttackDefNum;
 	oldHealth = health;
 
 	getOriginInfo  = msg.ReadBits( 1 ) != 0;
@@ -5493,6 +5716,8 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 	torsoAnimId =  msg.ReadShort();
 	legsAnimId =  msg.ReadShort();
+	animator.SetAllowFrameCommands(ANIMCHANNEL_TORSO, (msg.ReadBits(1) != 0));
+	animator.SetAllowFrameCommands(ANIMCHANNEL_LEGS, (msg.ReadBits(1) != 0));
 	newNetAction = static_cast<netActionType_t>(msg.ReadByte());
 
 	turnTowardPos.x= msg.ReadFloat();
@@ -5524,10 +5749,19 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	bool isInvisible=false;
 	isInvisible = msg.ReadBits( 1 ) != 0;
 
+	fl.takedamage = msg.ReadBits( 1 ) != 0;
+
+	if ( msg.ReadBits( 1 ) ) {
+		currentAttackDefNum = gameLocal.ClientRemapDecl( DECL_ENTITYDEF, msg.ReadBits( gameLocal.entityDefBits ) );
+	} else {
+		currentAttackDefNum = -1;
+	}
+
 	//Head entity info
 	headEntityReceivedInfo = msg.ReadBits( 1 ) != 0;
 	if (headEntityReceivedInfo) {
 		headAnimId = msg.ReadShort();
+		headAllowCommandsFrame = msg.ReadBits(1);
 		focusEntityId = msg.ReadInt();
 		if (focusEntityId >= 0 && gameLocal.coopentities[focusEntityId]) {
 			focusEntity = gameLocal.coopentities[focusEntityId];
@@ -5546,6 +5780,27 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		Show();
 	}
 
+	if (nextTimeHealthReaded > gameLocal.clientsideTime) {
+		health = oldHealth; //avoid bug with g_clientsideDamage 1
+	}
+
+	if (oldCurrentDefAttack != currentAttackDefNum) {
+		const idDeclEntityDef *tmpDef;
+		//ugly avoid crash in coop
+		int declTypeCount = declManager->GetNumDecls(DECL_ENTITYDEF);
+		if (currentAttackDefNum < 0 || currentAttackDefNum >= declTypeCount) {
+			tmpDef = NULL;
+		} else {
+			tmpDef = static_cast<const idDeclEntityDef *>( declManager->DeclByIndex( DECL_ENTITYDEF, currentAttackDefNum, false ) );
+		}
+		//avoid crash in coop
+		if ( tmpDef ) {
+			BeginAttack(tmpDef->GetName());
+		} else {
+			EndAttack();
+		}
+
+	}
 
 	if (!snapshotInCinematic || !num_cinematics) {
 
@@ -5558,6 +5813,7 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 	if (headEntityReceivedInfo && head.GetEntity() && currentHeadAnim != headAnimId) {
 		head.GetEntity()->GetAnimator()->CycleAnim(ANIMCHANNEL_ALL, headAnimId, gameLocal.time, 2);
+		head.GetEntity()->GetAnimator()->SetAllowFrameCommands(ANIMCHANNEL_ALL, headAllowCommandsFrame); 
 	}
 
 	if (oldHealth <= 0 && health > 0) { //Resurrected
@@ -5579,6 +5835,7 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		}
 		if (headEntityReceivedInfo && head.GetEntity() && currentHeadAnim != headAnimId) {
 			head.GetEntity()->GetAnimator()->PlayAnim(ANIMCHANNEL_ALL, headAnimId, gameLocal.time, 2);
+			head.GetEntity()->GetAnimator()->SetAllowFrameCommands(ANIMCHANNEL_ALL, headAllowCommandsFrame); 
 		}
 	}
 
@@ -5604,11 +5861,37 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 */
 bool  idAI::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 
-	if ( idEntity::ServerReceiveEvent( event, time, msg ) ) {
-		return true;
+	// client->server events
+	switch( event ) {
+		case EVENT_CLIENTKILL: {
+			int clientEntityNum, damageToInflict, location;
+			bool gibEntity=false;
+			idVec3 tmpDir = vec3_zero;
+
+			clientEntityNum = msg.ReadBits(idMath::BitsForInteger(MAX_CLIENTS));
+			location = msg.ReadShort();
+			tmpDir.x = msg.ReadFloat();
+			tmpDir.y = msg.ReadFloat();
+			tmpDir.z = msg.ReadFloat();
+			if (this->health > 0) {
+				if (spawnArgs.GetBool( "gib" )) { //instant gib in coop
+					gibEntity = true;
+				}
+				this->health = 0;
+			}
+
+			if (gameLocal.entities[clientEntityNum] && gameLocal.entities[clientEntityNum]->IsType(idPlayer::Type)) {
+				lastPlayerDamage = gameLocal.entities[clientEntityNum];
+			}
+
+			Killed( NULL, lastPlayerDamage, 1, tmpDir, location );
+			if (gibEntity) {
+				Gib( tmpDir, NULL );
+			}
+		}
 	}
 
-	return false;
+	return idActor::ServerReceiveEvent( event, time, msg );
 }
 
 /*
@@ -5850,7 +6133,7 @@ void idAI::CSAnimMove( void ) {
 	}
 
 	if ( !af_push_moveables && attack.Length() && TestMelee() ) {
-		//DirectDamage( attack, enemy.GetEntity() ); //No damage in COOP
+		DirectDamage( attack, enemy.GetEntity(), true ); 
 	} else {
 		idEntity *blockEnt = physicsObj.GetSlideMoveEntity();
 		if ( blockEnt && blockEnt->IsType( idMoveable::Type ) && blockEnt->GetPhysics()->IsPushable() ) {
@@ -5908,6 +6191,9 @@ void idAI::CSKilled( void ) {
 
 	// end our looping ambient sound
 	StopSound( SND_CHANNEL_AMBIENT, false );
+
+	//RemoveAttachments(); //fix this later
+	RemoveProjectile();
 
 	StopMove( MOVE_STATUS_DONE );
 

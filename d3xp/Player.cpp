@@ -91,6 +91,9 @@ const int HEALTHPULSE_TIME = 333;
 // minimum speed to bob and play run/walk animations at
 const float MIN_BOB_SPEED = 5.0f;
 
+// delay for reading health after g_clientside 1 damage
+const int READHEALTH_DELAY_AFTERDAMAGE = 400; //200ms ping as max
+
 const idEventDef EV_Player_GetButtons( "getButtons", NULL, 'd' );
 const idEventDef EV_Player_GetMove( "getMove", NULL, 'v' );
 const idEventDef EV_Player_GetViewAngles( "getViewAngles", NULL, 'v' );
@@ -901,17 +904,18 @@ idInventory::Give
 ==============
 */
 bool idInventory::Give( idPlayer *owner, const idDict &spawnArgs, const char *statname, const char *value, int *idealWeapon, bool updateHud ) {
-	int						i;
+	int						i, j;
 	const char				*pos;
 	const char				*end;
 	int						len;
 	idStr					weaponString;
 	int						max;
-	const idDeclEntityDef	*weaponDecl;
+	const idDeclEntityDef	*weaponDecl, *ammoDecl;
 	bool					tookWeapon;
 	int						amount;
 	idItemInfo				info;
 	const char				*name;
+	const idKeyValue		*arg;
 
 #ifdef _D3XP
 	if ( !idStr::Icmp( statname, "ammo_bloodstone" ) ) {
@@ -1067,7 +1071,19 @@ bool idInventory::Give( idPlayer *owner, const idDict &spawnArgs, const char *st
 			}
 
 			idStr ammoName( pos, 0, len );
-			owner->GiveItem(ammoName);
+
+			ammoDecl = gameLocal.FindEntityDef( ammoName, false ); 
+
+			if (!ammoDecl) {
+				gameLocal.Warning("ammospawn: %s item does not exists\n", ammoName.c_str());
+				continue;
+			}
+			for( j = 0; j < ammoDecl->dict.GetNumKeyVals(); j++ ) {
+				arg = ammoDecl->dict.GetKeyVal( j );
+				if ( arg->GetKey().Left( 4 ) == "inv_" ) {
+					Give( owner, owner->spawnArgs, arg->GetKey().Right( arg->GetKey().Length() - 4 ), arg->GetValue(), NULL,  true );
+				}
+			}
 		}
 		return true;
 	} else if ( !idStr::Icmp( statname, "item" ) || !idStr::Icmp( statname, "icon" ) || !idStr::Icmp( statname, "name" ) ) {
@@ -1653,6 +1669,8 @@ idPlayer::idPlayer() {
 	nextSendPhysicsInfoTime = 0;
 	serverOverridePositionTime = 0; //added from Doom 3 BFG Edition for clientside movement
 	nextTimeCoopTeleported = 0;
+	playerDamageReceived	= 0;	//added g_clientsideDamage 1
+	nextTimeReadHealth		= 0; 	//added g_clientsideDamage 1
 }
 
 /*
@@ -1958,6 +1976,7 @@ void idPlayer::Init( void ) {
 	allowClientsideMovement = false; //added by Stradex
 
 	nextSendPhysicsInfoTime = gameLocal.clientsideTime + PLAYER_CLIENT_SEND_MOVEMENT*2; //disable clientside movement two seconds
+	nextTimeReadHealth = 0; //added for g_clientsideDamage 1
 	//coop ends
 
 	if ( hud ) {
@@ -5410,6 +5429,12 @@ void idPlayer::UpdateWeapon( void ) {
 	// always make sure the weapon is correctly setup before accessing it
 	if ( !weapon.GetEntity()->IsLinked() ) {
 		if ( idealWeapon != -1 ) {
+			if (!weapon.GetEntity()->GetOwner() && gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) { //crash fix in coop
+				weapon.forceCoopEntity = true; //little hack
+				weapon.GetEntity()->SetOwner(this);
+				weapon.GetCoopEntity()->SetOwner(this);
+				gameLocal.Warning("[FATAL]: Avoid crash at idPlayer::UpdateWeapon\n");
+			}
 			animPrefix = spawnArgs.GetString( va( "def_weapon%d", idealWeapon ) );
 			weapon.GetEntity()->GetWeaponDef( animPrefix, inventory.clip[ idealWeapon ] );
 			assert( weapon.GetEntity()->IsLinked() );
@@ -5996,6 +6021,8 @@ void idPlayer::CrashLand( const idVec3 &oldOrigin, const idVec3 &oldVelocity ) {
 	float		a, b, c, den;
 	waterLevel_t waterLevel;
 	bool		noDamage;
+	int			localTimeToUse;
+
 
 	AI_SOFTLANDING = false;
 	AI_HARDLANDING = false;
@@ -6072,10 +6099,16 @@ void idPlayer::CrashLand( const idVec3 &oldOrigin, const idVec3 &oldVelocity ) {
 		hardDelta	= 45.0f;
 	}
 
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && gameLocal.localClientNum == entityNumber && net_clientSideMovement.GetBool() && allowClientsideMovement) {
+		localTimeToUse = gameLocal.clientsideTime;
+	} else {
+		localTimeToUse = gameLocal.time;
+	}
+
 	if ( delta > fatalDelta ) {
 		AI_HARDLANDING = true;
 		landChange = -32;
-		landTime = gameLocal.time;
+		landTime = localTimeToUse;
 		if ( !noDamage ) {
 			pain_debounce_time = gameLocal.time + pain_delay + 1;  // ignore pain since we'll play our landing anim
 			Damage( NULL, NULL, idVec3( 0, 0, -1 ), "damage_fatalfall", 1.0f, 0 );
@@ -6083,7 +6116,7 @@ void idPlayer::CrashLand( const idVec3 &oldOrigin, const idVec3 &oldVelocity ) {
 	} else if ( delta > hardDelta ) {
 		AI_HARDLANDING = true;
 		landChange	= -24;
-		landTime	= gameLocal.time;
+		landTime	= localTimeToUse;
 		if ( !noDamage ) {
 			pain_debounce_time = gameLocal.time + pain_delay + 1;  // ignore pain since we'll play our landing anim
 			Damage( NULL, NULL, idVec3( 0, 0, -1 ), "damage_hardfall", 1.0f, 0 );
@@ -6091,7 +6124,7 @@ void idPlayer::CrashLand( const idVec3 &oldOrigin, const idVec3 &oldVelocity ) {
 	} else if ( delta > 30 ) {
 		AI_HARDLANDING = true;
 		landChange	= -16;
-		landTime	= gameLocal.time;
+		landTime	= localTimeToUse;
 		if ( !noDamage ) {
 			pain_debounce_time = gameLocal.time + pain_delay + 1;  // ignore pain since we'll play our landing anim
 			Damage( NULL, NULL, idVec3( 0, 0, -1 ), "damage_softfall", 1.0f, 0 );
@@ -6099,7 +6132,7 @@ void idPlayer::CrashLand( const idVec3 &oldOrigin, const idVec3 &oldVelocity ) {
 	} else if ( delta > 7 ) {
 		AI_SOFTLANDING = true;
 		landChange	= -8;
-		landTime	= gameLocal.time;
+		landTime	= localTimeToUse;
 	} else if ( delta > 3 ) {
 		// just walk on
 	}
@@ -6112,13 +6145,14 @@ idPlayer::BobCycle
 */
 void idPlayer::BobCycle( const idVec3 &pushVelocity ) {
 	float		bobmove;
-	int			old, deltaTime;
+	int			localGameTime;
+	int			old, deltaTime = 0;
 	idVec3		vel, gravityDir, velocity;
 	idMat3		viewaxis;
 	float		bob;
 	float		delta;
 	float		speed;
-	float		f;
+	float		f=0.0;
 
 	//
 	// calculate speed and cycle to be used for
@@ -6137,6 +6171,13 @@ void idPlayer::BobCycle( const idVec3 &pushVelocity ) {
 		viewBob.Zero();
 		return;
 	}
+
+	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased() && net_clientSideMovement.GetBool() && allowClientsideMovement ) {
+		localGameTime = gameLocal.clientsideTime;
+	} else {
+		localGameTime = gameLocal.time;
+	}
+
 
 	if ( !physicsObj.HasGroundContacts() || influenceActive == INFLUENCE_LEVEL2 || ( gameLocal.isMultiplayer && spectating ) ) {
 		// airborne
@@ -6197,10 +6238,15 @@ void idPlayer::BobCycle( const idVec3 &pushVelocity ) {
 	// calculate position for view bobbing
 	viewBob.Zero();
 
+	if (gameLocal.isClient && stepUpTime > localGameTime) {
+		stepUpTime = localGameTime -  STEPUP_TIME;
+		stepUpDelta = 0.0f;
+	}
+
 	if ( physicsObj.HasSteppedUp() ) {
 
 		// check for stepping up before a previous step is completed
-		deltaTime = gameLocal.time - stepUpTime;
+		deltaTime = localGameTime - stepUpTime;
 		if ( deltaTime < STEPUP_TIME ) {
 			stepUpDelta = stepUpDelta * ( STEPUP_TIME - deltaTime ) / STEPUP_TIME + physicsObj.GetStepUp();
 		} else {
@@ -6209,13 +6255,13 @@ void idPlayer::BobCycle( const idVec3 &pushVelocity ) {
 		if ( stepUpDelta > 2.0f * pm_stepsize.GetFloat() ) {
 			stepUpDelta = 2.0f * pm_stepsize.GetFloat();
 		}
-		stepUpTime = gameLocal.time;
+		stepUpTime = localGameTime;
 	}
 
 	idVec3 gravity = physicsObj.GetGravityNormal();
 
 	// if the player stepped up recently
-	deltaTime = gameLocal.time - stepUpTime;
+	deltaTime = localGameTime - stepUpTime;
 	if ( deltaTime < STEPUP_TIME ) {
 		viewBob += gravity * ( stepUpDelta * ( STEPUP_TIME - deltaTime ) / STEPUP_TIME );
 	}
@@ -6228,7 +6274,10 @@ void idPlayer::BobCycle( const idVec3 &pushVelocity ) {
 	viewBob[2] += bob;
 
 	// add fall height
-	delta = gameLocal.time - landTime;
+	delta = localGameTime - landTime;
+	if (gameLocal.isClient && delta < 0) {
+		delta = 0;
+	}
 	if ( delta < LAND_DEFLECT_TIME ) {
 		f = delta / LAND_DEFLECT_TIME;
 		viewBob -= gravity * ( landChange * f );
@@ -8254,6 +8303,14 @@ void idPlayer::Killed( idEntity *inflictor, idEntity *attacker, int damage, cons
 
 	assert( !gameLocal.isClient );
 
+	if ( !inflictor ) {
+		inflictor = gameLocal.world;
+	}
+	if ( !attacker ) {
+		attacker = gameLocal.world;
+	}
+
+
 	if (gameLocal.mpGame.IsGametypeCoopBased()){
 		spawnArgs.Clear();
 		spawnArgs.Copy(originalSpawnArgs);
@@ -8381,7 +8438,7 @@ callback function for when another entity received damage from this entity.  dam
 ================
 */
 void idPlayer::DamageFeedback( idEntity *victim, idEntity *inflictor, int &damage ) {
-	assert( !gameLocal.isClient );
+	//assert( !gameLocal.isClient );
 	damage *= PowerUpModifier( BERSERK );
 	if ( damage && ( victim != this ) && ( victim->IsType( idActor::Type ) || victim->IsType( idDamagable::Type ) ) ) {
 
@@ -8418,10 +8475,12 @@ void idPlayer::CalcDamagePoints( idEntity *inflictor, idEntity *attacker, const 
 	damageDef->GetInt( "damage", "20", damage );
 	damage = GetDamageForLocation( damage, location );
 
+	int gSkill = (gameLocal.isMultiplayer && gameLocal.mpGame.IsGametypeCoopBased()) ? gameLocal.serverInfo.GetInt("g_skill")  : g_skill.GetInteger();
+
 	idPlayer *player = attacker->IsType( idPlayer::Type ) ? static_cast<idPlayer*>(attacker) : NULL;
 	if ( !gameLocal.isMultiplayer || gameLocal.mpGame.IsGametypeCoopBased() ) {
-		if ( inflictor != gameLocal.world ) {
-			switch ( g_skill.GetInteger() ) {
+		if ( inflictor != gameLocal.world || gameLocal.isClient ) {
+			switch ( gSkill ) {
 				case 0:
 					damage *= 0.80f;
 					if ( damage < 1 ) {
@@ -8496,9 +8555,8 @@ void idPlayer::CalcDamagePoints( idEntity *inflictor, idEntity *attacker, const 
 	if ( (gameLocal.mpGame.IsGametypeTeamBased() || gameLocal.mpGame.IsGametypeCoopBased()) /* CTF and Coop */
 		&& !gameLocal.serverInfo.GetBool( "si_teamDamage" )
 		&& !damageDef->GetBool( "noTeam" )
-		&& player
-		&& player != this		// you get self damage no matter what
-		&& player->team == team ) {
+		&& ((player && player != this && (player->team == team || gameLocal.mpGame.IsGametypeCoopBased()))
+			|| (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && g_clientsideDamage.GetBool() && inflictor && inflictor->IsType(idProjectile::Type) && static_cast<idProjectile*>(inflictor)->selfClientside && (!static_cast<idProjectile*>(inflictor)->GetOwner() || (static_cast<idProjectile*>(inflictor)->GetOwner()->IsType(idPlayer::Type) && static_cast<idProjectile*>(inflictor)->GetOwner() != this )) ))  ) {
 			damage = 0;
 	}
 
@@ -8523,7 +8581,7 @@ inflictor, attacker, dir, and point can be NULL for environmental effects
 ============
 */
 void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir,
-					   const char *damageDefName, const float damageScale, const int location ) {
+					   const char *damageDefName, const float damageScale, const int location, const bool canBeClientDamage ) {
 	idVec3		kick;
 	int			damage;
 	int			armorSave;
@@ -8536,7 +8594,7 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 #endif
 
 	// damage is only processed on server
-	if ( gameLocal.isClient ) {
+	if ( gameLocal.isClient && (!g_clientsideDamage.GetBool() || !canBeClientDamage || !gameLocal.mpGame.IsGametypeCoopBased() || gameLocal.localClientNum != this->entityNumber) ) {
 		return;
 	}
 
@@ -8551,7 +8609,9 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 		attacker = gameLocal.world;
 	}
 
-	if ( attacker->IsType( idAI::Type ) ) {
+	int gSkill = (gameLocal.isMultiplayer && gameLocal.mpGame.IsGametypeCoopBased()) ? gameLocal.serverInfo.GetInt("g_skill")  : g_skill.GetInteger();
+
+	if ( attacker->IsType( idAI::Type ) || gameLocal.isClient ) {
 #ifndef _D3XP
 		if ( PowerUpActive( BERSERK ) ) {
 			return;
@@ -8591,6 +8651,8 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 		}
 #endif*/
 
+	if (!gameLocal.isClient) {
+
 	if ( knockback != 0 && !fl.noknockback ) {
 		if ( attacker == this ) {
 			damageDef->dict.GetFloat( "attackerPushScale", "0", attackerPushScale );
@@ -8607,16 +8669,19 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 		physicsObj.SetKnockBack( idMath::ClampInt( 50, 200, knockback * 2 ) );
 	}
 
+	}
 
 	// give feedback on the player view and audibly when armor is helping
 	if ( armorSave ) {
 		inventory.armor -= armorSave;
 
-		if ( gameLocal.time > lastArmorPulse + 200 ) {
+		if ( (gameLocal.time > lastArmorPulse + 200) && !gameLocal.isClient ) {
 			StartSound( "snd_hitArmor", SND_CHANNEL_ITEM, 0, false, NULL );
 		}
 		lastArmorPulse = gameLocal.time;
 	}
+
+	if (!gameLocal.isClient) {
 
 	if ( damageDef->dict.GetBool( "burn" ) ) {
 		StartSound( "snd_burn", SND_CHANNEL_BODY3, 0, false, NULL );
@@ -8631,6 +8696,8 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 			entityNumber, health, damage, armorSave );
 	}
 
+	}
+
 	// move the world direction vector to local coordinates
 	damage_from = dir;
 	damage_from.Normalize();
@@ -8640,7 +8707,7 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 	// add to the damage inflicted on a player this frame
 	// the total will be turned into screen blends and view angle kicks
 	// at the end of the frame
-	if ( health > 0 ) {
+	if ( health > 0 && !gameLocal.isClient ) {
 		playerView.DamageImpulse( localDamageVector, &damageDef->dict );
 	}
 
@@ -8653,7 +8720,7 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 #else
 			float scale = g_damageScale.GetFloat();
 #endif
-			if ( g_useDynamicProtection.GetBool() && g_skill.GetInteger() < 2 ) {
+			if ( g_useDynamicProtection.GetBool() &&  gSkill < 2 && !gameLocal.isClient ) {
 				if ( gameLocal.time > lastDmgTime + 500 && scale > 0.25f ) {
 					scale -= 0.05f;
 #ifdef _D3XP
@@ -8673,7 +8740,20 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 			damage = 1;
 		}
 
-		health -= damage;
+		if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && gameLocal.localClientNum == this->entityNumber && attacker && attacker->IsType(idAI::Type)) {
+			playerDamageReceived += damage;
+			if (health > 0) {
+				health -= damage;
+				if (health <= 0) {
+					health = 1; //don't let a player die clientside... yet
+				}
+			}
+		} else if (!gameLocal.mpGame.IsGametypeCoopBased() || !g_clientsideDamage.GetBool() || !canBeClientDamage || !attacker || !attacker->IsType(idAI::Type) || 
+			(gameLocal.isServer && gameLocal.localClientNum == this->entityNumber)) {
+			health -= damage;
+		}
+
+		if (!gameLocal.isClient) {
 
 		if ( health <= 0 ) {
 
@@ -8696,7 +8776,9 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 				lastDmgTime = gameLocal.time;
 			}
 		}
-	} else {
+
+		}
+	} else if (!gameLocal.isClient) {
 		// don't accumulate impulses
 		if ( af.IsLoaded() ) {
 			// clear impacts
@@ -8942,7 +9024,7 @@ void idPlayer::CalculateViewWeaponPos( idVec3 &origin, idMat3 &axis ) {
 	float		scale;
 	float		fracsin;
 	idAngles	angles;
-	int			delta;
+	int			delta, localTimeToUse;
 
 	// CalculateRenderView must have been called first
 	const idVec3 &viewOrigin = firstPersonViewOrigin;
@@ -8979,7 +9061,19 @@ void idPlayer::CalculateViewWeaponPos( idVec3 &origin, idMat3 &axis ) {
 	idVec3 gravity = physicsObj.GetGravityNormal();
 
 	// drop the weapon when landing after a jump / fall
-	delta = gameLocal.time - landTime;
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && net_clientSideMovement.GetBool() && allowClientsideMovement && entityNumber == gameLocal.localClientNum) {
+		localTimeToUse =  gameLocal.clientsideTime;
+
+	} else {
+		localTimeToUse =  gameLocal.time;
+	}
+
+	if (landTime > localTimeToUse) {
+		landTime = localTimeToUse;
+	}
+
+	delta = localTimeToUse - landTime;
+
 	if ( delta < LAND_DEFLECT_TIME ) {
 		origin -= gravity * ( landChange*0.25f * delta / LAND_DEFLECT_TIME );
 	} else if ( delta < LAND_DEFLECT_TIME + LAND_RETURN_TIME ) {
@@ -9076,7 +9170,7 @@ idVec3 idPlayer::GetEyePosition( void ) const {
 	idVec3 org;
 
 	// use the smoothed origin if spectating another player in multiplayer
-	if ( gameLocal.isClient && entityNumber != gameLocal.localClientNum ) {
+	if ( gameLocal.isClient && (entityNumber != gameLocal.localClientNum || allowClientsideMovement) ) {
 		org = smoothedOrigin;
 	} else {
 		org = GetPhysics()->GetOrigin();
@@ -9823,8 +9917,10 @@ void idPlayer::ClientPredictionThink( void ) {
 		usercmd.upmove = 0;
 	}
 
-	// clear the ik before we do anything else so the skeleton doesn't get updated twice
-	walkIK.ClearJointMods();
+	if (IsPhysicsFrameClientside()) {
+		// clear the ik before we do anything else so the skeleton doesn't get updated twice
+		walkIK.ClearJointMods();
+	}
 
 	if ( gameLocal.isNewFrame ) {
 		if ( ( usercmd.flags & UCF_IMPULSE_SEQUENCE ) != ( oldFlags & UCF_IMPULSE_SEQUENCE ) ) {
@@ -9849,7 +9945,9 @@ void idPlayer::ClientPredictionThink( void ) {
 		}
 		smoothedAngles = viewAngles;
 	}
-	smoothedOriginUpdated = false;
+	if (IsPhysicsFrameClientside()) {
+		smoothedOriginUpdated = false;
+	}
 
 	// if we have an active gui, we will unrotate the view angles as
 	// we turn the mouse movements into gui events
@@ -9858,7 +9956,7 @@ void idPlayer::ClientPredictionThink( void ) {
 		RouteGuiMouse( gui );
 	}
 
-	if ( !af.IsActive() ) {
+	if ( !af.IsActive() && IsPhysicsFrameClientside() ) {
 		AdjustBodyAngles();
 	}
 
@@ -9875,7 +9973,7 @@ void idPlayer::ClientPredictionThink( void ) {
 	UpdateFocus();
 
 	// service animations
-	if ( !spectating && !af.IsActive() ) {
+	if ( !spectating && !af.IsActive() && IsPhysicsFrameClientside() ) {
 		UpdateConditions();
 		UpdateAnimState();
 		CheckBlink();
@@ -9884,18 +9982,36 @@ void idPlayer::ClientPredictionThink( void ) {
 	// clear out our pain flag so we can tell if we recieve any damage between now and the next time we think
 	AI_PAIN = false;
 
-	// calculate the exact bobbed view position, which is used to
-	// position the view weapon, among other things
-	CalculateFirstPersonView();
+	if (IsPhysicsFrameClientside()) {
+		// calculate the exact bobbed view position, which is used to
+		// position the view weapon, among other things
+		CalculateFirstPersonView();
 
-	// this may use firstPersonView, or a thirdPerson / camera view
-	CalculateRenderView();
+		// this may use firstPersonView, or a thirdPerson / camera view
+		CalculateRenderView();
+	}
 
 	if ( !gameLocal.inCinematic && weapon.GetEntity() && ( health > 0 ) && !( gameLocal.isMultiplayer && spectating ) ) {
 		UpdateWeapon();
 	}
 
 	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isNewFrame) {
+		if (g_clientsideDamage.GetBool() && playerDamageReceived > 0 && gameLocal.localClientNum == this->entityNumber  ) {
+			idBitMsg	msg;
+			byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+			msg.Init( msgBuf, sizeof( msgBuf ) );
+			msg.BeginWriting();
+			msg.WriteShort(playerDamageReceived);
+			msg.WriteShort(lastDamageLocation);
+			msg.WriteFloat( lastDamageDir.x );
+			msg.WriteFloat( lastDamageDir.y );
+			msg.WriteFloat( lastDamageDir.z );
+			ClientSendEvent(EVENT_SENDDAMAGE, &msg);
+			//gameLocal.DebugPrintf("EVENT_SENDDAMAGE: %d\n", playerDamageReceived);
+			nextTimeReadHealth = gameLocal.clientsideTime + READHEALTH_DELAY_AFTERDAMAGE;
+			playerDamageReceived = 0;
+		}
+
 		UpdateAir();
 	}
 
@@ -9938,12 +10054,12 @@ void idPlayer::ClientPredictionThink( void ) {
 		headRenderEnt->suppressShadowInLightID = LIGHTID_VIEW_MUZZLE_FLASH + entityNumber;
 	}
 
-	if ( !gameLocal.inCinematic ) {
+	if ( !gameLocal.inCinematic && IsPhysicsFrameClientside() ) {
 		UpdateAnimation();
 	}
 
 #ifdef _D3XP
-	if ( enviroSuitLight.IsValid() ) {
+	if ( enviroSuitLight.IsValid() && IsPhysicsFrameClientside() ) {
 		idAngles lightAng = firstPersonViewAxis.ToAngles();
 		idVec3 lightOrg = firstPersonViewOrigin;
 		const idDict *lightDef = gameLocal.FindEntityDefDict( "envirosuit_light", false );
@@ -10005,7 +10121,10 @@ void idPlayer::ClientPredictionThink( void ) {
 	}
 
 
-	Present();
+	// service animations
+	if (IsPhysicsFrameClientside()) {
+		Present();
+	}
 
 	UpdateDamageEffects();
 
@@ -10036,7 +10155,7 @@ bool idPlayer::GetPhysicsToVisualTransform( idVec3 &origin, idMat3 &axis ) {
 
 	// smoothen the rendered origin and angles of other clients
 	// smooth self origin if snapshots are telling us prediction is off
-	if ( gameLocal.isClient && gameLocal.framenum >= smoothedFrame && ( entityNumber != gameLocal.localClientNum || selfSmooth ) ) {
+	if ( gameLocal.isClient && gameLocal.framenum >= smoothedFrame && ( entityNumber != gameLocal.localClientNum || selfSmooth  || allowClientsideMovement ) ) {
 		// render origin and axis
 		idMat3 renderAxis = viewAxis * GetPhysics()->GetAxis();
 		idVec3 renderOrigin = GetPhysics()->GetOrigin() + modelOffset * renderAxis;
@@ -10046,7 +10165,7 @@ bool idPlayer::GetPhysicsToVisualTransform( idVec3 &origin, idMat3 &axis ) {
 			idVec2 originDiff = renderOrigin.ToVec2() - smoothedOrigin.ToVec2();
 			if ( originDiff.LengthSqr() < Square( 100.0f ) ) {
 				// smoothen by pushing back to the previous position
-				if ( selfSmooth ) {
+				if ( (selfSmooth || allowClientsideMovement) && (entityNumber == gameLocal.localClientNum)  ) {
 					assert( entityNumber == gameLocal.localClientNum );
 					renderOrigin.ToVec2() -= net_clientSelfSmoothing.GetFloat() * originDiff;
 				} else {
@@ -10059,8 +10178,13 @@ bool idPlayer::GetPhysicsToVisualTransform( idVec3 &origin, idMat3 &axis ) {
 			smoothedOriginUpdated = true;
 		}
 
-		axis = idAngles( 0.0f, smoothedAngles.yaw, 0.0f ).ToMat3();
-		origin = ( smoothedOrigin - GetPhysics()->GetOrigin() ) * axis.Transpose();
+		if (!allowClientsideMovement || selfSmooth) {
+			axis = idAngles( 0.0f, smoothedAngles.yaw, 0.0f ).ToMat3();
+			origin = ( smoothedOrigin - GetPhysics()->GetOrigin() ) * axis.Transpose();
+		} else {
+			axis = viewAxis;
+			origin = modelOffset;
+		}
 
 	} else {
 
@@ -10218,6 +10342,11 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+
+		if (g_clientsideDamage.GetBool() && gameLocal.clientsideTime < nextTimeReadHealth && oldHealth > 0 && health > 0) {
+			health = oldHealth; //bit of delay for reading health clientside after local clientside damage 
+		}
+
 		if ( weapon.SetCoopId( weaponCoopId ) ) {
 			if ( weapon.GetCoopEntity() ) {
 				// maintain ownership locally
@@ -10364,9 +10493,15 @@ idPlayer::ReadPlayerStateFromSnapshot
 void idPlayer::ReadPlayerStateFromSnapshot( const idBitMsgDelta &msg ) {
 	int i, ammo;
 
-	bobCycle = msg.ReadByte();
-	stepUpTime = msg.ReadInt();
-	stepUpDelta = msg.ReadFloat();
+	if (gameLocal.mpGame.IsGametypeCoopBased() && net_clientSideMovement.GetBool() && allowClientsideMovement && gameLocal.localClientNum == this->entityNumber) {
+		msg.ReadByte();
+		msg.ReadInt();
+		msg.ReadFloat();
+	} else {
+		bobCycle = msg.ReadByte();
+		stepUpTime = msg.ReadInt();
+		stepUpDelta = msg.ReadFloat();
+	}
 #ifdef _D3XP
 	inventory.weapons = msg.ReadInt();
 #else
@@ -10413,29 +10548,48 @@ bool idPlayer::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			deltaViewAngles[2] = msg.ReadDeltaFloat( 0.0f );
 			return true;
 		}
-		case EVENT_PLAYERSPAWN: {
-			if (net_clientSideMovement.GetBool()) {
-				allowClientsideMovement = true;  //hack for clientsidemovement
-				nextSendPhysicsInfoTime = gameLocal.clientsideTime; //hack for clientsidemovement
-				idVec3	tmpOrigin = vec3_zero;
-				tmpOrigin.x = msg.ReadFloat();
-				tmpOrigin.y = msg.ReadFloat();
-				tmpOrigin.z = msg.ReadFloat();
-				deltaViewAngles[0] = msg.ReadDeltaFloat( 0.0f );
-				deltaViewAngles[1] = msg.ReadDeltaFloat( 0.0f );
-				deltaViewAngles[2] = msg.ReadDeltaFloat( 0.0f );
-				SetOrigin(	tmpOrigin );
-				Move();
-			} else {
-				msg.ReadFloat();
-				msg.ReadFloat();
-				msg.ReadFloat();
-				msg.ReadDeltaFloat( 0.0f );
-				msg.ReadDeltaFloat( 0.0f );
-				msg.ReadDeltaFloat( 0.0f );
-			}
-			return true;
+		case EVENT_SENDDAMAGE: {
 
+			int clientEntityNum, damageToInflict, location;
+			idVec3 tmpDir = vec3_zero;
+
+			//clientEntityNum = msg.ReadBits(idMath::BitsForInteger(MAX_CLIENTS));
+			damageToInflict = msg.ReadShort();
+			location = msg.ReadShort();
+			tmpDir.x = msg.ReadFloat();
+			tmpDir.y = msg.ReadFloat();
+			tmpDir.z = msg.ReadFloat();
+
+			if ( noclip || spectating || gameLocal.inCinematic ) {
+				return true;
+			}
+
+			if (damageToInflict < 1) {
+				damageToInflict = 1;
+			}
+
+			health -= damageToInflict;
+
+			if ( health <= 0 ) {
+
+				if ( health < -999 ) {
+					health = -999;
+				}
+
+				lastDmgTime = gameLocal.time;
+				Killed( NULL, NULL, damageToInflict, tmpDir, location );
+
+			} else {
+				// force a blink
+				blink_time = 0;
+				// let the anim script know we took damage
+				AI_PAIN = Pain( NULL, NULL, damageToInflict, tmpDir, location );
+				if ( !g_testDeath.GetBool() ) {
+					lastDmgTime = gameLocal.time;
+				}
+			}
+
+			return true;
 		}
 		default: {
 			return false;
@@ -10489,6 +10643,32 @@ bool idPlayer::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 				return true;
 			}
 			break;
+		}
+		case EVENT_PLAYERSPAWN: {
+			if (net_clientSideMovement.GetBool()) {
+				if (gameLocal.localClientNum == this->entityNumber) {
+					allowClientsideMovement = true;  //hack for clientsidemovement
+					nextSendPhysicsInfoTime = gameLocal.clientsideTime; //hack for clientsidemovement
+				}
+				idVec3	tmpOrigin = vec3_zero;
+				tmpOrigin.x = msg.ReadFloat();
+				tmpOrigin.y = msg.ReadFloat();
+				tmpOrigin.z = msg.ReadFloat();
+				deltaViewAngles[0] = msg.ReadDeltaFloat( 0.0f );
+				deltaViewAngles[1] = msg.ReadDeltaFloat( 0.0f );
+				deltaViewAngles[2] = msg.ReadDeltaFloat( 0.0f );
+				SetOrigin(	tmpOrigin );
+				Move();
+			} else {
+				msg.ReadFloat();
+				msg.ReadFloat();
+				msg.ReadFloat();
+				msg.ReadDeltaFloat( 0.0f );
+				msg.ReadDeltaFloat( 0.0f );
+				msg.ReadDeltaFloat( 0.0f );
+			}
+			return true;
+
 		}
 		default:
 			break;
@@ -11269,3 +11449,13 @@ void idPlayer::CS_RestorePersistantInfo( void ) {
 
 	inventory.CS_RestoreInventory( this, tmpArgs );
 } 
+
+/*
+================
+idPlayer::IsPhysicsFrameClientside
+================
+*/
+
+bool idPlayer::IsPhysicsFrameClientside( void ) {
+	return !net_clientSideMovement.GetBool() || !allowClientsideMovement || entityNumber != gameLocal.localClientNum || gameLocal.isNewFrame;
+}

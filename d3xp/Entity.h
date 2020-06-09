@@ -358,8 +358,8 @@ public:
 	// damage
 							// returns true if this entity can be damaged from the given origin
 	virtual bool			CanDamage( const idVec3 &origin, idVec3 &damagePoint ) const;
-							// applies damage to this entity
-	virtual	void			Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir, const char *damageDefName, const float damageScale, const int location );
+							// applies damage to this entity (canBeClientDamage  added by Stradex for g_clientsideDamage 1)
+	virtual	void			Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir, const char *damageDefName, const float damageScale, const int location, const bool canBeClientDamage = false );
 							// adds a damage effect like overlays, blood, sparks, debris etc.
 	virtual void			AddDamageEffect( const trace_t &collision, const idVec3 &velocity, const char *damageDefName );
 							// callback function for when another entity received damage from this entity.  damage can be adjusted and returned to the caller.
@@ -368,6 +368,9 @@ public:
 	virtual bool			Pain( idEntity *inflictor, idEntity *attacker, int damage, const idVec3 &dir, int location );
 							// notifies this entity that is has been killed
 	virtual void			Killed( idEntity *inflictor, idEntity *attacker, int damage, const idVec3 &dir, int location );
+
+	// applies damage to this entity (received by client)
+	virtual	void			ClientReceivedDamage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir, int damage, const int location );
 
 	// scripting
 	virtual bool			ShouldConstructScriptObjectAtSpawn( void ) const;
@@ -402,6 +405,7 @@ public:
 		EVENT_STOPSOUNDSHADER,
 		EVENT_ACTIVATE_TARGETS,
 		EVENT_SETNETSHADERPARM,
+		EVENT_CLIENTDAMAGE, //added by Stradex for g_clientsideDamage 1
 #ifdef _D3XP
 		EVENT_SETGUI,
 		EVENT_GUINAMEDEVENT,

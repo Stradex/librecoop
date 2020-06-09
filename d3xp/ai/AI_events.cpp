@@ -622,8 +622,8 @@ void idAI::Event_CreateMissile( const char *jointname ) {
 	idVec3 muzzle;
 	idMat3 axis;
 
-	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
-		return idThread::ReturnEntity( NULL ); //Make this clientside in future
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && (!g_clientsideDamage.GetBool() || AI_DEAD)) {
+		return idThread::ReturnEntity( NULL );
 	}
 
 	if ( !projectileDef ) {
@@ -650,14 +650,17 @@ idAI::Event_AttackMissile
 */
 void idAI::Event_AttackMissile( const char *jointname ) {
 
-	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
-		//gameLocal.Warning( "[COOP] Event_AttackMissile called by a client!\n"); //not a warning, just a natural thing in coop
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && (!g_clientsideDamage.GetBool() || AI_DEAD)) {
 		return idThread::ReturnEntity( NULL );
 	}
 
 	idProjectile *proj;
 
-	proj = LaunchProjectile( jointname, enemy.GetEntity(), true );
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && enemy.GetEntity()) {
+		proj = LaunchProjectile( jointname, enemy.GetEntity(), false );
+	} else {
+		proj = LaunchProjectile( jointname, enemy.GetEntity(), true );
+	}
 	idThread::ReturnEntity( proj );
 }
 
@@ -668,7 +671,7 @@ idAI::Event_FireMissileAtTarget
 */
 void idAI::Event_FireMissileAtTarget( const char *jointname, const char *targetname ) {
 
-	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient  && (!g_clientsideDamage.GetBool() || AI_DEAD)) {
 		//gameLocal.Warning( "[COOP] Event_FireMissileAtTarget called by a client!\n"); //not a warning, just a natural thing in coop
 		return idThread::ReturnEntity( NULL );
 	}
@@ -692,8 +695,12 @@ idAI::Event_LaunchMissile
 */
 void idAI::Event_LaunchMissile( const idVec3 &org, const idAngles &ang ) {
 
-	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
-		if ( flashJointWorld != INVALID_JOINT ) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && AI_DEAD) {
+		return idThread::ReturnEntity( NULL ); //avoid bug while using g_clientsideDamage 1
+	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && (!g_clientsideDamage.GetBool() || AI_DEAD)) {
+		if ( (flashJointWorld != INVALID_JOINT) && !AI_DEAD ) {
 			idVec3 muzzle;
 			animator.GetJointTransform( flashJointWorld, gameLocal.time, muzzle, worldMuzzleFlash.axis );
 			animator.GetJointTransform( flashJointWorld, gameLocal.time, muzzle, worldMuzzleFlash.axis );
@@ -719,6 +726,14 @@ void idAI::Event_LaunchMissile( const idVec3 &org, const idAngles &ang ) {
 	}
 
 	axis = ang.ToMat3();
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && enemy.GetEntity()) {
+		idProjectile	*proj;
+		proj = CS_LaunchProjectile( org, axis[ 0 ], enemy.GetEntity(), false );
+		idThread::ReturnEntity( proj );
+		return;
+	}
+
 	if ( !projectile.GetEntity() ) {
 		CreateProjectile( org, axis[ 0 ] );
 	}

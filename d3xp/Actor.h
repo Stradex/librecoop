@@ -122,6 +122,7 @@ public:
 
 	idLinkList<idActor>		enemyNode;			// node linked into an entity's enemy list for quick lookups of who is attacking him
 	idLinkList<idActor>		enemyList;			// list of characters that have targeted the player as their enemy
+	bool					killedByGrabber; //for coop
 
 public:
 							idActor( void );
@@ -169,7 +170,8 @@ public:
 
 							// damage
 	void					SetupDamageGroups( void );
-	virtual	void			Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir, const char *damageDefName, const float damageScale, const int location );
+	virtual	void			Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir, const char *damageDefName, const float damageScale, const int location, const bool canBeClientDamage = false );
+	virtual	void			ClientReceivedDamage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir, int damage, const int location ); //coop added
 	int						GetDamageForLocation( int damage, int location );
 	const char *			GetDamageGroup( int location );
 	void					ClearPain( void );
@@ -214,6 +216,8 @@ public:
 	virtual void			SpawnGibs( const idVec3 &dir, const char *damageDefName );
 
 	void					Event_OverrideAnim( int channel ); //moved here for coop
+	virtual bool			ServerReceiveEvent( int event, int time, const idBitMsg &msg ); //added for coop
+
 
 #ifdef _D3XP
 	idEntity*				GetHeadEntity() { return head.GetEntity(); };
@@ -238,6 +242,12 @@ protected:
 	bool						use_combat_bbox;	// whether to use the bounding box for combat collision
 	idEntityPtr<idAFAttachment>	head;
 	idList<copyJoints_t>		copyJoints;			// copied from the body animation to the head model
+
+	int						nextTimeHealthReaded; //for g_clientsideDamage 1
+	int						clientsideDamageInflicted; // for g_clientsideDamage 1
+	int						clientsideDamageLocation; // for g_clientsideDamage 1
+	idVec3					clientsideDamageDir;  // for g_clientsideDamage 1
+	idEntity*				lastPlayerDamage; // for g_clientsideDamage 1
 
 	// state variables
 	const function_t		*state;

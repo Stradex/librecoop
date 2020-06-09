@@ -272,6 +272,10 @@ class idAI : public idActor {
 public:
 	CLASS_PROTOTYPE( idAI );
 
+	enum {
+		EVENT_CLIENTKILL = idEntity::EVENT_MAXEVENTS,
+	};
+
 							idAI();
 							~idAI();
 
@@ -457,6 +461,7 @@ protected:
 	bool					thereWasEnemy;
 	int						currentChannelOverride;
 	int						currentHeadAnim;
+	int						currentAttackDefNum;
 
 
 #ifdef _D3XP
@@ -587,8 +592,9 @@ protected:
 	idProjectile			*CreateProjectile( const idVec3 &pos, const idVec3 &dir );
 	void					RemoveProjectile( void );
 	idProjectile			*LaunchProjectile( const char *jointname, idEntity *target, bool clampToAttackCone );
+	idProjectile			*CS_LaunchProjectile( idVec3 muzzle, idVec3 inidir, idEntity *target, bool clampToAttackCone ); //Launch projectile clientside while using g_clientsideDamage 1
 	virtual void			DamageFeedback( idEntity *victim, idEntity *inflictor, int &damage );
-	void					DirectDamage( const char *meleeDefName, idEntity *ent );
+	void					DirectDamage( const char *meleeDefName, idEntity *ent, const bool canBeClientDamage = false);
 	bool					TestMelee( void ) const;
 	bool					AttackMelee( const char *meleeDefName );
 	void					BeginAttack( const char *name );

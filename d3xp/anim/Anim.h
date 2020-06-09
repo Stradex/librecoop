@@ -572,6 +572,9 @@ public:
 	int							AnimLength( int animnum ) const;
 	const idVec3				&TotalMovementDelta( int animnum ) const;
 
+	bool						GetAllowFrameCommands( int channelNum) const; //added for COOP
+	void						SetAllowFrameCommands( int channelNum, bool allow);
+
 private:
 	void						FreeData( void );
 	void						PushAnims( int channel, int currentTime, int blendTime );

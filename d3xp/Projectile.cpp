@@ -462,9 +462,9 @@ void idProjectile::Launch( const idVec3 &start, const idVec3 &dir, const idVec3 
 				fuse = 0.0f;
 			}
 			if (gameLocal.isClient) {
-				PostEventSec( &EV_Fizzle, fuse );
-			} else {
 				CS_PostEventSec( &EV_Fizzle, fuse );
+			} else {
+				PostEventSec( &EV_Fizzle, fuse );
 			}
 		}
 	}
@@ -583,7 +583,34 @@ bool idProjectile::Collide( const trace_t &collision, const idVec3 &velocity ) {
 		if ( ClientPredictionCollide( this, spawnArgs, collision, velocity, !spawnArgs.GetBool( "net_instanthit" ) ) ) {
 
 			AddDefaultDamageEffect( collision, collision.c.normal ); //added for coop
-			Explode( collision, NULL );
+			ent = gameLocal.entities[ collision.c.entityNum ];
+			ignore = NULL;
+			if (gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && clientsideNode.InList() && ent &&
+				((owner.GetEntity() && owner.GetEntity()->entityNumber == gameLocal.localClientNum && ent->IsType(idAI::Type))
+				|| (ent->entityNumber == gameLocal.localClientNum ))
+			) {
+				if ( !projectileFlags.detonate_on_actor ) {
+					Explode( collision, NULL );
+					return true;
+				}
+
+				damageDefName = spawnArgs.GetString( "def_damage" );
+
+				// if the hit entity takes damage
+				if ( ent->fl.takedamage ) {
+					if ( damagePower ) {
+						damageScale = damagePower;
+					} else {
+						damageScale = 1.0f;
+					}
+
+					if ( damageDefName[0] != '\0' ) {
+						ent->Damage( this, owner.GetEntity(), dir, damageDefName, damageScale, CLIPMODEL_ID_TO_JOINT_HANDLE( collision.c.id ), true );
+						ignore = ent;
+					}
+				}
+			}
+			Explode( collision, ignore );
 			return true;
 		}
 
@@ -678,7 +705,9 @@ bool idProjectile::Collide( const trace_t &collision, const idVec3 &velocity ) {
 		}
 
 		if ( damageDefName[0] != '\0' ) {
-			ent->Damage( this, owner.GetEntity(), dir, damageDefName, damageScale, CLIPMODEL_ID_TO_JOINT_HANDLE( collision.c.id ) );
+			if (!g_clientsideDamage.GetBool() || !selfClientside || !owner.GetEntity() || !owner.GetEntity()->IsType(idPlayer::Type) || !ent->IsType(idAI::Type) || (owner.GetEntity() && owner.GetEntity()->entityNumber == gameLocal.localClientNum)) {
+				ent->Damage( this, owner.GetEntity(), dir, damageDefName, damageScale, CLIPMODEL_ID_TO_JOINT_HANDLE( collision.c.id ), true );
+			}
 			ignore = ent;
 		}
 	}
@@ -831,6 +860,10 @@ void idProjectile::Fizzle( void ) {
 	state = FIZZLED;
 
 	if ( gameLocal.isClient ) {
+		if (gameLocal.mpGame.IsGametypeCoopBased() && clientsideNode.InList()) {
+			CancelEvents( &EV_Fizzle );
+			CS_PostEventMS( &EV_Remove, spawnArgs.GetInt( "remove_time", "1500" ) );
+		}
 		return;
 	}
 
@@ -846,7 +879,12 @@ idProjectile::Event_RadiusDamage
 void idProjectile::Event_RadiusDamage( idEntity *ignore ) {
 	const char *splash_damage = spawnArgs.GetString( "def_splash_damage" );
 	if ( splash_damage[0] != '\0' ) {
-		gameLocal.RadiusDamage( physicsObj.GetOrigin(), this, owner.GetEntity(), ignore, this, splash_damage, damagePower );
+		if (gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && owner.GetEntity() &&
+			(owner.GetEntity()->IsType(idAI::Type) || selfClientside) ) {
+			gameLocal.RadiusDamage( physicsObj.GetOrigin(), this, owner.GetEntity(), ignore, this, splash_damage, damagePower, true );
+		} else {
+			gameLocal.RadiusDamage( physicsObj.GetOrigin(), this, owner.GetEntity(), ignore, this, splash_damage, damagePower );
+		}
 	}
 }
 
@@ -1115,6 +1153,19 @@ void idProjectile::Explode( const trace_t &collision, idEntity *ignore ) {
 			CS_PostEventMS( &EV_Remove, removeTime );
 		}
 
+		// splash damage
+		if ( !projectileFlags.noSplashDamage && gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() ) {
+			float delay = spawnArgs.GetFloat( "delay_splash" );
+			if ( delay ) {
+				if ( removeTime < delay * 1000 ) {
+					removeTime = ( delay + 0.10 ) * 1000;
+				}
+				CS_PostEventSec( &EV_RadiusDamage, delay, ignore );
+			} else {
+				Event_RadiusDamage( ignore );
+			}
+		}
+
 		return;
 	}
 
@@ -1345,6 +1396,11 @@ idProjectile::ClientPredictionThink
 ================
 */
 void idProjectile::ClientPredictionThink( void ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && clientsideNode.InList() && owner.GetEntity() && (owner.GetEntity()->IsType(idAI::Type) || owner.GetEntity()->entityNumber == gameLocal.localClientNum)) {
+		return Think();
+	}
+
 	if ( !renderEntity.hModel && ((owner && owner.GetEntity() && (owner->entityNumber != gameLocal.localClientNum)) || !gameLocal.mpGame.IsGametypeCoopBased()) ) {
 		return;
 	}
@@ -1470,6 +1526,9 @@ void idProjectile::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	}
 
 	if ( msg.HasChanged() ) {
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			owner.forceCoopEntity = true; //criminal hack
+		}
 		UpdateVisuals();
 	}
 }

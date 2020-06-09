@@ -35,6 +35,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "WorldSpawn.h"
 
 #include "Actor.h"
+#include "Player.h" //test only
 
 
 /***********************************************************************
@@ -475,6 +476,13 @@ idActor::idActor( void ) {
 	enemyNode.SetOwner( this );
 	enemyList.SetOwner( this );
 
+	nextTimeHealthReaded = 0; //added for clientside damage
+	clientsideDamageInflicted = 0; //added for clientside damage
+	clientsideDamageLocation = 0; // for g_clientsideDamage 1
+	clientsideDamageDir = vec3_zero;  // for g_clientsideDamage 1
+	lastPlayerDamage = NULL;
+
+	killedByGrabber = false;
 #ifdef _D3XP
 	damageCap = -1;
 #endif
@@ -2206,11 +2214,12 @@ calls Damage()
 ============
 */
 void idActor::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir,
-					  const char *damageDefName, const float damageScale, const int location ) {
+					  const char *damageDefName, const float damageScale, const int location, const bool canBeClientDamage ) {
 
-	if (gameLocal.isClient) {
-		return; //Client should never produce damage (COOP)
+	if (gameLocal.isClient && (!g_clientsideDamage.GetBool() || !canBeClientDamage || ((!inflictor || !inflictor->clientsideNode.InList()) && !killedByGrabber) || !attacker || attacker->entityNumber != gameLocal.localClientNum)) {
+		return;
 	}
+
 	if ( !fl.takedamage ) {
 		return;
 	}
@@ -2226,7 +2235,7 @@ void idActor::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir
 	SetTimeState ts( timeGroup );
 
 	// Helltime boss is immune to all projectiles except the helltime killer
-	if ( finalBoss && idStr::Icmp(inflictor->GetEntityDefName(), "projectile_helltime_killer") ) {
+	if ( finalBoss && inflictor && idStr::Icmp(inflictor->GetEntityDefName(), "projectile_helltime_killer") ) {
 		return;
 	}
 
@@ -2252,7 +2261,17 @@ void idActor::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir
 	// inform the attacker that they hit someone
 	attacker->DamageFeedback( this, inflictor, damage );
 	if ( damage > 0 ) {
+		int oldHealth = health;
 		health -= damage;
+
+		if (oldHealth > 0 && gameLocal.isClient) {
+			clientsideDamageLocation = location; // for g_clientsideDamage 1
+			clientsideDamageDir.x = dir.x;
+			clientsideDamageDir.y = dir.y;
+			clientsideDamageDir.z = dir.z;
+
+			clientsideDamageInflicted += damage;
+		}
 
 #ifdef _D3XP
 		//Check the health against any damage cap that is currently set
@@ -2266,8 +2285,73 @@ void idActor::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir
 				health = -999;
 			}
 			Killed( inflictor, attacker, damage, dir, location );
-			if ( ( (health < -20) || gameLocal.mpGame.IsGametypeCoopBased() ) && spawnArgs.GetBool( "gib" ) && damageDef->GetBool( "gib" ) ) { //instant gib in coop
+			if ( ( (health < -20) || gameLocal.mpGame.IsGametypeCoopBased() ) && spawnArgs.GetBool( "gib" ) && damageDef->GetBool( "gib" ) && !gameLocal.isClient  ) { //instant gib in coop
 				Gib( dir, damageDefName );
+			}
+		} else {
+			Pain( inflictor, attacker, damage, dir, location );
+		}
+	} else {
+		// don't accumulate knockback
+		if ( af.IsLoaded() ) {
+			// clear impacts
+			af.Rest();
+
+			// physics is turned off by calling af.Rest()
+			BecomeActive( TH_PHYSICS );
+		}
+	}
+}
+
+/*
+============
+ClientReceivedDamage
+this		entity that is being damaged
+inflictor	entity that is causing the damage
+attacker	entity that caused the inflictor to damage targ
+	example: this=monster, inflictor=rocket, attacker=player
+dir			direction of the attack for knockback in global space
+damage		amount of damage being inflicted
+inflictor, attacker, dir, and point can be NULL for environmental effects
+============
+*/
+void idActor::ClientReceivedDamage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir, int damage, const int location ) {
+
+	if ( !fl.takedamage ) {
+		return;
+	}
+
+	if ( !inflictor ) {
+		inflictor = gameLocal.world;
+	}
+
+	if ( !attacker ) {
+		attacker = gameLocal.world;
+	}
+
+	// Helltime boss is immune to all projectiles except the helltime killer
+	if ( finalBoss && inflictor && idStr::Icmp(inflictor->GetEntityDefName(), "projectile_helltime_killer") ) {
+		return;
+	}
+
+	/*
+	// Maledict is immume to the falling asteroids
+	if ( !idStr::Icmp( GetEntityDefName(), "monster_boss_d3xp_maledict" ) &&
+		(!idStr::Icmp( damageDefName, "damage_maledict_asteroid" ) || !idStr::Icmp( damageDefName, "damage_maledict_asteroid_splash" ) ) ) {
+		return;
+	}
+	*/
+
+	if ( damage > 0 ) {
+		health -= damage;
+
+		if ( health <= 0 ) {
+			if ( health < -999 ) {
+				health = -999;
+			}
+			Killed( inflictor, attacker, damage, dir, location );
+			if ( ( (health < -20) || gameLocal.mpGame.IsGametypeCoopBased() ) && spawnArgs.GetBool( "gib" )) { //instant gib in coop
+				Gib( dir, NULL );
 			}
 		} else {
 			Pain( inflictor, attacker, damage, dir, location );
@@ -2299,6 +2383,14 @@ idActor::Pain
 =====================
 */
 bool idActor::Pain( idEntity *inflictor, idEntity *attacker, int damage, const idVec3 &dir, int location ) {
+
+	if ( !inflictor ) {
+		inflictor = gameLocal.world;
+	}
+	if ( !attacker ) {
+		attacker = gameLocal.world;
+	}
+
 	if ( af.IsLoaded() ) {
 		// clear impacts
 		af.Rest();
@@ -3351,6 +3443,37 @@ idActor::Event_GetHead
 void idActor::Event_GetHead( void ) {
 	idThread::ReturnEntity( head.GetEntity() );
 }
+
+/*
+================
+idActor::ServerReceiveEvent
+================
+*/
+bool idActor::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
+
+	// client->server events
+	switch( event ) {
+		case EVENT_CLIENTDAMAGE: {
+			int clientEntityNum, damageToInflict, location;
+			idVec3 tmpDir = vec3_zero;
+
+			clientEntityNum = msg.ReadBits(idMath::BitsForInteger(MAX_CLIENTS));
+			damageToInflict = msg.ReadShort();
+			location = msg.ReadShort();
+			tmpDir.x = msg.ReadFloat();
+			tmpDir.y = msg.ReadFloat();
+			tmpDir.z = msg.ReadFloat();
+
+			if (gameLocal.entities[clientEntityNum] && gameLocal.entities[clientEntityNum]->IsType(idPlayer::Type)) {
+				lastPlayerDamage = gameLocal.entities[clientEntityNum];
+			}
+
+			ClientReceivedDamage(NULL, lastPlayerDamage, tmpDir, damageToInflict, location);
+		}
+	}
+
+	return idEntity::ServerReceiveEvent( event, time, msg );
+} 
 
 #ifdef _D3XP
 /*

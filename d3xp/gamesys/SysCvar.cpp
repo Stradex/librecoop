@@ -105,9 +105,10 @@ idCVar si_onePickupPerPlayer(		"si_onePickupPerPlayer",	"1",			CVAR_GAME | CVAR_
 idCVar net_serverSnapshotLimit(		"net_serverSnapshotLimit",	"100",			CVAR_GAME | CVAR_ARCHIVE | CVAR_INTEGER, "How many snapshots can we send in total as limit (per client)", 20, 500);
 idCVar g_unblockPlayers(			"g_unblockPlayers",			"0",			CVAR_GAME | CVAR_BOOL | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "If player are solid between them or not" );
 idCVar si_lives(					"si_lives",					"2",			CVAR_GAME | CVAR_ARCHIVE | CVAR_INTEGER, "How many lives can the players have in Survival mode", 1, 100);
-idCVar net_clientSideMovement(		"net_clientSideMovement",	"0",			CVAR_GAME | CVAR_BOOL | CVAR_NOCHEAT, "Clientside movement, use only if you're suffering lag (experimental)" );
+idCVar net_clientSideMovement(		"net_clientSideMovement",	"1",			CVAR_GAME | CVAR_BOOL | CVAR_NOCHEAT, "Clientside movement, use only if you're suffering lag (experimental)" );
 idCVar g_spawnInCheckpoints(		"g_spawnInCheckpoints",		"0",			CVAR_GAME | CVAR_BOOL | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "Players can spawn in user checkpoints" );
-idCVar g_keepItemsAfterRespawn(		"g_keepItemsAfterRespawn",	"0",		CVAR_GAME | CVAR_BOOL | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "Keep items after respawning" );
+idCVar g_keepItemsAfterRespawn(		"g_keepItemsAfterRespawn",	"0",			CVAR_GAME | CVAR_BOOL | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "Keep items after respawning" );
+idCVar g_clientsideDamage(			"g_clientsideDamage",		"1",			CVAR_GAME | CVAR_BOOL | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "Allow clients to deal with damage clientside. (Experimental)" );
 //stradex end
 
 #ifdef CTF

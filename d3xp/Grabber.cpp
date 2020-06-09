@@ -343,8 +343,10 @@ void idGrabber::StopDrag( bool dropOnly ) {
 
 			if ( grabbableAI( ent->spawnArgs.GetString( "classname" ) ) ) {
 				idAI *aiEnt = static_cast<idAI*>(ent);
-
-				aiEnt->Damage( thePlayer, thePlayer, vec3_origin, "damage_suicide", 1.0f, INVALID_JOINT );
+				if (gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && gameLocal.isClient) {
+					aiEnt->killedByGrabber = true; //added for coop
+				}
+				aiEnt->Damage( thePlayer, thePlayer, vec3_origin, "damage_suicide", 1.0f, INVALID_JOINT , true);
 			}
 
 			af->SetThrown( !dropOnly );

@@ -3952,7 +3952,9 @@ void idGameLocal::SpawnMapEntities( void ) {
 		return;
 	}
 
-	SetSkill( g_skill.GetInteger() );
+	int gSkill = (isMultiplayer && gameLocal.mpGame.IsGametypeCoopBased()) ? gameLocal.serverInfo.GetInt("g_skill")  : g_skill.GetInteger();
+
+	SetSkill( gSkill );
 
 	numEntities = mapFile->GetNumEntities();
 	if ( numEntities == 0 ) {
@@ -4334,7 +4336,7 @@ idActor *idGameLocal::GetAlertEntity( void ) {
 idGameLocal::RadiusDamage
 ============
 */
-void idGameLocal::RadiusDamage( const idVec3 &origin, idEntity *inflictor, idEntity *attacker, idEntity *ignoreDamage, idEntity *ignorePush, const char *damageDefName, float dmgPower ) {
+void idGameLocal::RadiusDamage( const idVec3 &origin, idEntity *inflictor, idEntity *attacker, idEntity *ignoreDamage, idEntity *ignorePush, const char *damageDefName, float dmgPower, bool clientsideDamage  ) {
 	float		dist, damageScale, attackerDamageScale, attackerPushScale;
 	idEntity *	ent;
 	idEntity *	entityList[ MAX_GENTITIES ];
@@ -4396,6 +4398,10 @@ void idGameLocal::RadiusDamage( const idVec3 &origin, idEntity *inflictor, idEnt
 			continue;
 		}
 
+		if (gameLocal.isClient && ent->entityNumber != this->localClientNum) {
+			continue; // for g_clientsideDamage 1
+		}
+
 		// find the distance from the edge of the bounding box
 		for ( i = 0; i < 3; i++ ) {
 			if ( origin[ i ] < ent->GetPhysics()->GetAbsBounds()[0][ i ] ) {
@@ -4424,12 +4430,16 @@ void idGameLocal::RadiusDamage( const idVec3 &origin, idEntity *inflictor, idEnt
 				damageScale *= attackerDamageScale;
 			}
 
-			ent->Damage( inflictor, attacker, dir, damageDefName, damageScale, INVALID_JOINT );
+			if ( !gameLocal.mpGame.IsGametypeCoopBased() || !g_clientsideDamage.GetBool() || !clientsideDamage
+				|| (gameLocal.isClient && inflictor && inflictor->clientsideNode.InList()) 
+				|| (gameLocal.isServer && ent->entityNumber == this->localClientNum) ) {
+				ent->Damage( inflictor, attacker, dir, damageDefName, damageScale, INVALID_JOINT, clientsideDamage );
+			}
 		}
 	}
 
 	// push physics objects
-	if ( push ) {
+	if ( push && !gameLocal.isClient ) {
 		RadiusPush( origin, radius, push * dmgPower, attacker, ignorePush, attackerPushScale, false );
 	}
 }

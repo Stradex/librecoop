@@ -282,6 +282,7 @@ public:
 		EVENT_SPECTATE,
 		EVENT_PLAYERPHYSICS, //addded by stradex
 		EVENT_PLAYERSPAWN, //addded by stradex
+		EVENT_SENDDAMAGE, //addded by stradex
 #ifdef _D3XP
 		EVENT_PICKUPNAME,
 #endif
@@ -484,7 +485,7 @@ public:
 	virtual void			DamageFeedback( idEntity *victim, idEntity *inflictor, int &damage );
 	void					CalcDamagePoints(  idEntity *inflictor, idEntity *attacker, const idDict *damageDef,
 							   const float damageScale, const int location, int *health, int *armor );
-	virtual	void			Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir, const char *damageDefName, const float damageScale, const int location );
+	virtual	void			Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir, const char *damageDefName, const float damageScale, const int location , const bool canBeClientDamage = false );
 
 							// use exitEntityNum to specify a teleport with private camera view and delayed exit
 	virtual void			Teleport( const idVec3 &origin, const idAngles &angles, idEntity *destination );
@@ -658,6 +659,7 @@ public:
 	int						nextSendPhysicsInfoTime; // COOP: added for clientside movement code 
 	idAI*					GetFocusCharacter( void ); // COOP
 	int						nextTimeCoopTeleported; //Hack for opencoop maps
+	int						nextTimeReadHealth; //for g_clientsideDamage 1
 
 
 	//Client-side stuff for coop
@@ -717,6 +719,7 @@ private:
 	bool					airless;
 	int						airTics;				// set to pm_airTics at start, drops in vacuum
 	int						lastAirDamage;
+	int						playerDamageReceived;	//for g_clientsideDamage 1
 
 	bool					gibDeath;
 	bool					gibsLaunched;
@@ -827,6 +830,7 @@ private:
 	void					SetSpectateOrigin( void );
 	void					RunPhysics_RemoteClientCorrection( void ); //added from BFG Edition, for Clientside movement
 	bool					AllowClientAuthPhysics();  //added from BFG Edition, for Clientside movement
+	bool					IsPhysicsFrameClientside( void ); //added for net_clientsideMovement 1
 
 	void					ClearFocus( void );
 	void					UpdateFocus( void );
