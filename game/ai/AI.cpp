@@ -5551,10 +5551,10 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		const idDeclEntityDef *tmpDef;
 		//ugly avoid crash in coop
 		int declTypeCount = declManager->GetNumDecls(DECL_ENTITYDEF);
-		if (lastDamageDef < 0 || lastDamageDef >= declTypeCount) {
+		if (currentAttackDefNum < 0 || currentAttackDefNum >= declTypeCount) {
 			tmpDef = NULL;
 		} else {
-			tmpDef = static_cast<const idDeclEntityDef *>( declManager->DeclByIndex( DECL_ENTITYDEF, lastDamageDef, false ) );
+			tmpDef = static_cast<const idDeclEntityDef *>( declManager->DeclByIndex( DECL_ENTITYDEF, currentAttackDefNum, false ) );
 		}
 		//avoid crash in coop
 		if ( tmpDef ) {
