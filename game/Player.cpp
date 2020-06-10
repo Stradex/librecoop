@@ -7504,6 +7504,24 @@ void idPlayer::Teleport( const idVec3 &origin, const idAngles &angles, idEntity 
 
 	if ( !gameLocal.isClient && !noclip ) {
 		if ( gameLocal.isMultiplayer ) {
+
+			if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
+				idVec3 new_org;
+				new_org = origin + idVec3( 0, 0, CM_CLIP_EPSILON );
+
+				idBitMsg	msg;
+				byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+				msg.Init( msgBuf, sizeof( msgBuf ) );
+				msg.BeginWriting();
+				msg.WriteFloat(new_org.x);
+				msg.WriteFloat(new_org.y);
+				msg.WriteFloat(new_org.z);
+				msg.WriteDeltaFloat( 0.0f, deltaViewAngles[0] );
+				msg.WriteDeltaFloat( 0.0f, deltaViewAngles[1] );
+				msg.WriteDeltaFloat( 0.0f, deltaViewAngles[2] );
+				ServerSendEvent( EVENT_PLAYERSPAWN, &msg, false, -1);
+			}
+
 			// kill anything at the new position or mark for kill depending on immediate or delayed teleport
 			gameLocal.KillBox( this, destination != NULL );
 		} else {
@@ -8422,6 +8440,23 @@ void idPlayer::Event_ExitTeleporter( void ) {
 
 	// clear the ik heights so model doesn't appear in the wrong place
 	walkIK.EnableAll();
+
+	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
+		idVec3 new_org;
+		new_org =  exitEnt->GetPhysics()->GetOrigin() + idVec3( 0, 0, CM_CLIP_EPSILON );
+
+		idBitMsg	msg;
+		byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+		msg.Init( msgBuf, sizeof( msgBuf ) );
+		msg.BeginWriting();
+		msg.WriteFloat(new_org.x);
+		msg.WriteFloat(new_org.y);
+		msg.WriteFloat(new_org.z);
+		msg.WriteDeltaFloat( 0.0f, deltaViewAngles[0] );
+		msg.WriteDeltaFloat( 0.0f, deltaViewAngles[1] );
+		msg.WriteDeltaFloat( 0.0f, deltaViewAngles[2] );
+		ServerSendEvent( EVENT_PLAYERSPAWN, &msg, false, -1);
+	}
 
 	UpdateVisuals();
 
@@ -9619,6 +9654,24 @@ void idPlayer::Teleport( const idVec3 &origin, const idAngles &angles) {
 
 	if ( gameLocal.isMultiplayer ) {
 		playerView.Flash( colorWhite, 140 );
+
+		if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
+
+			idVec3 new_org;
+			new_org = origin + idVec3( 0, 0, CM_CLIP_EPSILON );
+
+			idBitMsg	msg;
+			byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+			msg.Init( msgBuf, sizeof( msgBuf ) );
+			msg.BeginWriting();
+			msg.WriteFloat(new_org.x);
+			msg.WriteFloat(new_org.y);
+			msg.WriteFloat(new_org.z);
+			msg.WriteDeltaFloat( 0.0f, deltaViewAngles[0] );
+			msg.WriteDeltaFloat( 0.0f, deltaViewAngles[1] );
+			msg.WriteDeltaFloat( 0.0f, deltaViewAngles[2] );
+			ServerSendEvent( EVENT_PLAYERSPAWN, &msg, false, -1);
+		}
 	}
 
 	UpdateVisuals();

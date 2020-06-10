@@ -5848,6 +5848,11 @@ void idAnimatedEntity::AddLocalDamageEffect( jointHandle_t jointNum, const idVec
 	idMat3 axis;
 	//crash here at renderEntity.joints[jointNum].ToMat3(). fix
 
+	if (!renderEntity.joints || (!renderEntity.joints[jointNum].ToFloatPtr()[0] && !renderEntity.joints[jointNum].ToFloatPtr()[1])) {
+		common->Warning("[COOP] invalid joints value at idAnimatedEntity::AddLocalDamageEffect\n");
+		return;
+	}
+
 	axis = renderEntity.joints[jointNum].ToMat3() * renderEntity.axis;
 	origin = renderEntity.origin + renderEntity.joints[jointNum].ToVec3() * renderEntity.axis;
 
