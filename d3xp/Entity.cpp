@@ -6034,6 +6034,11 @@ void idAnimatedEntity::AddLocalDamageEffect( jointHandle_t jointNum, const idVec
 	idVec3 origin, dir;
 	idMat3 axis;
 
+	if (!renderEntity.joints || (!renderEntity.joints[jointNum].ToFloatPtr()[0] && !renderEntity.joints[jointNum].ToFloatPtr()[1])) {
+		common->Warning("[COOP] invalid joints value at idAnimatedEntity::AddLocalDamageEffect\n");
+		return;
+	}
+
 #ifdef _D3XP
 	SetTimeState ts( timeGroup );
 #endif
