@@ -404,6 +404,8 @@ idAI::idAI() {
 	snapshotPriority = 2; //added by Stradex for coop. High priority for this
 	thereWasEnemy = true;
 	currentChannelOverride = 0;
+
+	oldHealth = 0; // To check if an entity was resurrected to inform the client about it (used in conjunction with g_clientsideDamage)
 }
 
 /*
@@ -952,6 +954,8 @@ void idAI::Spawn( void ) {
 		health = 1;
 	}
 
+	oldHealth = health;
+
 	// set up monster chatter
 	SetChatSound();
 
@@ -1107,10 +1111,25 @@ void idAI::Think( void ) {
 		currentHeadAnim = head.GetEntity()->GetAnimator()->CurrentAnim(ANIMCHANNEL_ALL)->AnimNum();
 	}
 
+	if (oldHealth <= 0 && health > 0) {
+		idBitMsg	msg;
+		byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+
+		msg.Init(msgBuf, sizeof(msgBuf));
+		msg.BeginWriting();
+		msg.WriteShort(health);
+		ServerSendEvent(EVENT_RESURRECTED, &msg, false, -1);
+	}
+
+	oldHealth = health;
 	if ( CheckDormant() ) {
 		return;
 	}
 	if ( thinkFlags & TH_THINK ) {
+
+		//Coop: Check if enemy was resurrected
+
+
 		// clear out the enemy when he dies or is hidden
 		idActor *enemyEnt = enemy.GetEntity();
 		if ( enemyEnt ) {
@@ -3464,24 +3483,12 @@ void idAI::Killed( idEntity *inflictor, idEntity *attacker, int damage, const id
 
 	if ( StartRagdoll() ) {
 		StartSound( "snd_death", SND_CHANNEL_VOICE, 0, false, NULL ); //now in coop this is handled clientside
-		/*
-		if (gameLocal.mpGame.IsGametypeCoopBased()) {
-			StartSound( "snd_death", SND_CHANNEL_VOICE, 0, true, NULL ); //broadcast coop
-		} else {
-			StartSound( "snd_death", SND_CHANNEL_VOICE, 0, false, NULL );
-		}*/
 		
 	}
 
 	if ( spawnArgs.GetString( "model_death", "", &modelDeath ) ) {
 		// lost soul is only case that does not use a ragdoll and has a model_death so get the death sound in here
 		StartSound( "snd_death", SND_CHANNEL_VOICE, 0, false, NULL ); //now in coop this is handled clientside
-		/*
-		if (gameLocal.mpGame.IsGametypeCoopBased()) {
-			StartSound( "snd_death", SND_CHANNEL_VOICE, 0, true, NULL ); //broadcast coop
-		} else {
-			StartSound( "snd_death", SND_CHANNEL_VOICE, 0, false, NULL );
-		}*/
 		renderEntity.shaderParms[ SHADERPARM_TIMEOFFSET ] = -MS2SEC( gameLocal.time );
 		SetModel( modelDeath );
 		physicsObj.SetLinearVelocity( vec3_zero );
@@ -4526,15 +4533,16 @@ void idAI::DirectDamage( const char *meleeDefName, idEntity *ent, const bool can
 		gameLocal.Error( "Unknown damage def '%s' on '%s'", meleeDefName, name.c_str() );
 	}
 
-	if ( !ent->fl.takedamage && !gameLocal.isClient ) {
+	if ( !ent->fl.takedamage && (!gameLocal.isClient || gameLocal.mpGame.IsGametypeCoopBased()) ) {
 		const idSoundShader *shader = declManager->FindSound(meleeDef->GetString( "snd_miss" ));
-
-		if (gameLocal.mpGame.IsGametypeCoopBased()) {
-			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, true, NULL ); //broadcast sound in coop
+		/*
+		if (gameLocal.mpGame.IsGametypeCoopBased() && !g_clientsideDamage.GetBool()) {
+			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, true, NULL ); //broadcast sound in coop when not using g_clientsideDamage
 		} else {
 			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, false, NULL );
 		}
-		
+		*/
+		StartSoundShader(shader, SND_CHANNEL_DAMAGE, 0, false, NULL);
 		return;
 	}
 
@@ -4542,14 +4550,15 @@ void idAI::DirectDamage( const char *meleeDefName, idEntity *ent, const bool can
 	// do the damage
 	//
 	p = meleeDef->GetString( "snd_hit" );
-	if ( p && *p && !gameLocal.isClient ) {
+	if ( p && *p && (!gameLocal.isClient || gameLocal.mpGame.IsGametypeCoopBased())) {
 		shader = declManager->FindSound( p );
-
+		/*
 		if (gameLocal.mpGame.IsGametypeCoopBased()) {
 			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, true, NULL );  //broadcast in coop
 		} else {
 			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, false, NULL );
-		}
+		}*/
+		StartSoundShader(shader, SND_CHANNEL_DAMAGE, 0, false, NULL);
 	}
 
 	idVec3	kickDir;
@@ -5241,6 +5250,7 @@ void idAI::ClientPredictionThink( void ) {
 			msg.WriteFloat( clientsideDamageDir.y );
 			msg.WriteFloat( clientsideDamageDir.z );
 			ClientSendEvent( EVENT_CLIENTDAMAGE, &msg );
+			nextTimeHealthReaded = gameLocal.clientsideTime + 1000;
 		}
 		clientsideDamageInflicted = 0;
 	}
@@ -5543,7 +5553,7 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		Show();
 	}
 
-	if (nextTimeHealthReaded > gameLocal.clientsideTime) {
+	if (nextTimeHealthReaded > gameLocal.clientsideTime && health > oldHealth) { //In case server is trying to override our recent clientside damage. Could be a problem for enemies with regeneration
 		health = oldHealth; //avoid bug with g_clientsideDamage 1
 	}
 
@@ -5567,6 +5577,32 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 	if (!snapshotInCinematic || !num_cinematics) {
 
+		if (oldHealth <= 0 && health > 0 && g_clientsideDamage.GetBool()) { //Resurrected
+			idBitMsg	msg;
+			byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+
+			msg.Init(msgBuf, sizeof(msgBuf));
+			msg.BeginWriting();
+			msg.WriteBits(gameLocal.localClientNum, idMath::BitsForInteger(MAX_CLIENTS));
+			msg.WriteShort(clientsideDamageLocation);
+			msg.WriteFloat(clientsideDamageDir.x);
+			msg.WriteFloat(clientsideDamageDir.y);
+			msg.WriteFloat(clientsideDamageDir.z);
+			ClientSendEvent(EVENT_CLIENTKILL, NULL); //Server probably didn't receive he message, try again!
+			health = 0;
+			nextTimeHealthReaded = gameLocal.clientsideTime + 1000;
+		}
+		else if (oldHealth > 0 && health <= 0) {
+			CSKilled();
+		}
+		else if (health < oldHealth && health > 0) {
+			//pain
+			//AI_PAIN = Pain( NULL, NULL, oldHealth - health, lastDamageDir, lastDamageLocation ); //causing crash.
+		}
+		if (oldHealth <= 0) {
+			UpdateVisuals(); 
+			return; //Don't play animations in dead bodies in case the server didn't receive the death info yet!
+		}
 		if (torsoAnimId != currentTorsoAnim ) {
 			animator.CycleAnim(ANIMCHANNEL_TORSO, torsoAnimId, gameLocal.time, 2);
 		}
@@ -5581,14 +5617,6 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		currentLegsAnim = legsAnimId;
 		if (headEntityReceivedInfo) {
 			currentHeadAnim = headAnimId;
-		}
-		if (oldHealth <= 0 && health > 0) { //Resurrected
-			CSResurrected();
-		} else if ( oldHealth > 0 && health <= 0 ) { 
-			CSKilled();
-		} else if ( health < oldHealth && health > 0 ) {
-			//pain
-			//AI_PAIN = Pain( NULL, NULL, oldHealth - health, lastDamageDir, lastDamageLocation ); //causing crash.
 		}
 	} else {
 		gameLocal.DebugPrintf("current anim: %d\n", current_cinematic);
@@ -5676,6 +5704,11 @@ bool  idAI::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 	idVec3 localOrigin, localNormal, localDir;
 
 	switch( event ) {
+		case EVENT_RESURRECTED: {
+			health = msg.ReadShort();
+			CSResurrected();
+			return true;
+		}
 		case EVENT_ADD_DAMAGE_EFFECT: {
 			jointNum = (jointHandle_t) msg.ReadShort();
 			localOrigin[0] = msg.ReadFloat();
