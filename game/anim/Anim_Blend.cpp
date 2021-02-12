@@ -1146,6 +1146,7 @@ void idAnimBlend::Reset( const idDeclModelDef *_modelDef ) {
 	allowMove	= true;
 	allowFrameCommands = true;
 	animNum		= 0;
+	frameRateMultiplier = 1.0f;
 
 	memset( animWeights, 0, sizeof( animWeights ) );
 
@@ -1710,7 +1711,7 @@ int idAnimBlend::GetFrameNumber( int currentTime ) const {
 
 	md5anim = anim->MD5Anim( 0 );
 	animTime = AnimTime( currentTime );
-	md5anim->ConvertTimeToFrame( animTime, cycle, frameinfo );
+	md5anim->ConvertTimeToFrame(animTime, cycle, frameinfo, frameRateMultiplier);
 
 	return frameinfo.frame1 + 1;
 }
@@ -1749,8 +1750,8 @@ void idAnimBlend::CallFrameCommands( idEntity *ent, int fromtime, int totime ) c
 	}
 
 	md5anim = anim->MD5Anim( 0 );
-	md5anim->ConvertTimeToFrame( fromFrameTime, cycle, frame1 );
-	md5anim->ConvertTimeToFrame( toFrameTime, cycle, frame2 );
+	md5anim->ConvertTimeToFrame( fromFrameTime, cycle, frame1, frameRateMultiplier);
+	md5anim->ConvertTimeToFrame( toFrameTime, cycle, frame2, frameRateMultiplier);
 
 	if ( fromFrameTime <= 0 ) {
 		// make sure first frame is called
@@ -1811,7 +1812,7 @@ bool idAnimBlend::BlendAnim( int currentTime, int channel, int numJoints, idJoin
 		if ( frame ) {
 			md5anim->GetSingleFrame( frame - 1, jointFrame, modelDef->GetChannelJoints( channel ), modelDef->NumJointsOnChannel( channel ) );
 		} else {
-			md5anim->ConvertTimeToFrame( time, cycle, frametime );
+			md5anim->ConvertTimeToFrame( time, cycle, frametime, frameRateMultiplier);
 			md5anim->GetInterpolatedFrame( frametime, jointFrame, modelDef->GetChannelJoints( channel ), modelDef->NumJointsOnChannel( channel ) );
 		}
 	} else {
@@ -1822,7 +1823,7 @@ bool idAnimBlend::BlendAnim( int currentTime, int channel, int numJoints, idJoin
 		mixFrame = ( idJointQuat * )_alloca16( numJoints * sizeof( *jointFrame ) );
 
 		if ( !frame ) {
-			anim->MD5Anim( 0 )->ConvertTimeToFrame( time, cycle, frametime );
+			anim->MD5Anim( 0 )->ConvertTimeToFrame( time, cycle, frametime, frameRateMultiplier);
 		}
 
 		ptr = jointFrame;
@@ -3533,6 +3534,21 @@ void idAnimator::SetFrame( int channelNum, int animNum, int frame, int currentTi
 
 /*
 =====================
+idAnimator::~idAnimator
+=====================
+*/
+void idAnimator::UpdateFrameRateMultiplier(float new_framerate_multiplier) {
+	int i, j;
+	for (i = ANIMCHANNEL_ALL; i < ANIM_NumAnimChannels; i++) {
+		for (j = 0; j < ANIM_MaxAnimsPerChannel; j++) {
+			channels[i][j].frameRateMultiplier = new_framerate_multiplier;
+		}
+	}
+}
+
+
+/*
+=====================
 idAnimator::CycleAnim
 =====================
 */
@@ -4998,7 +5014,7 @@ void idGameEdit::ANIM_CreateAnimFrame( const idRenderModel *model, const idMD5An
 	}
 
 	// create the frame
-	anim->ConvertTimeToFrame( time, 1, frame );
+	anim->ConvertTimeToFrame( time, 1, frame);
 	idJointQuat *jointFrame = ( idJointQuat * )_alloca16( numJoints * sizeof( *jointFrame ) );
 	anim->GetInterpolatedFrame( frame, jointFrame, index, numJoints );
 

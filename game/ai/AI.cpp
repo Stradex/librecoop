@@ -1110,7 +1110,9 @@ void idAI::Think( void ) {
 	if (head.GetEntity()) {
 		currentHeadAnim = head.GetEntity()->GetAnimator()->CurrentAnim(ANIMCHANNEL_ALL)->AnimNum();
 	}
-
+	if (g_fastMonsters.GetBool() && team == 1) {
+		animator.UpdateFrameRateMultiplier(1.5f);
+	}
 	if (oldHealth <= 0 && health > 0) {
 		idBitMsg	msg;
 		byte		msgBuf[MAX_EVENT_PARAM_SIZE];
@@ -5236,6 +5238,9 @@ void idAI::ClientPredictionThink( void ) {
 	}
 
 	//this->Think();
+	if (g_fastMonsters.GetBool() && team == 1) {
+		animator.UpdateFrameRateMultiplier(1.5f);
+	}
 
 	if (gameLocal.isNewFrame && g_clientsideDamage.GetBool()) {
 		if (clientsideDamageInflicted > 0) {

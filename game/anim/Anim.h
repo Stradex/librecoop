@@ -263,7 +263,7 @@ public:
 	const char				*Name( void ) const;
 
 	void					GetFrameBlend( int framenum, frameBlend_t &frame ) const;	// frame 1 is first frame
-	void					ConvertTimeToFrame( int time, int cyclecount, frameBlend_t &frame ) const;
+	void					ConvertTimeToFrame( int time, int cyclecount, frameBlend_t &frame , float framerate_multiplier = 1.0) const;
 
 	void					GetOrigin( idVec3 &offset, int currentTime, int cyclecount ) const;
 	void					GetOriginRotation( idQuat &rotation, int time, int cyclecount ) const;
@@ -445,6 +445,8 @@ public:
 	void						AllowFrameCommands( bool allow );
 	const idAnim				*Anim( void ) const;
 	int							AnimNum( void ) const;
+
+	float						frameRateMultiplier;
 };
 
 /*
@@ -568,7 +570,7 @@ public:
 
 	bool						GetAllowFrameCommands( int channelNum) const; //added for COOP
 	void						SetAllowFrameCommands( int channelNum, bool allow);
-
+	void						UpdateFrameRateMultiplier(float new_framerate_multiplier);  //added for COOP
 private:
 	void						FreeData( void );
 	void						PushAnims( int channel, int currentTime, int blendTime );

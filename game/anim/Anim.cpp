@@ -384,7 +384,7 @@ void idMD5Anim::GetFrameBlend( int framenum, frameBlend_t &frame ) const {
 idMD5Anim::ConvertTimeToFrame
 ====================
 */
-void idMD5Anim::ConvertTimeToFrame( int time, int cyclecount, frameBlend_t &frame ) const {
+void idMD5Anim::ConvertTimeToFrame( int time, int cyclecount, frameBlend_t &frame, float framerate_multiplier) const {
 	int frameTime;
 	int frameNum;
 
@@ -406,7 +406,7 @@ void idMD5Anim::ConvertTimeToFrame( int time, int cyclecount, frameBlend_t &fram
 		return;
 	}
 
-	frameTime			= time * frameRate;
+	frameTime = time * idMath::Ftoi((float)frameRate * framerate_multiplier);
 	frameNum			= frameTime / 1000;
 	frame.cycleCount	= frameNum / ( numFrames - 1 );
 
@@ -1088,3 +1088,4 @@ void idAnimManager::FlushUnusedAnims( void ) {
 		delete removeAnims[ i ];
 	}
 }
+
