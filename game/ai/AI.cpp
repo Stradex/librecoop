@@ -1113,7 +1113,7 @@ void idAI::Think( void ) {
 	if (g_fastMonsters.GetBool() && team == 1) {
 		animator.UpdateFrameRateMultiplier(1.5f);
 	}
-	if (oldHealth <= 0 && health > 0) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && oldHealth <= 0 && health > 0) {
 		idBitMsg	msg;
 		byte		msgBuf[MAX_EVENT_PARAM_SIZE];
 
@@ -4108,7 +4108,10 @@ bool idAI::GetAimDir( const idVec3 &firePos, idEntity *aimAtEnt, const idEntity 
 	idVec3	targetPos2;
 	idVec3	delta;
 	float	max_height;
+	float	speed_multiplier;
 	bool	result;
+
+	speed_multiplier = 1.0f;
 
 	// if no aimAtEnt or projectile set
 	if ( !aimAtEnt || !projectileDef ) {
@@ -4129,10 +4132,14 @@ bool idAI::GetAimDir( const idVec3 &firePos, idEntity *aimAtEnt, const idEntity 
 		targetPos2 = targetPos1;
 	}
 
+	if (g_fastMonsters.GetBool() && team == 1) {
+		speed_multiplier = 1.25f;
+	}
+
 	// try aiming for chest
 	delta = firePos - targetPos1;
 	max_height = delta.LengthFast() * projectile_height_to_distance_ratio;
-	result = PredictTrajectory( firePos, targetPos1, projectileSpeed, projectileGravity, projectileClipModel, MASK_SHOT_RENDERMODEL, max_height, ignore, aimAtEnt, ai_debugTrajectory.GetBool() ? 1000 : 0, aimDir );
+	result = PredictTrajectory( firePos, targetPos1, projectileSpeed*speed_multiplier, projectileGravity, projectileClipModel, MASK_SHOT_RENDERMODEL, max_height, ignore, aimAtEnt, ai_debugTrajectory.GetBool() ? 1000 : 0, aimDir );
 	if ( result || !aimAtEnt->IsType( idActor::Type ) ) {
 		return result;
 	}
@@ -4140,7 +4147,7 @@ bool idAI::GetAimDir( const idVec3 &firePos, idEntity *aimAtEnt, const idEntity 
 	// try aiming for head
 	delta = firePos - targetPos2;
 	max_height = delta.LengthFast() * projectile_height_to_distance_ratio;
-	result = PredictTrajectory( firePos, targetPos2, projectileSpeed, projectileGravity, projectileClipModel, MASK_SHOT_RENDERMODEL, max_height, ignore, aimAtEnt, ai_debugTrajectory.GetBool() ? 1000 : 0, aimDir );
+	result = PredictTrajectory( firePos, targetPos2, projectileSpeed*speed_multiplier, projectileGravity, projectileClipModel, MASK_SHOT_RENDERMODEL, max_height, ignore, aimAtEnt, ai_debugTrajectory.GetBool() ? 1000 : 0, aimDir );
 
 	return result;
 }
@@ -5558,7 +5565,7 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		Show();
 	}
 
-	if (nextTimeHealthReaded > gameLocal.clientsideTime && health > oldHealth) { //In case server is trying to override our recent clientside damage. Could be a problem for enemies with regeneration
+	if (g_clientsideDamage.GetBool() && nextTimeHealthReaded > gameLocal.clientsideTime && health > oldHealth) { //In case server is trying to override our recent clientside damage. Could be a problem for enemies with regeneration
 		health = oldHealth; //avoid bug with g_clientsideDamage 1
 	}
 
@@ -5582,20 +5589,25 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 	if (!snapshotInCinematic || !num_cinematics) {
 
-		if (oldHealth <= 0 && health > 0 && g_clientsideDamage.GetBool()) { //Resurrected
-			idBitMsg	msg;
-			byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+		if (oldHealth <= 0 && health > 0) { //Resurrected
+			if (g_clientsideDamage.GetBool()) {
+				idBitMsg	msg;
+				byte		msgBuf[MAX_EVENT_PARAM_SIZE];
 
-			msg.Init(msgBuf, sizeof(msgBuf));
-			msg.BeginWriting();
-			msg.WriteBits(gameLocal.localClientNum, idMath::BitsForInteger(MAX_CLIENTS));
-			msg.WriteShort(clientsideDamageLocation);
-			msg.WriteFloat(clientsideDamageDir.x);
-			msg.WriteFloat(clientsideDamageDir.y);
-			msg.WriteFloat(clientsideDamageDir.z);
-			ClientSendEvent(EVENT_CLIENTKILL, NULL); //Server probably didn't receive he message, try again!
-			health = 0;
-			nextTimeHealthReaded = gameLocal.clientsideTime + 1000;
+				msg.Init(msgBuf, sizeof(msgBuf));
+				msg.BeginWriting();
+				msg.WriteBits(gameLocal.localClientNum, idMath::BitsForInteger(MAX_CLIENTS));
+				msg.WriteShort(clientsideDamageLocation);
+				msg.WriteFloat(clientsideDamageDir.x);
+				msg.WriteFloat(clientsideDamageDir.y);
+				msg.WriteFloat(clientsideDamageDir.z);
+				ClientSendEvent(EVENT_CLIENTKILL, NULL); //Server probably didn't receive he message, try again!
+				health = 0;
+				nextTimeHealthReaded = gameLocal.clientsideTime + 1000;
+			}
+			else {
+				CSResurrected();
+			}
 		}
 		else if (oldHealth > 0 && health <= 0) {
 			CSKilled();

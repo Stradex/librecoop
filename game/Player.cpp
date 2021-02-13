@@ -7408,6 +7408,8 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 			}
 		}
 
+		damage *= g_damageFactor.GetFloat();
+
 		if ( damage < 1 ) {
 			damage = 1;
 		}
