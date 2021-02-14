@@ -5414,7 +5414,7 @@ bool idPhysics_AF::CollisionImpulse( float timeStep, idAFBody *body, trace_t &co
 	idEntity *ent;
 
 	if (collision.c.entityNum < 0 || collision.c.entityNum >= MAX_GENTITIES || !gameLocal.entities[collision.c.entityNum]) {
-		common->Warning("[COOP FATAL] invalid entity at idPhysics_AF::CollisionImpulse\n");
+		common->DWarning("[COOP FATAL] invalid entity at idPhysics_AF::CollisionImpulse\n");
 		return false;
 	}
 
@@ -5427,7 +5427,7 @@ bool idPhysics_AF::CollisionImpulse( float timeStep, idAFBody *body, trace_t &co
 	if (gameLocal.mpGame.IsGametypeCoopBased() && (FLOAT_IS_NAN(collision.endpos.x) || FLOAT_IS_NAN(collision.endpos.y) || FLOAT_IS_NAN(collision.endpos.z) ||
 		FLOAT_IS_NAN(collision.c.normal.x) || FLOAT_IS_NAN(collision.c.normal.y) || FLOAT_IS_NAN(collision.c.normal.z) ||
 		FLOAT_IS_NAN(collision.c.normal.x) ||  FLOAT_IS_NAN(collision.c.normal.y) ||  FLOAT_IS_NAN(collision.c.normal.z)) ) {
-		common->Warning("[COOP FATAL] NAN Float at idPhysics_AF::CollisionImpulse\n");
+		common->DWarning("[COOP FATAL] NAN Float at idPhysics_AF::CollisionImpulse\n");
 		return false;
 	}
 

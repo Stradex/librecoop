@@ -698,7 +698,7 @@ void idGameLocal::DPrintf( const char *fmt, ... ) const {
 
 /*
 ============
-idGameLocal::DPrintf
+idGameLocal::DebugPrintf
 ============
 */
 void idGameLocal::DebugPrintf( const char *fmt, ... ) const {
@@ -4327,7 +4327,7 @@ void idGameLocal::ProjectDecal( const idVec3 &origin, const idVec3 &dir, float d
 	};
 
 	if (mpGame.IsGametypeCoopBased() && (FLOAT_IS_NAN(dir.x) || FLOAT_IS_NAN(dir.y) || FLOAT_IS_NAN(dir.z) || FLOAT_IS_NAN(origin.x)  || FLOAT_IS_NAN(origin.y) || FLOAT_IS_NAN(origin.z))) {
-		common->Warning("[COOP FATAL] FLOAT_IS_NAN at idGameLocal::ProjectDecal\n");
+		common->DWarning("[COOP FATAL] FLOAT_IS_NAN at idGameLocal::ProjectDecal\n");
 		return;
 	}
 

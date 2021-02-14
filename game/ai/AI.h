@@ -50,6 +50,7 @@ const float	AI_FLY_DAMPENING			= 0.15f;
 const float	AI_HEARING_RANGE			= 2048.0f;
 const int	DEFAULT_FLY_OFFSET			= 68;
 
+
 #define ATTACK_IGNORE			0
 #define ATTACK_ON_DAMAGE		1
 #define ATTACK_ON_ACTIVATE		2

@@ -1111,7 +1111,7 @@ void idAI::Think( void ) {
 		currentHeadAnim = head.GetEntity()->GetAnimator()->CurrentAnim(ANIMCHANNEL_ALL)->AnimNum();
 	}
 	if (g_fastMonsters.GetBool() && team == 1) {
-		animator.UpdateFrameRateMultiplier(1.5f);
+		animator.UpdateFrameRateMultiplier(FM_SPEED_MULTIPLIER);
 	}
 	if (gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && oldHealth <= 0 && health > 0) {
 		idBitMsg	msg;
@@ -4133,7 +4133,7 @@ bool idAI::GetAimDir( const idVec3 &firePos, idEntity *aimAtEnt, const idEntity 
 	}
 
 	if (g_fastMonsters.GetBool() && team == 1) {
-		speed_multiplier = 1.25f;
+		speed_multiplier = FM_PROJECTILE_SPEED_MULTIPLIER;
 	}
 
 	// try aiming for chest
@@ -5246,7 +5246,7 @@ void idAI::ClientPredictionThink( void ) {
 
 	//this->Think();
 	if (g_fastMonsters.GetBool() && team == 1) {
-		animator.UpdateFrameRateMultiplier(1.5f);
+		animator.UpdateFrameRateMultiplier(FM_SPEED_MULTIPLIER);
 	}
 
 	if (gameLocal.isNewFrame && g_clientsideDamage.GetBool()) {
@@ -5744,12 +5744,12 @@ bool  idAI::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			//ugly avoid crash in coop
 			int declTypeCount = declManager->GetNumDecls(DECL_ENTITYDEF);
 			if (damageDefIndex < 0 || damageDefIndex >= declTypeCount) {
-				common->Warning("[COOP] index declType out of range at idAI::ClientReceiveEvent\n");
+				common->DWarning("[COOP] index declType out of range at idAI::ClientReceiveEvent\n");
 				return true;
 			}
 			declTypeCount = declManager->GetNumDecls(DECL_MATERIAL);
 			if (materialIndex < 0 || materialIndex >= declTypeCount) {
-				common->Warning("[COOP] index declType out of range at idAI::ClientReceiveEvent\n");
+				common->DWarning("[COOP] index declType out of range at idAI::ClientReceiveEvent\n");
 				return true;
 			}
 			//avoid crash in coop
