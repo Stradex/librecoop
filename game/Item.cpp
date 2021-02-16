@@ -1085,6 +1085,7 @@ idMoveableItem::idMoveableItem() {
 	trigger = NULL;
 	smoke = NULL;
 	smokeTime = 0;
+	fl.coopNetworkSync = true; //sync moveable items in coop
 }
 
 /*
@@ -1221,6 +1222,7 @@ idMoveableItem::Pickup
 ================
 */
 bool idMoveableItem::Pickup( idPlayer *player ) {
+	
 	bool ret = idItem::Pickup( player );
 	if ( ret ) {
 		trigger->SetContents( 0 );

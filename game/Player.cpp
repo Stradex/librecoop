@@ -8464,7 +8464,7 @@ void idPlayer::Event_ExitTeleporter( void ) {
 	}
 
 	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
-		idVec3 new_org, new_linear_vel;
+		idVec3 new_org;
 		new_org =  exitEnt->GetPhysics()->GetOrigin() + idVec3( 0, 0, CM_CLIP_EPSILON );
 
 		idBitMsg	msg;

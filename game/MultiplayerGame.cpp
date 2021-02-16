@@ -2521,6 +2521,10 @@ void idMultiplayerGame::CheckRespawns( idPlayer *spectator ) {
 						if (playerState[ i ].livesLeft <= 0) { //this player is out of lives
 							//common->Printf("[SURVIVAL] player %d is out of lives...\n", i);
 							p->ServerSpectate( true );
+							p->inventory.CoopClear();
+							gameLocal.persistentPlayerInfo[p->entityNumber].Clear();
+							p->SavePersistantInfo();
+							common->Printf("Clearing inventory for player who died!");
 							CheckAbortGame(); //may all players are dead so restart the map is important
 						} else {
 							p->ServerSpectate( false );
@@ -3045,6 +3049,19 @@ void idMultiplayerGame::CheckAbortGame( void ) {
 				return;
 			}
 			if( j == gameLocal.numClients) {
+				//Reset inventory to avoid bug related to g_keepItemsAfterRespawn 1
+				for (i = 0; i < gameLocal.numClients; i++) {
+					idEntity* ent = gameLocal.entities[i];
+					if (!ent || !ent->IsType(idPlayer::Type)) {
+						continue;
+					}
+					idPlayer* p = static_cast<idPlayer*>(ent);
+					p->inventory.CoopClear();
+					gameLocal.persistentPlayerInfo[i].Clear();
+					p->SavePersistantInfo();
+					common->Printf("Clearing inventory for players!");
+				}
+
 				for ( j = 0; j < MAX_CLIENTS; j++ ) {
 					playerState[j].fragCount = 0;
 					playerState[j].teamFragCount = 0;

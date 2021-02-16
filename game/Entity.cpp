@@ -4122,7 +4122,7 @@ bool idEntity::ClientTouchTriggers( void ) const {
 		if (!ent->IsType(idDoor::Type) && !ent->IsType(idItem::Type)) {
 			continue; //only touch doors and items clientside
 		}
-		if (!ent->clientSideEntity) { //don't dare to touch snapshot entities
+		if (!ent->clientSideEntity && !ent->IsType(idMoveableItem::Type)) { //don't dare to touch snapshot entities unless they are idMoveableItem
 			continue;
 		}
 
@@ -4132,12 +4132,11 @@ bool idEntity::ClientTouchTriggers( void ) const {
 		trace.c.entityNum = cm->GetEntity()->entityNumber;
 		trace.c.id = cm->GetId();
 
-		ent->Signal( SIG_TOUCH ); //oh god
-		ent->ProcessEvent( &EV_Touch, this, &trace );  //oh god
-		//gameLocal.Printf("Client touching trigger: %s\n", ent->GetName());
+		ent->Signal( SIG_TOUCH );
+		ent->ProcessEvent( &EV_Touch, this, &trace ); 
 
 		if ( !gameLocal.entities[ entityNumber ] ) {
-			gameLocal.Printf( "entity was removed while touching triggers\n" );
+			gameLocal.DPrintf( "entity was removed while touching triggers\n" );
 			return true;
 		}
 	}
