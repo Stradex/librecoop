@@ -77,6 +77,7 @@ extern const idEventDef EV_Player_DisableWeapon;
 extern const idEventDef EV_Player_ExitTeleporter;
 extern const idEventDef EV_Player_SelectWeapon;
 extern const idEventDef EV_SpectatorTouch;
+extern const idEventDef EV_Player_EnableFallDamage; //Added for coop
 
 const float THIRD_PERSON_FOCUS_DISTANCE	= 512.0f;
 const int	LAND_DEFLECT_TIME = 150;
@@ -244,6 +245,7 @@ public:
 		EVENT_SPECTATE,
 		EVENT_PLAYERPHYSICS, //addded by stradex
 		EVENT_PLAYERSPAWN, //addded by stradex
+		EVENT_PLAYERTELEPORT,  //addded by stradex
 		EVENT_SENDDAMAGE, //addded by stradex
 		EVENT_MAXEVENTS
 	};
@@ -566,6 +568,7 @@ public:
 	idAI*					GetFocusCharacter( void ); // COOP
 	int						nextTimeCoopTeleported; //Hack for opencoop maps
 	int						nextTimeReadHealth; //for g_clientsideDamage 1
+	bool					noFallDamage;		//ductape fix for coop while using teleport with net_clientsideMovement 1
 
 	//Client-side stuff for coop
 	bool					CS_Give( const char *statname, const char *value );
@@ -760,6 +763,7 @@ private:
 	void					Event_Gibbed( void );
 	void					Event_GetIdealWeapon( void );
 	void					Event_GetLinearVelocity( void ); //for sentry bot coop hack
+	void					Event_EnableFallDamage(void);
 };
 
 ID_INLINE bool idPlayer::IsReady( void ) {
