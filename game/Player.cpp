@@ -9115,7 +9115,6 @@ bool idPlayer::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 				noFallDamage = true;
 				CancelEvents(&EV_Player_EnableFallDamage);
 				PostEventSec(&EV_Player_EnableFallDamage, 2.0f);
-				common->Printf("[COOP] Client teleported...");
 				GetPhysics()->SetOrigin(physicsObj.GetOrigin());
 				clientTeleported = false;
 				Move();
