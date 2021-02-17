@@ -9178,9 +9178,7 @@ bool idPlayer::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 
 	switch ( event ) {
 		case EVENT_EXIT_TELEPORTER:
-			if (!gameLocal.mpGame.IsGametypeCoopBased() || !net_clientSideMovement.GetBool()) {
-				Event_ExitTeleporter();
-			}
+			Event_ExitTeleporter();
 			return true;
 		case EVENT_ABORT_TELEPORTER:
 			SetPrivateCameraView( NULL );
