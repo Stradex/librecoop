@@ -1188,7 +1188,12 @@ void idAI::Think( void ) {
 	}
 
 	if (g_fastMonsters.GetBool() && team == 1) {
-		animator.UpdateFrameRateMultiplier(FM_SPEED_MULTIPLIER);
+		if (gameLocal.inCinematic) {
+			animator.UpdateFrameRateMultiplier(1.0f);
+		}
+		else {
+			animator.UpdateFrameRateMultiplier(FM_SPEED_MULTIPLIER);
+		}
 	}
 
 	if (gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && oldHealth <= 0 && health > 0) {
@@ -5483,7 +5488,12 @@ void idAI::ClientPredictionThink( void ) {
 	}
 
 	if (g_fastMonsters.GetBool() && team == 1) {
-		animator.UpdateFrameRateMultiplier(FM_SPEED_MULTIPLIER);
+		if (gameLocal.inCinematic) {
+			animator.UpdateFrameRateMultiplier(1.0f);
+		}
+		else {
+			animator.UpdateFrameRateMultiplier(FM_SPEED_MULTIPLIER);
+		}
 	}
 
 	if (gameLocal.isNewFrame && g_clientsideDamage.GetBool()) {

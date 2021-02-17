@@ -4488,6 +4488,12 @@ void idPlayer::UpdateWeapon( void ) {
 			}
 			animPrefix = spawnArgs.GetString( va( "def_weapon%d", idealWeapon ) );
 			weapon.GetEntity()->GetWeaponDef( animPrefix, inventory.clip[ idealWeapon ] );
+
+			if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased() && !weapon.GetEntity()->IsLinked()) {
+				gameLocal.Warning("[FATAL]: Avoid crash at idPlayer::UpdateWeapon (2)\n");
+				return; //More duct tape :(
+			}
+
 			assert( weapon.GetEntity()->IsLinked() );
 		} else {
 			return;
