@@ -2578,6 +2578,16 @@ void idPlayer::SpawnToPoint( const idVec3 &spawn_origin, const idAngles &spawn_a
 	}
 
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		noFallDamage = true;
+		if (gameLocal.isServer) {
+			PostEventSec(&EV_Player_EnableFallDamage, 4.0);
+		}
+		else {
+			CS_PostEventSec(&EV_Player_EnableFallDamage, 4.0);
+		}
+	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
 		idBitMsg	msg;
 		byte		msgBuf[MAX_EVENT_PARAM_SIZE];
 		msg.Init( msgBuf, sizeof( msgBuf ) );
@@ -7513,10 +7523,10 @@ void idPlayer::Teleport( const idVec3 &origin, const idAngles &angles, idEntity 
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
 		noFallDamage = true;
 		if (gameLocal.isServer) {
-			PostEventSec(&EV_Player_EnableFallDamage, 2.0);
+			PostEventSec(&EV_Player_EnableFallDamage, 4.0);
 		}
 		else {
-			CS_PostEventSec(&EV_Player_EnableFallDamage, 2.0);
+			CS_PostEventSec(&EV_Player_EnableFallDamage, 4.0);
 		}
 	}
 
@@ -8462,10 +8472,10 @@ void idPlayer::Event_ExitTeleporter( void ) {
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
 		noFallDamage = true;
 		if (gameLocal.isServer) {
-			PostEventSec(&EV_Player_EnableFallDamage, 2.0);
+			PostEventSec(&EV_Player_EnableFallDamage, 4.0);
 		}
 		else {
-			CS_PostEventSec(&EV_Player_EnableFallDamage, 2.0);
+			CS_PostEventSec(&EV_Player_EnableFallDamage, 4.0);
 		}
 	}
 
@@ -9728,11 +9738,12 @@ void idPlayer::Teleport( const idVec3 &origin, const idAngles &angles) {
 
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
 		noFallDamage = true;
+		//Find a better way to fix this in the future, find waht is causing to receive fall damage while taking a teleport with net_clientsideMovement 1
 		if (gameLocal.isServer) {
-			PostEventSec(&EV_Player_EnableFallDamage, 2.0);
+			PostEventSec(&EV_Player_EnableFallDamage, 4.0);
 		}
 		else {
-			CS_PostEventSec(&EV_Player_EnableFallDamage, 2.0);
+			CS_PostEventSec(&EV_Player_EnableFallDamage, 4.0);
 		}
 	}
 
