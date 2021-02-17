@@ -1400,6 +1400,7 @@ idPlayer::idPlayer() {
 	playerDamageReceived	= 0;	//added g_clientsideDamage 1
 	nextTimeReadHealth		= 0; 	//added g_clientsideDamage 1
 	noFallDamage		= false;	//added to fix bug related with fall damage and teleport with net_clientsideMovement 1
+	clientTeleported = false;
 }
 
 /*
@@ -2577,15 +2578,10 @@ void idPlayer::SpawnToPoint( const idVec3 &spawn_origin, const idAngles &spawn_a
 		SetOrigin( spec_origin );
 	}
 
-	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-		noFallDamage = true;
-		if (gameLocal.isServer) {
-			PostEventSec(&EV_Player_EnableFallDamage, 4.0);
-		}
-		else {
-			CS_PostEventSec(&EV_Player_EnableFallDamage, 4.0);
-		}
+	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) {
+		clientTeleported = true;
 	}
+
 
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
 		idBitMsg	msg;
@@ -7520,14 +7516,8 @@ void idPlayer::Teleport( const idVec3 &origin, const idAngles &angles, idEntity 
 
 	teleportEntity = destination;
 
-	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-		noFallDamage = true;
-		if (gameLocal.isServer) {
-			PostEventSec(&EV_Player_EnableFallDamage, 4.0);
-		}
-		else {
-			CS_PostEventSec(&EV_Player_EnableFallDamage, 4.0);
-		}
+	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) {
+		clientTeleported = true;
 	}
 
 	if ( !gameLocal.isClient && !noclip ) {
@@ -8469,14 +8459,8 @@ void idPlayer::Event_ExitTeleporter( void ) {
 	// clear the ik heights so model doesn't appear in the wrong place
 	walkIK.EnableAll();
 
-	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-		noFallDamage = true;
-		if (gameLocal.isServer) {
-			PostEventSec(&EV_Player_EnableFallDamage, 4.0);
-		}
-		else {
-			CS_PostEventSec(&EV_Player_EnableFallDamage, 4.0);
-		}
+	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) {
+		clientTeleported = true;
 	}
 
 	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
@@ -8707,6 +8691,7 @@ void idPlayer::ClientPredictionThink( void ) {
 				msg.WriteDeltaFloat( 0.0f, deltaViewAngles[0] );
 				msg.WriteDeltaFloat( 0.0f, deltaViewAngles[1] );
 				msg.WriteDeltaFloat( 0.0f, deltaViewAngles[2] );
+				msg.WriteBits(clientTeleported, 1);
 				ClientSendEvent( EVENT_PLAYERPHYSICS, &msg );
 
 			}
@@ -9120,11 +9105,19 @@ bool idPlayer::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			return true;
 		}
 		case EVENT_PLAYERPHYSICS: {
+			bool clientsideTeleported;
 			physicsObj.ReadFromEvent(msg);
 			deltaViewAngles[0] = msg.ReadDeltaFloat( 0.0f );
 			deltaViewAngles[1] = msg.ReadDeltaFloat( 0.0f );
 			deltaViewAngles[2] = msg.ReadDeltaFloat( 0.0f );
-			//RunPhysics_RemoteClientCorrection(); //this is giving me trouble by now
+			clientsideTeleported = msg.ReadBits(1) != 0;
+			if (clientsideTeleported || clientTeleported) { // to avoid bug  related to fall damage kill client with net_clientsideMovement 1
+				noFallDamage = true;
+				PostEventSec(&EV_Player_EnableFallDamage, 1.5);
+				GetPhysics()->SetOrigin(physicsObj.GetOrigin());
+				clientTeleported = false;
+				Move();
+			}
 			return true;
 		}
 
@@ -9229,6 +9222,8 @@ bool idPlayer::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 				deltaViewAngles[0] = msg.ReadDeltaFloat( 0.0f );
 				deltaViewAngles[1] = msg.ReadDeltaFloat( 0.0f );
 				deltaViewAngles[2] = msg.ReadDeltaFloat( 0.0f );
+
+				clientTeleported = true;
 				SetOrigin(	tmpOrigin );
 				Move();
 			} else {
@@ -9258,6 +9253,7 @@ bool idPlayer::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 				deltaViewAngles[2] = msg.ReadDeltaFloat(0.0f);
 				exitEntityNum = msg.ReadShort();
 
+				clientTeleported = true;
 				SetOrigin(tmpOrigin);
 				GetPhysics()->SetLinearVelocity(vec3_origin);
 				walkIK.EnableAll();
@@ -9736,15 +9732,8 @@ void idPlayer::Teleport( const idVec3 &origin, const idAngles &angles) {
 	idealLegsYaw = 0.0f;
 	oldViewYaw = viewAngles.yaw;
 
-	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-		noFallDamage = true;
-		//Find a better way to fix this in the future, find waht is causing to receive fall damage while taking a teleport with net_clientsideMovement 1
-		if (gameLocal.isServer) {
-			PostEventSec(&EV_Player_EnableFallDamage, 4.0);
-		}
-		else {
-			CS_PostEventSec(&EV_Player_EnableFallDamage, 4.0);
-		}
+	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) {
+		clientTeleported = true;
 	}
 
 	if ( gameLocal.isMultiplayer ) {

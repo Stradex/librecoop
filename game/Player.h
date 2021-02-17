@@ -569,6 +569,7 @@ public:
 	int						nextTimeCoopTeleported; //Hack for opencoop maps
 	int						nextTimeReadHealth; //for g_clientsideDamage 1
 	bool					noFallDamage;		//ductape fix for coop while using teleport with net_clientsideMovement 1
+	bool					clientTeleported;	//for net_clientsideMovement 1
 
 	//Client-side stuff for coop
 	bool					CS_Give( const char *statname, const char *value );
