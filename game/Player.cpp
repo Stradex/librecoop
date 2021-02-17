@@ -1395,12 +1395,12 @@ idPlayer::idPlayer() {
 	//adde for COOP by stradex
 	snapshotPriority		= 1;
 	nextSendPhysicsInfoTime = 0;
-	serverOverridePositionTime = 0; //added from Doom 3 BFG Edition for clientside movement
+	serverOverridePositionTime = 0;		//added from Doom 3 BFG Edition for clientside movement
 	nextTimeCoopTeleported = 0;
-	playerDamageReceived	= 0;	//added g_clientsideDamage 1
-	nextTimeReadHealth		= 0; 	//added g_clientsideDamage 1
-	noFallDamage		= false;	//added to fix bug related with fall damage and teleport with net_clientsideMovement 1
-	clientTeleported = false;
+	playerDamageReceived	= 0;		//added g_clientsideDamage 1
+	nextTimeReadHealth		= 0; 		//added g_clientsideDamage 1
+	noFallDamage			= false;	//added to fix bug related with fall damage and teleport with net_clientsideMovement 1
+	clientTeleported		= false;
 }
 
 /*
@@ -8687,13 +8687,13 @@ void idPlayer::ClientPredictionThink( void ) {
 
 				msg.Init( msgBuf, sizeof( msgBuf ) );
 				msg.BeginWriting();
-				physicsObj.WriteToEvent(msg);
+				physicsObj.WriteToEvent( msg );
 				msg.WriteDeltaFloat( 0.0f, deltaViewAngles[0] );
 				msg.WriteDeltaFloat( 0.0f, deltaViewAngles[1] );
 				msg.WriteDeltaFloat( 0.0f, deltaViewAngles[2] );
 				msg.WriteBits(clientTeleported, 1);
 				ClientSendEvent( EVENT_PLAYERPHYSICS, &msg );
-
+				clientTeleported = false;
 			}
 
 			allowClientsideMovement = true;
@@ -9111,9 +9111,11 @@ bool idPlayer::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			deltaViewAngles[1] = msg.ReadDeltaFloat( 0.0f );
 			deltaViewAngles[2] = msg.ReadDeltaFloat( 0.0f );
 			clientsideTeleported = msg.ReadBits(1) != 0;
-			if (clientsideTeleported || clientTeleported) { // to avoid bug  related to fall damage kill client with net_clientsideMovement 1
+			if (clientsideTeleported || clientTeleported) { // to avoid bug related to fall damage kill client with net_clientsideMovement 1
 				noFallDamage = true;
-				PostEventSec(&EV_Player_EnableFallDamage, 1.5);
+				CancelEvents(&EV_Player_EnableFallDamage);
+				PostEventSec(&EV_Player_EnableFallDamage, 2.0f);
+				common->Printf("[COOP] Client teleported...");
 				GetPhysics()->SetOrigin(physicsObj.GetOrigin());
 				clientTeleported = false;
 				Move();
