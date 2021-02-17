@@ -1844,6 +1844,7 @@ idMoveableItem::idMoveableItem() {
 	trigger = NULL;
 	smoke = NULL;
 	smokeTime = 0;
+	fl.coopNetworkSync = true; //sync moveable items in coop
 #ifdef _D3XP
 	nextSoundTime = 0;
 #endif

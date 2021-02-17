@@ -47,10 +47,12 @@ If you have questions concerning this license or the applicable additional terms
 ===============================================================================
 */
 
-static const int DELAY_DORMANT_TIME = 3000;
-static const int DEFAULT_SNAPSHOT_PRIORITY = 5; //COOP: All snapshotPriority values behind are top priority
-static const int MAX_MISSING_SNAPSHOTS = 10; //COOP by stradex
-static const int MAX_ENTITY_EVENTS_PER_SEC = 3; //MAX events an non-high priority entity can send per second
+static const int	DELAY_DORMANT_TIME = 3000;
+static const int	DEFAULT_SNAPSHOT_PRIORITY = 5; //COOP: All snapshotPriority values behind are top priority
+static const int	MAX_MISSING_SNAPSHOTS = 10; //COOP by stradex
+static const int	MAX_ENTITY_EVENTS_PER_SEC = 3; //MAX events an non-high priority entity can send per second
+static const float	FM_PROJECTILE_SPEED_MULTIPLIER = 1.25f;//Fast monsters projectiles speed multiplier for coop while using g_fastMonsters
+static const float	FM_SPEED_MULTIPLIER = 1.5f;// Fast monsters speed multiplier for coop while using g_fastMonsters (Basically changes the animation speed)
 
 extern const idEventDef EV_PostSpawn;
 extern const idEventDef EV_FindTargets;

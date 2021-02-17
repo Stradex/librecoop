@@ -2045,7 +2045,7 @@ bool idEntity::InitBind( idEntity *master ) {
 
 	if ( master == this ) {
 		if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) {
-			gameLocal.Warning( "[COOP] Fatal! Tried to bind an object to itself." );
+			gameLocal.DWarning( "[COOP] Fatal! Tried to bind an object to itself." );
 		} else {
 			gameLocal.Error( "Tried to bind an object to itself." );
 		}
@@ -4057,7 +4057,7 @@ void idEntity::ActivateTargets( idEntity *activator ) {
 			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
 				ent->allowClientsideThink = true;
 				ent->BecomeActive( TH_PHYSICS );
-				common->Printf("[COOP DEBUG] Client Activating entity %s\n", ent->GetName());
+				common->DPrintf("[COOP DEBUG] Client Activating entity %s\n", ent->GetName());
 			}
 		}
 		for ( j = 0; j < MAX_RENDERENTITY_GUI; j++ ) {
@@ -4190,7 +4190,7 @@ bool idEntity::ClientTouchTriggers( void ) const {
 		if (!ent->IsType(idDoor::Type) && !ent->IsType(idItem::Type)) {
 			continue; //only touch doors and items clientside
 		}
-		if (!ent->clientSideEntity) { //don't dare to touch snapshot entities
+		if (!ent->clientSideEntity && !ent->IsType(idMoveableItem::Type)) { //don't dare to touch snapshot entities unless they are idMoveableItem
 			continue;
 		}
 
@@ -4200,12 +4200,12 @@ bool idEntity::ClientTouchTriggers( void ) const {
 		trace.c.entityNum = cm->GetEntity()->entityNumber;
 		trace.c.id = cm->GetId();
 
-		ent->Signal( SIG_TOUCH ); //oh god
-		ent->ProcessEvent( &EV_Touch, this, &trace );  //oh god
+		ent->Signal( SIG_TOUCH );
+		ent->ProcessEvent( &EV_Touch, this, &trace );
 		//gameLocal.Printf("Client touching trigger: %s\n", ent->GetName());
 
 		if ( !gameLocal.entities[ entityNumber ] ) {
-			gameLocal.Printf( "entity was removed while touching triggers\n" );
+			gameLocal.DPrintf( "entity was removed while touching triggers\n" );
 			return true;
 		}
 	}
@@ -5970,7 +5970,7 @@ void idAnimatedEntity::AddDamageEffect( const trace_t &collision, const idVec3 &
 	// avoid ugly crash in coop
 	if (gameLocal.mpGame.IsGametypeCoopBased() && (FLOAT_IS_NAN(collision.c.point.x) || FLOAT_IS_NAN(collision.c.point.y) ||
 		FLOAT_IS_NAN(collision.c.point.z) || FLOAT_IS_NAN(collision.c.normal.x) || FLOAT_IS_NAN(collision.c.normal.y) || FLOAT_IS_NAN(collision.c.normal.z))) {
-		common->Warning("[COOP FATAL] NAN Float at idAnimatedEntity::AddDamageEffect\n");
+		common->DWarning("[COOP FATAL] NAN Float at idAnimatedEntity::AddDamageEffect\n");
 		return;
 	}
 
@@ -6035,7 +6035,7 @@ void idAnimatedEntity::AddLocalDamageEffect( jointHandle_t jointNum, const idVec
 	idMat3 axis;
 
 	if (!renderEntity.joints || (!renderEntity.joints[jointNum].ToFloatPtr()[0] && !renderEntity.joints[jointNum].ToFloatPtr()[1])) {
-		common->Warning("[COOP] invalid joints value at idAnimatedEntity::AddLocalDamageEffect\n");
+		common->DWarning("[COOP] invalid joints value at idAnimatedEntity::AddLocalDamageEffect\n");
 		return;
 	}
 
@@ -6172,12 +6172,12 @@ bool idAnimatedEntity::ClientReceiveEvent( int event, int time, const idBitMsg &
 			//ugly avoid crash in coop
 			int declTypeCount = declManager->GetNumDecls(DECL_ENTITYDEF);
 			if (damageDefIndex < 0 || damageDefIndex >= declTypeCount) {
-				common->Warning("[COOP] index declType out of range at idAnimatedEntity::ClientReceiveEvent\n");
+				common->DWarning("[COOP] index declType out of range at idAnimatedEntity::ClientReceiveEvent\n");
 				return true;
 			}
 			declTypeCount = declManager->GetNumDecls(DECL_MATERIAL);
 			if (materialIndex < 0 || materialIndex >= declTypeCount) {
-				common->Warning("[COOP] index declType out of range at idAnimatedEntity::ClientReceiveEvent\n");
+				common->DWarning("[COOP] index declType out of range at idAnimatedEntity::ClientReceiveEvent\n");
 				return true;
 			}
 			//avoid crash in coop

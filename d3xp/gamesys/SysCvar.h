@@ -313,6 +313,8 @@ extern idCVar	net_clientSideMovement; //added by Stradex (experimental, works on
 extern idCVar	g_spawnInCheckpoints; //Allow players to spawn in librecoop checkpoints system
 extern idCVar	g_keepItemsAfterRespawn; //Allow players to spawn in librecoop checkpoints system
 extern idCVar	g_clientsideDamage;	//added for COOP clientside damage
+extern idCVar	g_fastMonsters; //difficulty feature for COOP: (Experimental!)
+extern idCVar	g_damageFactor; //Use this instead of g_damageScale since that can change dynamically with g_useDynamicProtection
 //stradex end
 
 extern idCVar	net_clientSelfSmoothing;

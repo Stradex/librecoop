@@ -111,6 +111,7 @@ const idEventDef EV_Player_StopAudioLog( "stopAudioLog" );
 const idEventDef EV_Player_HideTip( "hideTip" );
 const idEventDef EV_Player_LevelTrigger( "levelTrigger" );
 const idEventDef EV_SpectatorTouch( "spectatorTouch", "et" );
+const idEventDef EV_Player_EnableFallDamage("<enablefalldamage>", NULL); //Added for coop
 #ifdef _D3XP
 const idEventDef EV_Player_GiveInventoryItem( "giveInventoryItem", "s" );
 const idEventDef EV_Player_RemoveInventoryItem( "removeInventoryItem", "s" );
@@ -142,6 +143,7 @@ CLASS_DECLARATION( idActor, idPlayer )
 	EVENT( EV_Player_HideTip,				idPlayer::Event_HideTip )
 	EVENT( EV_Player_LevelTrigger,			idPlayer::Event_LevelTrigger )
 	EVENT( EV_Gibbed,						idPlayer::Event_Gibbed )
+	EVENT(EV_Player_EnableFallDamage,		idPlayer::Event_EnableFallDamage)
 #ifdef _D3XP
 	EVENT( EV_Player_GiveInventoryItem,		idPlayer::Event_GiveInventoryItem )
 	EVENT( EV_Player_RemoveInventoryItem,	idPlayer::Event_RemoveInventoryItem )
@@ -310,7 +312,7 @@ void idInventory::GivePowerUp( idPlayer *player, int powerup, int msec ) {
 #endif
 		}
 		if (gameLocal.mpGame.IsGametypeCoopBased() && !def) {
-			common->Warning("[COOP] Trying to give unkwown powerup! THIS IS BAD\n");
+			common->DWarning("[COOP] Trying to give unkwown powerup! THIS IS BAD\n");
 			return;
 		} else {
 			assert( def ); 
@@ -1671,6 +1673,7 @@ idPlayer::idPlayer() {
 	nextTimeCoopTeleported = 0;
 	playerDamageReceived	= 0;	//added g_clientsideDamage 1
 	nextTimeReadHealth		= 0; 	//added g_clientsideDamage 1
+	noFallDamage = false;	//added to fix bug related with fall damage and teleport with net_clientsideMovement 1
 }
 
 /*
@@ -5433,7 +5436,7 @@ void idPlayer::UpdateWeapon( void ) {
 				weapon.forceCoopEntity = true; //little hack
 				weapon.GetEntity()->SetOwner(this);
 				weapon.GetCoopEntity()->SetOwner(this);
-				gameLocal.Warning("[FATAL]: Avoid crash at idPlayer::UpdateWeapon\n");
+				gameLocal.DWarning("[FATAL]: Avoid crash at idPlayer::UpdateWeapon\n");
 			}
 			animPrefix = spawnArgs.GetString( va( "def_weapon%d", idealWeapon ) );
 			weapon.GetEntity()->GetWeaponDef( animPrefix, inventory.clip[ idealWeapon ] );
@@ -6055,6 +6058,10 @@ void idPlayer::CrashLand( const idVec3 &oldOrigin, const idVec3 &oldVelocity ) {
 			StartSound( "snd_land_hard", SND_CHANNEL_ANY, 0, false, NULL );
 			break;
 		}
+	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && !noDamage) {
+		noDamage = noFallDamage;
 	}
 
 	origin = GetPhysics()->GetOrigin();
@@ -7282,7 +7289,7 @@ void idPlayer::AdjustSpeed( void ) {
 		speed = pm_noclipspeed.GetFloat();
 		bobFrac = 0.0f;
 	} else if ( !physicsObj.OnLadder() && ( usercmd.buttons & BUTTON_RUN ) && ( usercmd.forwardmove || usercmd.rightmove ) && ( usercmd.upmove >= 0 ) ) {
-		if ( !gameLocal.isMultiplayer && !physicsObj.IsCrouching() && !PowerUpActive( ADRENALINE ) ) {
+		if ((!gameLocal.isMultiplayer || gameLocal.mpGame.IsGametypeCoopBased()) && !physicsObj.IsCrouching() && !PowerUpActive( ADRENALINE ) ) {
 			stamina -= MS2SEC( gameLocal.msec );
 		}
 		if ( stamina < 0 ) {
@@ -8736,6 +8743,8 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 			}
 		}
 
+		damage *= g_damageFactor.GetFloat();
+
 		if ( damage < 1 ) {
 			damage = 1;
 		}
@@ -8830,6 +8839,17 @@ void idPlayer::Teleport( const idVec3 &origin, const idAngles &angles, idEntity 
 
 	teleportEntity = destination;
 
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		noFallDamage = true;
+		if (gameLocal.isServer) {
+			PostEventSec(&EV_Player_EnableFallDamage, 2.0);
+		}
+		else {
+			CS_PostEventSec(&EV_Player_EnableFallDamage, 2.0);
+		}
+	}
+
+
 	if ( !gameLocal.isClient && !noclip ) {
 		if ( gameLocal.isMultiplayer ) {
 
@@ -8847,7 +8867,8 @@ void idPlayer::Teleport( const idVec3 &origin, const idAngles &angles, idEntity 
 				msg.WriteDeltaFloat( 0.0f, deltaViewAngles[0] );
 				msg.WriteDeltaFloat( 0.0f, deltaViewAngles[1] );
 				msg.WriteDeltaFloat( 0.0f, deltaViewAngles[2] );
-				ServerSendEvent( EVENT_PLAYERSPAWN, &msg, false, -1);
+				msg.WriteShort(-1);
+				ServerSendEvent(EVENT_PLAYERTELEPORT, &msg, false, -1);
 			}
 
 			// kill anything at the new position or mark for kill depending on immediate or delayed teleport
@@ -9885,6 +9906,16 @@ void idPlayer::Event_ExitTeleporter( void ) {
 	// clear the ik heights so model doesn't appear in the wrong place
 	walkIK.EnableAll();
 
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		noFallDamage = true;
+		if (gameLocal.isServer) {
+			PostEventSec(&EV_Player_EnableFallDamage, 2.0);
+		}
+		else {
+			CS_PostEventSec(&EV_Player_EnableFallDamage, 2.0);
+		}
+	}
+
 	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
 		idVec3 new_org;
 		new_org =  exitEnt->GetPhysics()->GetOrigin() + idVec3( 0, 0, CM_CLIP_EPSILON );
@@ -9899,7 +9930,8 @@ void idPlayer::Event_ExitTeleporter( void ) {
 		msg.WriteDeltaFloat( 0.0f, deltaViewAngles[0] );
 		msg.WriteDeltaFloat( 0.0f, deltaViewAngles[1] );
 		msg.WriteDeltaFloat( 0.0f, deltaViewAngles[2] );
-		ServerSendEvent( EVENT_PLAYERSPAWN, &msg, false, -1);
+		msg.WriteShort(exitEnt->entityNumber);
+		ServerSendEvent(EVENT_PLAYERTELEPORT, &msg, false, -1);
 	}
 
 	UpdateVisuals();
@@ -10296,6 +10328,7 @@ void idPlayer::WriteToSnapshot( idBitMsgDelta &msg ) const {
 		msg.WriteInt( airTics );
 		msg.WriteBits( noclip, 1 );
 		msg.WriteBits( fl.hidden, 1);
+		msg.WriteFloat(stamina);
 	}
 }
 
@@ -10307,6 +10340,7 @@ idPlayer::ReadFromSnapshot
 void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	int					i, oldHealth, newIdealWeapon, weaponSpawnId, weaponCoopId;
 	bool				newHitToggle, stateHitch;
+	float				newStamina;
 
 	if ( snapshotSequence - lastSnapshotSequence > 1 ) {
 		stateHitch = true;
@@ -10357,21 +10391,23 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 	//extra added for coop
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		bool shouldHide=false;
 
-	bool shouldHide=false;
-
-	objectiveSystemOpen = msg.ReadBits( 1 ) != 0;
-	airTics = msg.ReadInt();
-	noclip = msg.ReadBits( 1 ) != 0;
-	shouldHide = msg.ReadBits( 1 ) != 0;
-	if ( entityNumber != gameLocal.localClientNum ) {
-		if (shouldHide && !fl.hidden) {
-			Hide();
-		} else if (!shouldHide && fl.hidden) {
-			Show();
+		objectiveSystemOpen = msg.ReadBits( 1 ) != 0;
+		airTics = msg.ReadInt();
+		noclip = msg.ReadBits( 1 ) != 0;
+		shouldHide = msg.ReadBits( 1 ) != 0;
+		if ( entityNumber != gameLocal.localClientNum ) {
+			if (shouldHide && !fl.hidden) {
+				Hide();
+			} else if (!shouldHide && fl.hidden) {
+				Show();
+			}
 		}
-	}
-
+		newStamina = msg.ReadFloat();
+		if (entityNumber != gameLocal.localClientNum || !net_clientSideMovement.GetBool() || !allowClientsideMovement) {
+			stamina = newStamina;
+		}
 	// no msg reading below this
 	}
 
@@ -10643,7 +10679,9 @@ bool idPlayer::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 
 	switch ( event ) {
 		case EVENT_EXIT_TELEPORTER:
-			Event_ExitTeleporter();
+			if (!gameLocal.mpGame.IsGametypeCoopBased() || !net_clientSideMovement.GetBool()) {
+				Event_ExitTeleporter();
+			}
 			return true;
 		case EVENT_ABORT_TELEPORTER:
 			SetPrivateCameraView( NULL );
@@ -10704,6 +10742,47 @@ bool idPlayer::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			}
 			return true;
 
+		}
+		case EVENT_PLAYERTELEPORT: {
+			if (net_clientSideMovement.GetBool()) {
+				if (gameLocal.localClientNum == this->entityNumber) {
+					allowClientsideMovement = true;  //hack for clientsidemovement
+					nextSendPhysicsInfoTime = gameLocal.clientsideTime; //hack for clientsidemovement
+				}
+				idVec3	tmpOrigin = vec3_zero;
+				int		exitEntityNum;
+				tmpOrigin.x = msg.ReadFloat();
+				tmpOrigin.y = msg.ReadFloat();
+				tmpOrigin.z = msg.ReadFloat();
+				deltaViewAngles[0] = msg.ReadDeltaFloat(0.0f);
+				deltaViewAngles[1] = msg.ReadDeltaFloat(0.0f);
+				deltaViewAngles[2] = msg.ReadDeltaFloat(0.0f);
+				exitEntityNum = msg.ReadShort();
+
+				SetOrigin(tmpOrigin);
+				GetPhysics()->SetLinearVelocity(vec3_origin);
+				walkIK.EnableAll();
+				legsYaw = 0.0f;
+				idealLegsYaw = 0.0f;
+				if (exitEntityNum >= 0 && gameLocal.entities[exitEntityNum]) {
+					idEntity* exitEnt = gameLocal.entities[exitEntityNum];
+					float pushVel;
+					pushVel = exitEnt->spawnArgs.GetFloat("push", "300");
+					physicsObj.SetLinearVelocity(exitEnt->GetPhysics()->GetAxis()[0] * pushVel);
+					physicsObj.ClearPushedVelocity();
+				}
+				Move();
+			}
+			else {
+				msg.ReadFloat();
+				msg.ReadFloat();
+				msg.ReadFloat();
+				msg.ReadDeltaFloat(0.0f);
+				msg.ReadDeltaFloat(0.0f);
+				msg.ReadDeltaFloat(0.0f);
+				msg.ReadShort();
+			}
+			return true;
 		}
 		default:
 			break;
@@ -11203,6 +11282,16 @@ void idPlayer::Teleport( const idVec3 &origin, const idAngles &angles) {
 	idealLegsYaw = 0.0f;
 	oldViewYaw = viewAngles.yaw;
 
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		noFallDamage = true;
+		if (gameLocal.isServer) {
+			PostEventSec(&EV_Player_EnableFallDamage, 2.0);
+		}
+		else {
+			CS_PostEventSec(&EV_Player_EnableFallDamage, 2.0);
+		}
+	}
+
 	if ( gameLocal.isMultiplayer ) {
 		playerView.Flash( colorWhite, 140 );
 
@@ -11221,7 +11310,8 @@ void idPlayer::Teleport( const idVec3 &origin, const idAngles &angles) {
 			msg.WriteDeltaFloat( 0.0f, deltaViewAngles[0] );
 			msg.WriteDeltaFloat( 0.0f, deltaViewAngles[1] );
 			msg.WriteDeltaFloat( 0.0f, deltaViewAngles[2] );
-			ServerSendEvent( EVENT_PLAYERSPAWN, &msg, false, -1);
+			msg.WriteShort(-1);
+			ServerSendEvent(EVENT_PLAYERTELEPORT, &msg, false, -1);
 		}
 
 	}
@@ -11503,6 +11593,15 @@ void idPlayer::CS_RestorePersistantInfo( void ) {
 
 	inventory.CS_RestoreInventory( this, tmpArgs );
 } 
+
+/*
+===============
+idPlayer::Event_EnableFallDamage
+===============
+*/
+void idPlayer::Event_EnableFallDamage(void) {
+	noFallDamage = false;
+}
 
 /*
 ================

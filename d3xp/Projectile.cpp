@@ -357,6 +357,10 @@ void idProjectile::Launch( const idVec3 &start, const idVec3 &dir, const idVec3 
 
 	speed = velocity.Length() * launchPower;
 
+	if (g_fastMonsters.GetBool() && owner.GetEntity() && owner.GetEntity()->IsType(idAI::Type) && static_cast<idAI*>(owner.GetEntity())->team == 1) {
+		speed *= FM_PROJECTILE_SPEED_MULTIPLIER;
+	}
+
 	damagePower = dmgPower;
 
 	spawnArgs.GetAngles( "angular_velocity", "0 0 0", angular_velocity );
@@ -1812,6 +1816,9 @@ void idGuidedProjectile::Launch( const idVec3 &start, const idVec3 &dir, const i
 	const idVec3 &vel = physicsObj.GetLinearVelocity();
 	angles = vel.ToAngles();
 	speed = vel.Length();
+	if (g_fastMonsters.GetBool() && owner.GetEntity() && owner.GetEntity()->IsType(idAI::Type) && static_cast<idAI*>(owner.GetEntity())->team == 1) {
+		speed *= FM_PROJECTILE_SPEED_MULTIPLIER;
+	}
 	rndScale = spawnArgs.GetAngles( "random", "15 15 0" );
 	turn_max = spawnArgs.GetFloat( "turn_max", "180" ) / ( float )USERCMD_HZ;
 	clamp_dist = spawnArgs.GetFloat( "clamp_dist", "256" );

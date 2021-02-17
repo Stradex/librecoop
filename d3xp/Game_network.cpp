@@ -2879,7 +2879,7 @@ void idGameLocal::addToServerEventOverFlowList(entityNetEvent_t* event, int clie
 		}
 	}
 
-	common->Warning("[COOP] No free slot for serverOverflowEvents\n");
+	common->DWarning("[COOP] No free slot for serverOverflowEvents\n");
 }
 
 
@@ -2892,7 +2892,7 @@ void idGameLocal::addToServerEventOverFlowList(int eventId, const idBitMsg *msg,
 {
 
 	if (!ent) {
-		common->Warning("[COOP FATAL] Trying to add an event with a empty message or from an unknown entity\n");
+		common->DWarning("[COOP FATAL] Trying to add an event with a empty message or from an unknown entity\n");
 		return;
 	}
 
@@ -2915,7 +2915,7 @@ void idGameLocal::addToServerEventOverFlowList(int eventId, const idBitMsg *msg,
 		}
 	}
 
-	common->Warning("[COOP] No free slot for serverOverflowEvents\n");
+	common->DWarning("[COOP] No free slot for serverOverflowEvents\n");
 }
 
 /*
@@ -3019,7 +3019,7 @@ void idGameLocal::sendServerOverflowEvents( void )
 		serverEventsCount++;
 	}
 	if (serverEventsCount > 0) { //not zero
-		common->Warning("[COOP] Server Events overflow!, using serverOverflowEvents queue list to avoid the crash for clients\n");
+		common->DWarning("[COOP] Server Events overflow!, using serverOverflowEvents queue list to avoid the crash for clients\n");
 		overflowEventCountdown=SERVER_EVENT_OVERFLOW_WAIT;
 	}
 	if (overflowEventCountdown > 0) {

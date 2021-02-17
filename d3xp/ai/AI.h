@@ -274,6 +274,8 @@ public:
 
 	enum {
 		EVENT_CLIENTKILL = idEntity::EVENT_MAXEVENTS,
+		EVENT_RESURRECTED,
+		EVENT_MAXEVENTS
 	};
 
 							idAI();
@@ -462,6 +464,7 @@ protected:
 	int						currentChannelOverride;
 	int						currentHeadAnim;
 	int						currentAttackDefNum;
+	int						oldHealth; // To check if an entity was resurrected to inform the client about it (used in conjunction with g_clientsideDamage)
 
 
 #ifdef _D3XP

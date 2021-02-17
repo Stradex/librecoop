@@ -4594,7 +4594,7 @@ void idGameLocal::ProjectDecal( const idVec3 &origin, const idVec3 &dir, float d
 		idVec3(  1.0f, -1.0f, 0.0f )
 	};
 	if (mpGame.IsGametypeCoopBased() && (FLOAT_IS_NAN(dir.x) || FLOAT_IS_NAN(dir.y) || FLOAT_IS_NAN(dir.z) || FLOAT_IS_NAN(origin.x)  || FLOAT_IS_NAN(origin.y) || FLOAT_IS_NAN(origin.z))) {
-		common->Printf("[COOP FATAL] FLOAT_IS_NAN at idGameLocal::ProjectDecal\n");
+		common->DPrintf("[COOP FATAL] FLOAT_IS_NAN at idGameLocal::ProjectDecal\n");
 		return;
 	}
 	if ( !g_decals.GetBool() ) {

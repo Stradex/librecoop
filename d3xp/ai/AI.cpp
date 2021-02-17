@@ -410,6 +410,8 @@ idAI::idAI() {
 	thereWasEnemy = true; //shouldn't this be false?
 	currentChannelOverride = 0;
 	currentHeadAnim = 0;
+
+	oldHealth = 0; // To check if an entity was resurrected to inform the client about it (used in conjunction with g_clientsideDamage)
 }
 
 /*
@@ -1012,6 +1014,8 @@ void idAI::Spawn( void ) {
 		health = 1;
 	}
 
+	oldHealth = health;
+
 	// set up monster chatter
 	SetChatSound();
 
@@ -1182,6 +1186,22 @@ void idAI::Think( void ) {
 	if (head.GetEntity()) {
 		currentHeadAnim = head.GetEntity()->GetAnimator()->CurrentAnim(ANIMCHANNEL_ALL)->AnimNum();
 	}
+
+	if (g_fastMonsters.GetBool() && team == 1) {
+		animator.UpdateFrameRateMultiplier(FM_SPEED_MULTIPLIER);
+	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && oldHealth <= 0 && health > 0) {
+		idBitMsg	msg;
+		byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+
+		msg.Init(msgBuf, sizeof(msgBuf));
+		msg.BeginWriting();
+		msg.WriteShort(health);
+		ServerSendEvent(EVENT_RESURRECTED, &msg, false, -1);
+	}
+
+	oldHealth = health;
 
 	// if we are completely closed off from the player, don't do anything at all
 	if ( CheckDormant() ) {
@@ -4199,6 +4219,7 @@ bool idAI::GetAimDir( const idVec3 &firePos, idEntity *aimAtEnt, const idEntity 
 	idVec3	targetPos2;
 	idVec3	delta;
 	float	max_height;
+	float	speed_multiplier = 1.0f;
 	bool	result;
 
 	// if no aimAtEnt or projectile set
@@ -4227,10 +4248,14 @@ bool idAI::GetAimDir( const idVec3 &firePos, idEntity *aimAtEnt, const idEntity 
 	}
 #endif
 
+	if (g_fastMonsters.GetBool() && team == 1) {
+		speed_multiplier = FM_PROJECTILE_SPEED_MULTIPLIER;
+	}
+
 	// try aiming for chest
 	delta = firePos - targetPos1;
 	max_height = delta.LengthFast() * projectile_height_to_distance_ratio;
-	result = PredictTrajectory( firePos, targetPos1, projectileSpeed, projectileGravity, projectileClipModel, MASK_SHOT_RENDERMODEL, max_height, ignore, aimAtEnt, ai_debugTrajectory.GetBool() ? 1000 : 0, aimDir );
+	result = PredictTrajectory( firePos, targetPos1, projectileSpeed*speed_multiplier, projectileGravity, projectileClipModel, MASK_SHOT_RENDERMODEL, max_height, ignore, aimAtEnt, ai_debugTrajectory.GetBool() ? 1000 : 0, aimDir );
 	if ( result || !aimAtEnt->IsType( idActor::Type ) ) {
 		return result;
 	}
@@ -4238,7 +4263,7 @@ bool idAI::GetAimDir( const idVec3 &firePos, idEntity *aimAtEnt, const idEntity 
 	// try aiming for head
 	delta = firePos - targetPos2;
 	max_height = delta.LengthFast() * projectile_height_to_distance_ratio;
-	result = PredictTrajectory( firePos, targetPos2, projectileSpeed, projectileGravity, projectileClipModel, MASK_SHOT_RENDERMODEL, max_height, ignore, aimAtEnt, ai_debugTrajectory.GetBool() ? 1000 : 0, aimDir );
+	result = PredictTrajectory( firePos, targetPos2, projectileSpeed*speed_multiplier, projectileGravity, projectileClipModel, MASK_SHOT_RENDERMODEL, max_height, ignore, aimAtEnt, ai_debugTrajectory.GetBool() ? 1000 : 0, aimDir );
 
 	return result;
 }
@@ -4657,13 +4682,9 @@ void idAI::DirectDamage( const char *meleeDefName, idEntity *ent, const bool can
 		gameLocal.Error( "Unknown damage def '%s' on '%s'", meleeDefName, name.c_str() );
 	}
 
-	if ( !ent->fl.takedamage && !gameLocal.isClient  ) {
+	if ( !ent->fl.takedamage && (!gameLocal.isClient || gameLocal.mpGame.IsGametypeCoopBased())) {
 		const idSoundShader *shader = declManager->FindSound(meleeDef->GetString( "snd_miss" ));
-		if (gameLocal.mpGame.IsGametypeCoopBased()) {
-			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, true, NULL ); //broadcast sound in coop
-		} else {
-			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, false, NULL );
-		}
+		StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, false, NULL );
 		return;
 	}
 
@@ -4671,13 +4692,9 @@ void idAI::DirectDamage( const char *meleeDefName, idEntity *ent, const bool can
 	// do the damage
 	//
 	p = meleeDef->GetString( "snd_hit" );
-	if ( p && *p && !gameLocal.isClient ) {
+	if ( p && *p && (!gameLocal.isClient || gameLocal.mpGame.IsGametypeCoopBased())) {
 		shader = declManager->FindSound( p );
-		if (gameLocal.mpGame.IsGametypeCoopBased()) {
-			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, true, NULL );  //broadcast in coop
-		} else {
-			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, false, NULL );
-		}
+		StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, false, NULL );
 	}
 
 	idVec3	kickDir;
@@ -5465,6 +5482,10 @@ void idAI::ClientPredictionThink( void ) {
 		return idEntity::ClientPredictionThink(); //original non-coop
 	}
 
+	if (g_fastMonsters.GetBool() && team == 1) {
+		animator.UpdateFrameRateMultiplier(FM_SPEED_MULTIPLIER);
+	}
+
 	if (gameLocal.isNewFrame && g_clientsideDamage.GetBool()) {
 		if (clientsideDamageInflicted > 0) {
 			idBitMsg	msg;
@@ -5478,6 +5499,7 @@ void idAI::ClientPredictionThink( void ) {
 			msg.WriteFloat( clientsideDamageDir.y );
 			msg.WriteFloat( clientsideDamageDir.z );
 			ClientSendEvent( EVENT_CLIENTDAMAGE, &msg );
+			nextTimeHealthReaded = gameLocal.clientsideTime + 1000;
 		}
 		clientsideDamageInflicted = 0;
 	}
@@ -5780,7 +5802,7 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		Show();
 	}
 
-	if (nextTimeHealthReaded > gameLocal.clientsideTime) {
+	if (g_clientsideDamage.GetBool() && nextTimeHealthReaded > gameLocal.clientsideTime && health > oldHealth) { //In case server is trying to override our recent clientside damage. Could be a problem for enemies with regeneration
 		health = oldHealth; //avoid bug with g_clientsideDamage 1
 	}
 
@@ -5804,27 +5826,49 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 	if (!snapshotInCinematic || !num_cinematics) {
 
-	if (torsoAnimId != currentTorsoAnim ) {
-		animator.CycleAnim(ANIMCHANNEL_TORSO, torsoAnimId, gameLocal.time, 2);
-	}
-	if (legsAnimId != currentLegsAnim ) {
-		animator.CycleAnim(ANIMCHANNEL_LEGS, legsAnimId, gameLocal.time, 2);
-	}
+		if (oldHealth <= 0 && health > 0) { //Resurrected
+			if (g_clientsideDamage.GetBool()) {
+				idBitMsg	msg;
+				byte		msgBuf[MAX_EVENT_PARAM_SIZE];
 
-	if (headEntityReceivedInfo && head.GetEntity() && currentHeadAnim != headAnimId) {
-		head.GetEntity()->GetAnimator()->CycleAnim(ANIMCHANNEL_ALL, headAnimId, gameLocal.time, 2);
-		head.GetEntity()->GetAnimator()->SetAllowFrameCommands(ANIMCHANNEL_ALL, headAllowCommandsFrame); 
-	}
+				msg.Init(msgBuf, sizeof(msgBuf));
+				msg.BeginWriting();
+				msg.WriteBits(gameLocal.localClientNum, idMath::BitsForInteger(MAX_CLIENTS));
+				msg.WriteShort(clientsideDamageLocation);
+				msg.WriteFloat(clientsideDamageDir.x);
+				msg.WriteFloat(clientsideDamageDir.y);
+				msg.WriteFloat(clientsideDamageDir.z);
+				ClientSendEvent(EVENT_CLIENTKILL, NULL); //Server probably didn't receive he message, try again!
+				health = 0;
+				nextTimeHealthReaded = gameLocal.clientsideTime + 1000;
+			}
+			else {
+				CSResurrected();
+			}
+		}
+		else if (oldHealth > 0 && health <= 0) {
+			CSKilled();
+		}
+		else if (health < oldHealth && health > 0) {
+			//pain
+			//AI_PAIN = Pain( NULL, NULL, oldHealth - health, lastDamageDir, lastDamageLocation ); //causing crash.
+		}
+		if (oldHealth <= 0) {
+			UpdateVisuals();
+			return; //Don't play animations in dead bodies in case the server didn't receive the death info yet!
+		}
 
-	if (oldHealth <= 0 && health > 0) { //Resurrected
-		CSResurrected();
-	} else if ( oldHealth > 0 && health <= 0 ) { //what if !AI_DEAD && newAiDead ?
-		CSKilled();
-	} else if ( health < oldHealth && health > 0 ) {
-		//pain
-		//AI_PAIN = Pain( NULL, NULL, oldHealth - health, lastDamageDir, lastDamageLocation ); //causing crash.
-	}
+		if (torsoAnimId != currentTorsoAnim ) {
+			animator.CycleAnim(ANIMCHANNEL_TORSO, torsoAnimId, gameLocal.time, 2);
+		}
+		if (legsAnimId != currentLegsAnim ) {
+			animator.CycleAnim(ANIMCHANNEL_LEGS, legsAnimId, gameLocal.time, 2);
+		}
 
+		if (headEntityReceivedInfo && head.GetEntity() && currentHeadAnim != headAnimId) {
+			head.GetEntity()->GetAnimator()->CycleAnim(ANIMCHANNEL_ALL, headAnimId, gameLocal.time, 2);
+			head.GetEntity()->GetAnimator()->SetAllowFrameCommands(ANIMCHANNEL_ALL, headAllowCommandsFrame); 
+		}
 
 	} else {
 		if (torsoAnimId != currentTorsoAnim ) {
@@ -5907,6 +5951,11 @@ bool  idAI::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 	idVec3 localOrigin, localNormal, localDir;
 
 	switch( event ) {
+		case EVENT_RESURRECTED: {
+			health = msg.ReadShort();
+			CSResurrected();
+			return true;
+		}
 		case EVENT_ADD_DAMAGE_EFFECT: {
 			jointNum = (jointHandle_t) msg.ReadShort();
 			localOrigin[0] = msg.ReadFloat();
@@ -5925,12 +5974,12 @@ bool  idAI::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			//ugly avoid crash in coop
 			int declTypeCount = declManager->GetNumDecls(DECL_ENTITYDEF);
 			if (damageDefIndex < 0 || damageDefIndex >= declTypeCount) {
-				common->Warning("[COOP] index declType out of range at idAI::ClientReceiveEvent\n");
+				common->DWarning("[COOP] index declType out of range at idAI::ClientReceiveEvent\n");
 				return true;
 			}
 			declTypeCount = declManager->GetNumDecls(DECL_MATERIAL);
 			if (materialIndex < 0 || materialIndex >= declTypeCount) {
-				common->Warning("[COOP] index declType out of range at idAI::ClientReceiveEvent\n");
+				common->DWarning("[COOP] index declType out of range at idAI::ClientReceiveEvent\n");
 				return true;
 			}
 			//avoid crash in coop

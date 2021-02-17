@@ -107,8 +107,10 @@ idCVar g_unblockPlayers(			"g_unblockPlayers",			"0",			CVAR_GAME | CVAR_BOOL | 
 idCVar si_lives(					"si_lives",					"2",			CVAR_GAME | CVAR_ARCHIVE | CVAR_INTEGER, "How many lives can the players have in Survival mode", 1, 100);
 idCVar net_clientSideMovement(		"net_clientSideMovement",	"1",			CVAR_GAME | CVAR_BOOL | CVAR_NOCHEAT, "Clientside movement, use only if you're suffering lag (experimental)" );
 idCVar g_spawnInCheckpoints(		"g_spawnInCheckpoints",		"0",			CVAR_GAME | CVAR_BOOL | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "Players can spawn in user checkpoints" );
-idCVar g_keepItemsAfterRespawn(		"g_keepItemsAfterRespawn",	"0",			CVAR_GAME | CVAR_BOOL | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "Keep items after respawning" );
-idCVar g_clientsideDamage(			"g_clientsideDamage",		"1",			CVAR_GAME | CVAR_BOOL | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "Allow clients to deal with damage clientside. (Experimental)" );
+idCVar g_keepItemsAfterRespawn(		"g_keepItemsAfterRespawn",	"1",			CVAR_GAME | CVAR_BOOL | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "Keep items after respawning" );
+idCVar g_clientsideDamage(			"g_clientsideDamage",		"0",			CVAR_GAME | CVAR_BOOL | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "Allow clients to deal with damage clientside. (Experimental)" );
+idCVar g_fastMonsters(				"g_fastMonsters",			"0",			CVAR_GAME | CVAR_ARCHIVE | CVAR_BOOL | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "Enable fast monsters (Experimental)");
+idCVar g_damageFactor(				"g_damageFactor",			 "1",			CVAR_GAME | CVAR_FLOAT | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "scale final damage on player by this factor (librecoop)");
 //stradex end
 
 #ifdef CTF
