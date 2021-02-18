@@ -406,6 +406,7 @@ idAI::idAI() {
 	currentChannelOverride = 0;
 
 	oldHealth = 0; // To check if an entity was resurrected to inform the client about it (used in conjunction with g_clientsideDamage)
+	allowFastMonsters = true;
 }
 
 /*
@@ -759,6 +760,8 @@ void idAI::Spawn( void ) {
 
 	spawnArgs.GetFloat( "turn_rate",			"360",		turnRate );
 
+	spawnArgs.GetBool("allow_fast_monsters",	"1",		allowFastMonsters); //For coop
+
 	spawnArgs.GetBool( "talks",					"0",		talks );
 	if ( spawnArgs.GetString( "npc_name", NULL ) != NULL ) {
 		if ( talks ) {
@@ -1110,7 +1113,7 @@ void idAI::Think( void ) {
 	if (head.GetEntity()) {
 		currentHeadAnim = head.GetEntity()->GetAnimator()->CurrentAnim(ANIMCHANNEL_ALL)->AnimNum();
 	}
-	if (g_fastMonsters.GetBool() && team == 1) {
+	if (g_fastMonsters.GetBool() && allowFastMonsters && team == 1) {
 		if (gameLocal.inCinematic) {
 			animator.UpdateFrameRateMultiplier(1.0f);
 		} else {
@@ -4136,7 +4139,7 @@ bool idAI::GetAimDir( const idVec3 &firePos, idEntity *aimAtEnt, const idEntity 
 		targetPos2 = targetPos1;
 	}
 
-	if (g_fastMonsters.GetBool() && team == 1) {
+	if (g_fastMonsters.GetBool() && team == 1) { //FIXME: allowFastMonsters false keeps firing fast projectiles nonetheless
 		speed_multiplier = FM_PROJECTILE_SPEED_MULTIPLIER;
 	}
 
@@ -5249,7 +5252,7 @@ void idAI::ClientPredictionThink( void ) {
 	}
 
 	//this->Think();
-	if (g_fastMonsters.GetBool() && team == 1) {
+	if (g_fastMonsters.GetBool() && allowFastMonsters && team == 1) {
 		if (gameLocal.inCinematic) {
 			animator.UpdateFrameRateMultiplier(1.0f);
 		}

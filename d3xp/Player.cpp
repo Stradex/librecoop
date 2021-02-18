@@ -9881,6 +9881,10 @@ void idPlayer::Event_ExitTeleporter( void ) {
 	idEntity	*exitEnt;
 	float		pushVel;
 
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		SetPrivateCameraView(NULL);
+	}
+
 	// verify and setup
 	exitEnt = teleportEntity.GetEntity();
 	if ( !exitEnt ) {
@@ -9897,7 +9901,9 @@ void idPlayer::Event_ExitTeleporter( void ) {
 		ServerSendEvent( EVENT_EXIT_TELEPORTER, NULL, false, -1 );
 	}
 
-	SetPrivateCameraView( NULL );
+	if (!gameLocal.isClient || !gameLocal.mpGame.IsGametypeCoopBased()) {
+		SetPrivateCameraView(NULL);
+	}
 	// setup origin and push according to the exit target
 	SetOrigin( exitEnt->GetPhysics()->GetOrigin() + idVec3( 0, 0, CM_CLIP_EPSILON ) );
 	SetViewAngles( exitEnt->GetPhysics()->GetAxis().ToAngles() );
@@ -10622,7 +10628,7 @@ bool idPlayer::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			if (clientsideTeleported || clientTeleported) { // to avoid bug  related to fall damage kill client with net_clientsideMovement 1
 				noFallDamage = true;
 				CancelEvents(&EV_Player_EnableFallDamage);
-				PostEventSec(&EV_Player_EnableFallDamage, 2.0f);
+				PostEventSec(&EV_Player_EnableFallDamage, 5.0f);
 				GetPhysics()->SetOrigin(physicsObj.GetOrigin()); 
 				clientTeleported = false;
 				Move();

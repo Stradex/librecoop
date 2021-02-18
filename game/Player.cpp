@@ -9114,7 +9114,7 @@ bool idPlayer::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			if (clientsideTeleported || clientTeleported) { // to avoid bug related to fall damage kill client with net_clientsideMovement 1
 				noFallDamage = true;
 				CancelEvents(&EV_Player_EnableFallDamage);
-				PostEventSec(&EV_Player_EnableFallDamage, 2.0f);
+				PostEventSec(&EV_Player_EnableFallDamage, 5.0f);
 				GetPhysics()->SetOrigin(physicsObj.GetOrigin());
 				clientTeleported = false;
 				Move();
