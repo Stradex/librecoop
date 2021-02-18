@@ -4537,6 +4537,9 @@ idEntity::Event_Show
 ================
 */
 void idEntity::Event_Show( void ) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && fl.coopNetworkSync) {
+		forceSnapshotUpdateOrigin = true;
+	}
 	Show();
 }
 
@@ -4638,7 +4641,7 @@ idEntity::Event_SetOrigin
 ================
 */
 void idEntity::Event_SetOrigin( idVec3 const &org ) {
-	if (fl.coopNetworkSync) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && fl.coopNetworkSync) {
 		forceSnapshotUpdateOrigin = true;
 	}
 	SetOrigin( org );

@@ -72,6 +72,63 @@ idSpawnableEntity::Spawn
 */
 void idSpawnableEntity::Spawn() {
 	// this just holds dict information
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && idStr::Cmp(this->GetEntityDefName(), "wraith_spawneffect") == 0) { //Dirty hack for wraith spawn effect!
+
+		if (!fl.coopNetworkSync) {
+			fl.networkSync = true;
+			fl.coopNetworkSync = true;
+			gameLocal.RegisterCoopEntity(this);
+		}
+	}
+}
+
+/*
+=====================
+idSpawnableEntity::WriteToSnapshot
+=====================
+*/
+void idSpawnableEntity::WriteToSnapshot(idBitMsgDelta& msg) const {
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+		idEntity::WriteBindToSnapshot(msg);
+		return;
+	}
+	msg.WriteFloat(GetPhysics()->GetOrigin().x);
+	msg.WriteFloat(GetPhysics()->GetOrigin().y);
+	msg.WriteFloat(GetPhysics()->GetOrigin().z);
+	msg.WriteFloat(renderEntity.shaderParms[SHADERPARM_TIMEOFFSET]);
+	msg.WriteBits(fl.hidden, 1);
+}
+
+/*
+=====================
+idSpawnableEntity::ReadFromSnapshot
+=====================
+*/
+void idSpawnableEntity::ReadFromSnapshot(const idBitMsgDelta& msg) {
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+		idEntity::ReadFromSnapshot(msg);
+		return;
+	}
+
+	idVec3	tmpOrigin = vec3_zero;
+
+	tmpOrigin.x = msg.ReadFloat();
+	tmpOrigin.y = msg.ReadFloat();
+	tmpOrigin.z = msg.ReadFloat();
+	renderEntity.shaderParms[SHADERPARM_TIMEOFFSET] = msg.ReadFloat();
+
+	if (msg.ReadBits(1)) { //fl.hidden from server
+		Hide();
+	}
+	else {
+		Show();
+	}
+
+	if (msg.HasChanged()) {
+		SetOrigin(tmpOrigin);
+		UpdateVisuals();
+	}
 }
 
 /*

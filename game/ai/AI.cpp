@@ -5436,6 +5436,10 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteBits( fl.hidden, 1);
 	msg.WriteBits( fl.takedamage, 1 );
 
+	//renderEntity FX
+	msg.WriteBits(renderEntity.noShadow, 1);
+	msg.WriteFloat(renderEntity.shaderParms[SHADERPARM_TIME_OF_DEATH]);
+
 	if (currentAttackDefNum != -1) {
 		msg.WriteBits(true, 1);
 		msg.WriteBits( gameLocal.ServerRemapDecl( -1, DECL_ENTITYDEF, currentAttackDefNum ), gameLocal.entityDefBits );
@@ -5548,6 +5552,10 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	isInvisible = msg.ReadBits( 1 ) != 0;
 
 	fl.takedamage = msg.ReadBits( 1 ) != 0;
+
+	//fx
+	renderEntity.noShadow = msg.ReadBits(1) != 0;
+	renderEntity.shaderParms[SHADERPARM_TIME_OF_DEATH] = msg.ReadFloat();
 
 	if ( msg.ReadBits( 1 ) ) {
 		currentAttackDefNum = gameLocal.ClientRemapDecl( DECL_ENTITYDEF, msg.ReadBits( gameLocal.entityDefBits ) );
