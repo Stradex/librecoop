@@ -51,6 +51,8 @@ public:
 
 	void				Spawn( void );
 
+	virtual void			WriteToSnapshot(idBitMsgDelta& msg) const; //added for COOP
+	virtual void			ReadFromSnapshot(const idBitMsgDelta& msg); //added for COOP
 private:
 };
 
