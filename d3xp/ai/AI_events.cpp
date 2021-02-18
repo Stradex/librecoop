@@ -2110,7 +2110,8 @@ idAI::Event_Burn
 =====================
 */
 void idAI::Event_Burn( void ) {
-	renderEntity.shaderParms[ SHADERPARM_TIME_OF_DEATH ] = gameLocal.time * 0.001f;
+	renderEntity.shaderParms[SHADERPARM_TIME_OF_DEATH] = gameLocal.time * 0.001f;
+
 	SpawnParticles( "smoke_burnParticleSystem" );
 	UpdateVisuals();
 }
