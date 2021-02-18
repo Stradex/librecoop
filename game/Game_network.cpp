@@ -368,10 +368,8 @@ void idGameLocal::ServerClientBegin( int clientNum ) {
 
 	if (mpGame.IsGametypeCoopBased()) {
 		outMsg.WriteInt( coopIds[ clientNum ] ); //Testing new sync for coop
-		outMsg.WriteInt( spawnIds[ clientNum ] );
-	} else {
-		outMsg.WriteInt( spawnIds[ clientNum ] );
-	}
+	} 
+	outMsg.WriteInt( spawnIds[ clientNum ] );
 	
 	networkSystem->ServerSendReliableMessage( -1, outMsg );
 }
@@ -390,10 +388,9 @@ void idGameLocal::ServerClientDisconnect( int clientNum ) {
 	outMsg.BeginWriting();
 	outMsg.WriteByte( GAME_RELIABLE_MESSAGE_DELETE_ENT );
 	if (mpGame.IsGametypeCoopBased()) {
-		outMsg.WriteBits( ( coopIds[ clientNum ] << GENTITYNUM_BITS ) | clientNum, 32 ); //testing netcode sync for coop
-	} else {
-		outMsg.WriteBits( ( spawnIds[ clientNum ] << GENTITYNUM_BITS ) | clientNum, 32 ); // see GetSpawnId
+		outMsg.WriteBits((coopIds[clientNum] << GENTITYNUM_BITS) | clientNum, 32); //testing netcode sync for coop
 	}
+	outMsg.WriteBits( ( spawnIds[ clientNum ] << GENTITYNUM_BITS ) | clientNum, 32 ); // see GetSpawnId
 	
 	networkSystem->ServerSendReliableMessage( -1, outMsg );
 
@@ -455,10 +452,8 @@ void idGameLocal::ServerWriteInitialReliableMessages( int clientNum ) {
 
 		if (mpGame.IsGametypeCoopBased()) {
 			outMsg.WriteInt( coopIds[ i ] );
-			outMsg.WriteInt( spawnIds[ i ] );
-		} else {
-			outMsg.WriteInt( spawnIds[ i ] );
 		}
+		outMsg.WriteInt( spawnIds[ i ] );
 		
 		networkSystem->ServerSendReliableMessage( clientNum, outMsg );
 	}
@@ -1594,11 +1589,10 @@ void idGameLocal::ClientProcessReliableMessage( int clientNum, const idBitMsg &m
 			int coopId, spawnId;
 			coopId=-1;
 			if (mpGame.IsGametypeCoopBased()) {
-				coopId = msg.ReadBits( 32 );
-				spawnId = msg.ReadBits( 32 );
-			} else {
-				spawnId = msg.ReadBits( 32 );
+				coopId = msg.ReadBits(32);
 			}
+			spawnId = msg.ReadBits( 32 );
+			
 
 
 			if (coopId >= 0) { //testing new netcode sync for coop
@@ -1738,11 +1732,24 @@ void idGameLocal::ClientProcessReliableMessage( int clientNum, const idBitMsg &m
 			mpGame.ClientReadWarmupTime( msg );
 			break;
 		}
-		case GAME_RELIABLE_MESSAGE_ACTIVATE_TARGET: {
-			int targetEntity = msg.ReadInt();
-			if (gameLocal.targetentities[targetEntity]) {
-				gameLocal.targetentities[targetEntity]->ActivateTargets(gameLocal.targetentities[targetEntity]);
+		case GAME_RELIABLE_MESSAGE_FADE: {
+			idVec4		fadeColor;
+			idPlayer*	player;
+			idVec3		color;
+			float		alpha, fadeTime;
+			color[0] = msg.ReadFloat();
+			color[1] = msg.ReadFloat();
+			color[2] = msg.ReadFloat();
+			alpha = msg.ReadFloat();
+			fadeTime = msg.ReadFloat();
+
+			player = GetLocalPlayer();
+			if (player) {
+				fadeColor.Set(color[0], color[1], color[2], alpha);
+				player->playerView.Fade(fadeColor, SEC2MS(fadeTime));
 			}
+
+			common->Printf("[COOP] Receive fade...\n");
 			break;
 		}
 		default: {

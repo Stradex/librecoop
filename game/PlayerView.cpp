@@ -613,6 +613,10 @@ assumes: color.w is 0 or 1
 */
 void idPlayerView::Fade( idVec4 color, int time ) {
 
+	if (gameLocal.mpGame.IsGametypeCoopBased() && player->entityNumber != gameLocal.localClientNum) {
+		return;
+	}
+
 	if ( !fadeTime ) {
 		fadeFromColor.Set( 0.0f, 0.0f, 0.0f, 1.0f - color[ 3 ] );
 	} else {

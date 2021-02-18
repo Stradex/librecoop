@@ -2161,7 +2161,7 @@ idPlayer *idGameLocal::GetLocalPlayer() const {
 
 /*
 ================
-idGameLocal::GetLocalPlayer
+idGameLocal::GetCoopPlayer
 
 Nothing in the game tic should EVER make a decision based on what the
 local client number is, it shouldn't even be aware that there is a

@@ -250,6 +250,8 @@ public:
 
 	CLASS_PROTOTYPE( idTrigger_Fade );
 
+					idTrigger_Fade(void);
+
 private:
 	void				Event_Trigger( idEntity *activator );
 };

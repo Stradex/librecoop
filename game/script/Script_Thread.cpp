@@ -28,6 +28,7 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "sys/platform.h"
 
+#include "framework/async/NetworkSystem.h" //Coop
 #include "gamesys/SysCvar.h"
 #include "Player.h"
 #include "Camera.h"
@@ -1547,6 +1548,22 @@ void idThread::Event_FadeIn( idVec3 &color, float time ) {
 	idVec4		fadeColor;
 	idPlayer	*player;
 
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+		idBitMsg	outMsg;
+		byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
+		outMsg.Init(msgBuf, sizeof(msgBuf));
+		outMsg.BeginWriting();
+		outMsg.WriteByte(GAME_RELIABLE_MESSAGE_FADE);
+		outMsg.WriteFloat(color[0]);
+		outMsg.WriteFloat(color[1]);
+		outMsg.WriteFloat(color[2]);
+		outMsg.WriteFloat(0.0f);
+		outMsg.WriteFloat(time);
+		networkSystem->ServerSendReliableMessage(-1, outMsg);
+
+		common->Printf("[COOP] Sending fade...\n");
+	}
+
 	player = gameLocal.GetLocalPlayer();
 	if ( player ) {
 		fadeColor.Set( color[ 0 ], color[ 1 ], color[ 2 ], 0.0f );
@@ -1563,6 +1580,22 @@ void idThread::Event_FadeOut( idVec3 &color, float time ) {
 	idVec4		fadeColor;
 	idPlayer	*player;
 
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+		idBitMsg	outMsg;
+		byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
+		outMsg.Init(msgBuf, sizeof(msgBuf));
+		outMsg.BeginWriting();
+		outMsg.WriteByte(GAME_RELIABLE_MESSAGE_FADE);
+		outMsg.WriteFloat(color[0]);
+		outMsg.WriteFloat(color[1]);
+		outMsg.WriteFloat(color[2]);
+		outMsg.WriteFloat(1.0f);
+		outMsg.WriteFloat(time);
+		networkSystem->ServerSendReliableMessage(-1, outMsg);
+
+		common->Printf("[COOP] Sending fade...\n");
+	}
+
 	player = gameLocal.GetLocalPlayer();
 	if ( player ) {
 		fadeColor.Set( color[ 0 ], color[ 1 ], color[ 2 ], 1.0f );
@@ -1578,6 +1611,22 @@ idThread::Event_FadeTo
 void idThread::Event_FadeTo( idVec3 &color, float alpha, float time ) {
 	idVec4		fadeColor;
 	idPlayer	*player;
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+		idBitMsg	outMsg;
+		byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
+		outMsg.Init(msgBuf, sizeof(msgBuf));
+		outMsg.BeginWriting();
+		outMsg.WriteByte(GAME_RELIABLE_MESSAGE_FADE);
+		outMsg.WriteFloat(color[0]);
+		outMsg.WriteFloat(color[1]);
+		outMsg.WriteFloat(color[2]);
+		outMsg.WriteFloat(alpha);
+		outMsg.WriteFloat(time);
+		networkSystem->ServerSendReliableMessage(-1, outMsg);
+
+		common->Printf("[COOP] Sending fade...\n");
+	}
 
 	player = gameLocal.GetLocalPlayer();
 	if ( player ) {
