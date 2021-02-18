@@ -4638,6 +4638,9 @@ idEntity::Event_SetOrigin
 ================
 */
 void idEntity::Event_SetOrigin( idVec3 const &org ) {
+	if (fl.coopNetworkSync) {
+		forceSnapshotUpdateOrigin = true;
+	}
 	SetOrigin( org );
 }
 
