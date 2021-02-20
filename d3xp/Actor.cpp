@@ -2215,6 +2215,20 @@ calls Damage()
 */
 void idActor::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir,
 					  const char *damageDefName, const float damageScale, const int location, const bool canBeClientDamage ) {
+	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased() && !g_clientsideDamage.GetBool() && killedByGrabber) { //Killed by grabbed while not using g_clientsideDamage
+		idBitMsg	msg;
+		byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+		msg.Init(msgBuf, sizeof(msgBuf));
+		msg.BeginWriting();
+		msg.WriteBits(gameLocal.localClientNum, idMath::BitsForInteger(MAX_CLIENTS));
+		msg.WriteShort(999);
+		msg.WriteShort(location);
+		msg.WriteFloat(dir.x);
+		msg.WriteFloat(dir.y);
+		msg.WriteFloat(dir.z);
+		ClientSendEvent(EVENT_CLIENTDAMAGE, &msg); // Help to avoid bug related to enemies killed with Grabber getting invisible clientside
+		return;
+	}
 
 	if (gameLocal.isClient && (!g_clientsideDamage.GetBool() || !canBeClientDamage || ((!inflictor || !inflictor->clientsideNode.InList()) && !killedByGrabber) || !attacker || attacker->entityNumber != gameLocal.localClientNum)) {
 		return;
