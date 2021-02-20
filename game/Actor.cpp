@@ -670,6 +670,7 @@ void idActor::SetupHead( void ) {
 	int					i;
 	const idKeyValue	*sndKV;
 
+
 	if ( gameLocal.isClient && !gameLocal.mpGame.IsGametypeCoopBased()) {
 		return;
 	}

@@ -1099,6 +1099,16 @@ END_CLASS
 
 /*
 ================
+idTrigger_Fade::idTrigger_Fade
+================
+*/
+idTrigger_Fade::idTrigger_Fade(void) {
+	canBeCsTarget = true; //For Coop
+}
+
+
+/*
+================
 idTrigger_Fade::Event_Trigger
 ================
 */
@@ -1107,7 +1117,7 @@ void idTrigger_Fade::Event_Trigger( idEntity *activator ) {
 	int			fadeTime;
 	idPlayer	*player;
 
-	player = gameLocal.GetLocalPlayer();
+	player = gameLocal.GetCoopPlayer();
 	if ( player ) {
 		fadeColor = spawnArgs.GetVec4( "fadeColor", "0, 0, 0, 1" );
 		fadeTime = SEC2MS( spawnArgs.GetFloat( "fadeTime", "0.5" ) );

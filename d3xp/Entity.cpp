@@ -700,10 +700,8 @@ idEntity::~idEntity( void ) {
 		msg.WriteByte( GAME_RELIABLE_MESSAGE_DELETE_ENT );
 		if (gameLocal.mpGame.IsGametypeCoopBased()) {
 			msg.WriteBits( gameLocal.GetCoopId( this ), 32 );
-			msg.WriteBits( gameLocal.GetSpawnId( this ), 32 ); 
-		} else {
-			msg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
 		}
+		msg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
 		networkSystem->ServerSendReliableMessage( -1, msg );
 	}
 

@@ -620,6 +620,11 @@ assumes: color.w is 0 or 1
 =================
 */
 void idPlayerView::Fade( idVec4 color, int time ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && player->entityNumber != gameLocal.localClientNum) {
+		return;
+	}
+
 #ifdef _D3XP
 	SetTimeState ts( player->timeGroup );
 #endif

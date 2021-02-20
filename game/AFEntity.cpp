@@ -1363,9 +1363,7 @@ idAFEntity_WithAttachedHead::Spawn
 ================
 */
 void idAFEntity_WithAttachedHead::Spawn( void ) {
-	//if (!gameLocal.mpGame.IsGametypeCoopBased()) { //Not heads in coop
-	//	SetupHead();
-	//}
+	SetupHead();
 	LoadAF();
 
 	SetCombatModel();
@@ -1427,8 +1425,12 @@ void idAFEntity_WithAttachedHead::SetupHead( void ) {
 		if ( joint == INVALID_JOINT ) {
 			gameLocal.Error( "Joint '%s' not found for 'head_joint' on '%s'", jointName.c_str(), name.c_str() );
 		}
+		idDict	args;
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			args.Set("clientside", "1");
+		}
 
-		headEnt = static_cast<idAFAttachment *>( gameLocal.SpawnEntityType( idAFAttachment::Type, NULL ) );
+		headEnt = static_cast<idAFAttachment *>( gameLocal.SpawnEntityType( idAFAttachment::Type, NULL, true ) );
 		headEnt->SetName( va( "%s_head", name.c_str() ) );
 		headEnt->SetBody( this, headModel, joint );
 		headEnt->SetCombatModel();
