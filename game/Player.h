@@ -570,6 +570,7 @@ public:
 	int						nextTimeReadHealth; //for g_clientsideDamage 1
 	bool					noFallDamage;		//ductape fix for coop while using teleport with net_clientsideMovement 1
 	bool					clientTeleported;	//for net_clientsideMovement 1
+	bool					clientSpawnedByServer;	//Used with allowClientsideMovement to determine if an entity can have clientside Movement or not
 
 	//Client-side stuff for coop
 	bool					CS_Give( const char *statname, const char *value );
@@ -582,6 +583,7 @@ public:
 	void					CS_CompleteObjective( const char *title );
 	void					CS_SavePersistantInfo( void );
 	void					CS_RestorePersistantInfo( void );
+	bool					CanHaveClientsideMovement(void);
 
 	//END COOP SPECIFIC
 
