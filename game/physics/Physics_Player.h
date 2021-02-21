@@ -157,6 +157,7 @@ public:	// common physics interface
 	void					ReadFromSnapshot( const idBitMsgDelta &msg );
 	void					WriteToEvent( idBitMsg &msg ); //added by Stradex
 	void					ReadFromEvent( const idBitMsg &msg ); //added by Stradex
+	void					ClearFromEvent(const idBitMsg& msg); //added by stradex: like ReadFromEvent but just read the data while doing nothing with it.
 
 private:
 	// player physics state

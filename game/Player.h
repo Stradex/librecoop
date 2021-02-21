@@ -77,7 +77,8 @@ extern const idEventDef EV_Player_DisableWeapon;
 extern const idEventDef EV_Player_ExitTeleporter;
 extern const idEventDef EV_Player_SelectWeapon;
 extern const idEventDef EV_SpectatorTouch;
-extern const idEventDef EV_Player_EnableFallDamage; //Added for coop
+extern const idEventDef EV_Player_EnableFallDamage;			//Added for coop
+extern const idEventDef EV_Player_EnableReadClientPhysics;	//Added for coop
 
 const float THIRD_PERSON_FOCUS_DISTANCE	= 512.0f;
 const int	LAND_DEFLECT_TIME = 150;
@@ -571,6 +572,7 @@ public:
 	bool					noFallDamage;		//ductape fix for coop while using teleport with net_clientsideMovement 1
 	bool					clientTeleported;	//for net_clientsideMovement 1
 	bool					clientSpawnedByServer;	//Used with allowClientsideMovement to determine if an entity can have clientside Movement or not
+	bool					serverReadPlayerPhysics; //Used with allowClientsideMovement to determine if an entity can have clientside Movement or not
 
 	//Client-side stuff for coop
 	bool					CS_Give( const char *statname, const char *value );
@@ -767,6 +769,7 @@ private:
 	void					Event_GetIdealWeapon( void );
 	void					Event_GetLinearVelocity( void ); //for sentry bot coop hack
 	void					Event_EnableFallDamage(void);
+	void					Event_EnableReadClientPhysics(void);
 };
 
 ID_INLINE bool idPlayer::IsReady( void ) {
