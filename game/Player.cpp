@@ -8549,7 +8549,9 @@ void idPlayer::ClientPredictionThink( void ) {
 
 	scoreBoardOpen = ( ( usercmd.buttons & BUTTON_SCORES ) != 0 || forceScoreBoard );
 
-	AdjustSpeed();
+	if (IsPhysicsFrameClientside()) {
+		AdjustSpeed();
+	}
 
 	UpdateViewAngles();
 

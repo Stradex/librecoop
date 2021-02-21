@@ -7305,7 +7305,7 @@ void idPlayer::AdjustSpeed( void ) {
 		bobFrac = 0.0f;
 	} else if ( !physicsObj.OnLadder() && ( usercmd.buttons & BUTTON_RUN ) && ( usercmd.forwardmove || usercmd.rightmove ) && ( usercmd.upmove >= 0 ) ) {
 		if ((!gameLocal.isMultiplayer || gameLocal.mpGame.IsGametypeCoopBased()) && !physicsObj.IsCrouching() && !PowerUpActive( ADRENALINE ) ) {
-			stamina -= MS2SEC( gameLocal.msec );
+			stamina -= MS2SEC(gameLocal.msec);
 		}
 		if ( stamina < 0 ) {
 			stamina = 0;
@@ -10005,7 +10005,9 @@ void idPlayer::ClientPredictionThink( void ) {
 
 	scoreBoardOpen = ( ( usercmd.buttons & BUTTON_SCORES ) != 0 || forceScoreBoard );
 
-	AdjustSpeed();
+	if (IsPhysicsFrameClientside()) {
+		AdjustSpeed();
+	}
 
 	UpdateViewAngles();
 
