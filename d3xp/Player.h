@@ -79,6 +79,7 @@ extern const idEventDef EV_Player_ExitTeleporter;
 extern const idEventDef EV_Player_SelectWeapon;
 extern const idEventDef EV_SpectatorTouch;
 extern const idEventDef EV_Player_EnableFallDamage; //Added for coop
+extern const idEventDef EV_Player_EnableReadClientPhysics;	//Added for coop
 
 const float THIRD_PERSON_FOCUS_DISTANCE	= 512.0f;
 const int	LAND_DEFLECT_TIME = 150;
@@ -665,6 +666,7 @@ public:
 	bool					noFallDamage;		//ductape fix for coop while using teleport with net_clientsideMovement 1
 	bool					clientTeleported;	//for net_clientsideMovement 1
 	bool					clientSpawnedByServer;	//Used with allowClientsideMovement to determine if an entity can have clientside Movement or not
+	bool					serverReadPlayerPhysics; //Used with allowClientsideMovement to determine if an entity can have clientside Movement or not
 
 
 	//Client-side stuff for coop
@@ -872,6 +874,7 @@ private:
 	void					Event_Gibbed( void );
 	void					Event_GetLinearVelocity( void ); //for sentry bot coop hack
 	void					Event_EnableFallDamage(void);
+	void					Event_EnableReadClientPhysics(void);
 
 #ifdef _D3XP //BSM: Event to remove inventory items. Useful with powercells.
 	void					Event_GiveInventoryItem( const char* name );

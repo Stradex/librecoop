@@ -112,6 +112,7 @@ const idEventDef EV_Player_HideTip( "hideTip" );
 const idEventDef EV_Player_LevelTrigger( "levelTrigger" );
 const idEventDef EV_SpectatorTouch( "spectatorTouch", "et" );
 const idEventDef EV_Player_EnableFallDamage("<enablefalldamage>", NULL); //Added for coop
+const idEventDef EV_Player_EnableReadClientPhysics("<enablereadclientphysics>", NULL); //Added for coop
 #ifdef _D3XP
 const idEventDef EV_Player_GiveInventoryItem( "giveInventoryItem", "s" );
 const idEventDef EV_Player_RemoveInventoryItem( "removeInventoryItem", "s" );
@@ -144,6 +145,7 @@ CLASS_DECLARATION( idActor, idPlayer )
 	EVENT( EV_Player_LevelTrigger,			idPlayer::Event_LevelTrigger )
 	EVENT( EV_Gibbed,						idPlayer::Event_Gibbed )
 	EVENT(EV_Player_EnableFallDamage,		idPlayer::Event_EnableFallDamage)
+	EVENT(EV_Player_EnableReadClientPhysics, idPlayer::Event_EnableReadClientPhysics)
 #ifdef _D3XP
 	EVENT( EV_Player_GiveInventoryItem,		idPlayer::Event_GiveInventoryItem )
 	EVENT( EV_Player_RemoveInventoryItem,	idPlayer::Event_RemoveInventoryItem )
@@ -1982,6 +1984,7 @@ void idPlayer::Init( void ) {
 	nextSendPhysicsInfoTime = gameLocal.clientsideTime + PLAYER_CLIENT_SEND_MOVEMENT*5; //disable clientside movement two seconds
 	nextTimeReadHealth = 0; //added for g_clientsideDamage 1
 	clientSpawnedByServer = false;
+	serverReadPlayerPhysics = false;
 	//coop ends
 
 	if ( hud ) {
@@ -2834,9 +2837,15 @@ idPlayer::PrepareForRestart
 */
 void idPlayer::PrepareForRestart( void ) {
 
-	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
-		allowClientsideMovement = false;
-		nextSendPhysicsInfoTime = gameLocal.clientsideTime + 4000; //3segs without clientsidemovement
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		if (gameLocal.isServer) {
+			serverReadPlayerPhysics = false;
+		}
+		else {
+			clientSpawnedByServer = false;
+			allowClientsideMovement = false;
+			nextSendPhysicsInfoTime = gameLocal.clientsideTime + 4000; //3segs without clientsidemovement
+		}
 	}
 	ClearPowerUps();
 	Spectate( true );
@@ -3066,6 +3075,9 @@ void idPlayer::SpawnToPoint( const idVec3 &spawn_origin, const idAngles &spawn_a
 	}
 
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		CancelEvents(&EV_Player_EnableReadClientPhysics);
+		PostEventSec(&EV_Player_EnableReadClientPhysics, 5.0f);
+		serverReadPlayerPhysics = false;
 		ServerSendEvent(EVENT_PLAYERSPAWN, NULL, false, -1);
 	}
 
@@ -10615,19 +10627,28 @@ bool idPlayer::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			return true;
 		}
 		case EVENT_PLAYERPHYSICS: {
-			bool clientsideTeleported;
-			physicsObj.ReadFromEvent(msg);
-			deltaViewAngles[0] = msg.ReadDeltaFloat( 0.0f );
-			deltaViewAngles[1] = msg.ReadDeltaFloat( 0.0f );
-			deltaViewAngles[2] = msg.ReadDeltaFloat( 0.0f );
-			clientsideTeleported = msg.ReadBits(1) != 0;
-			if (clientsideTeleported || clientTeleported) { // to avoid bug  related to fall damage kill client with net_clientsideMovement 1
-				noFallDamage = true;
-				CancelEvents(&EV_Player_EnableFallDamage);
-				PostEventSec(&EV_Player_EnableFallDamage, 5.0f);
-				GetPhysics()->SetOrigin(physicsObj.GetOrigin()); 
-				clientTeleported = false;
-				Move();
+			if (serverReadPlayerPhysics) {
+				bool clientsideTeleported;
+				physicsObj.ReadFromEvent(msg);
+				deltaViewAngles[0] = msg.ReadDeltaFloat(0.0f);
+				deltaViewAngles[1] = msg.ReadDeltaFloat(0.0f);
+				deltaViewAngles[2] = msg.ReadDeltaFloat(0.0f);
+				clientsideTeleported = msg.ReadBits(1) != 0;
+				if (clientsideTeleported || clientTeleported) { // to avoid bug  related to fall damage kill client with net_clientsideMovement 1
+					noFallDamage = true;
+					CancelEvents(&EV_Player_EnableFallDamage);
+					PostEventSec(&EV_Player_EnableFallDamage, 5.0f);
+					GetPhysics()->SetOrigin(physicsObj.GetOrigin());
+					clientTeleported = false;
+					Move();
+				}
+			}
+			else {
+				physicsObj.ClearFromEvent(msg);
+				msg.ReadDeltaFloat(0.0f);
+				msg.ReadDeltaFloat(0.0f);
+				msg.ReadDeltaFloat(0.0f);
+				msg.ReadBits(1);
 			}
 			return true;
 		}
@@ -11593,6 +11614,19 @@ idPlayer::IsPhysicsFrameClientside
 bool idPlayer::IsPhysicsFrameClientside( void ) {
 	return !net_clientSideMovement.GetBool() || !allowClientsideMovement || entityNumber != gameLocal.localClientNum || gameLocal.isNewFrame;
 }
+
+/*
+================
+idPlayer::Event_EnableReadClientPhysics
+================
+*/
+
+void idPlayer::Event_EnableReadClientPhysics(void) {
+
+	assert(!gameLocal.isClient);
+	serverReadPlayerPhysics = true;
+}
+
 
 /*
 ================

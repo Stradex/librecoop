@@ -2116,6 +2116,26 @@ void idPhysics_Player::ReadFromEvent( const idBitMsg &msg ) {
 
 /*
 ================
+idPhysics_Player::ReadFromEvent
+================
+*/
+void idPhysics_Player::ClearFromEvent(const idBitMsg& msg) {
+	msg.ReadFloat();
+	msg.ReadFloat();
+	msg.ReadFloat();
+	msg.ReadFloat(PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS);
+	msg.ReadFloat(PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS);
+	msg.ReadFloat(PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS);
+	msg.ReadDeltaFloat(current.origin[0]);
+	msg.ReadDeltaFloat(current.origin[1]);
+	msg.ReadDeltaFloat(current.origin[2]);
+	msg.ReadDeltaFloat(0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS);
+	msg.ReadDeltaFloat(0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS);
+	msg.ReadDeltaFloat(0.0f, PLAYER_VELOCITY_EXPONENT_BITS, PLAYER_VELOCITY_MANTISSA_BITS);
+}
+
+/*
+================
 idPhysics_Player::GetClientOrigin
 ================
 */
