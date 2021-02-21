@@ -1703,7 +1703,9 @@ bool idActor::StartRagdoll( void ) {
 	af.GetPhysics()->SetContactFrictionDent( contactFrictionDent, contactFrictionDentStart, contactFrictionDentEnd );
 
 	// drop any items the actor is holding
-	idMoveableItem::DropItems( this, "death", NULL );
+	if (!gameLocal.mpGame.IsGametypeCoopBased() || !gameLocal.isClient || this->IsType(idPlayer::Type) || !fl.coopNetworkSync) {
+		idMoveableItem::DropItems(this, "death", NULL);
+	}
 
 	// drop any articulated figures the actor is holding
 	idAFEntity_Base::DropAFs( this, "death", NULL );

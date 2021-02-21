@@ -2045,6 +2045,7 @@ void idPhysics_Player::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		msg.ReadDeltaInt( 0 );
 
 	} else { //normal netcode
+
 		current.origin[0] = msg.ReadFloat();
 		current.origin[1] = msg.ReadFloat();
 		current.origin[2] = msg.ReadFloat();

@@ -2024,7 +2024,7 @@ idPhysics_Player::ReadFromSnapshot
 */
 void idPhysics_Player::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
-	if (net_clientSideMovement.GetBool() && self && (self->entityNumber == gameLocal.localClientNum) && static_cast< idPlayer * >( self )->allowClientsideMovement) { //clientside movement netcode
+	if (self && static_cast< idPlayer * >( self )->CanHaveClientsideMovement()) { //clientside movement netcode
 		
 		msg.ReadFloat(); //do nothing with data received
 		msg.ReadFloat();

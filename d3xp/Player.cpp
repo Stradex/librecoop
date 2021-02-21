@@ -68,7 +68,7 @@ const int ASYNC_PLAYER_INV_CLIP_BITS = -7;								// -7 bits to cover the range 
 ===============================================================================
 */
 
-// MSEC per sending movement info the server (every 1 second)
+// MSEC per sending movement info the server (every 0.5 second)
 const int PLAYER_CLIENT_SEND_MOVEMENT = 1*500;
 
 // distance between ladder rungs (actually is half that distance, but this sounds better)
@@ -1675,6 +1675,7 @@ idPlayer::idPlayer() {
 	nextTimeReadHealth		= 0; 	//added g_clientsideDamage 1
 	noFallDamage = false;	//added to fix bug related with fall damage and teleport with net_clientsideMovement 1
 	clientTeleported = false;
+	clientSpawnedByServer = false;
 }
 
 /*
@@ -1978,9 +1979,9 @@ void idPlayer::Init( void ) {
 
 	//coop start
 	allowClientsideMovement = false; //added by Stradex
-
-	nextSendPhysicsInfoTime = gameLocal.clientsideTime + PLAYER_CLIENT_SEND_MOVEMENT*2; //disable clientside movement two seconds
+	nextSendPhysicsInfoTime = gameLocal.clientsideTime + PLAYER_CLIENT_SEND_MOVEMENT*5; //disable clientside movement two seconds
 	nextTimeReadHealth = 0; //added for g_clientsideDamage 1
+	clientSpawnedByServer = false;
 	//coop ends
 
 	if ( hud ) {
@@ -2016,7 +2017,8 @@ void idPlayer::Spawn( void ) {
 	if ( gameLocal.isMultiplayer ) {
 		// always start in spectating state waiting to be spawned in
 		// do this before SetClipModel to get the right bounding box
-		nextSendPhysicsInfoTime = gameLocal.clientsideTime + PLAYER_CLIENT_SEND_MOVEMENT*2;
+		allowClientsideMovement = false;
+		nextSendPhysicsInfoTime = gameLocal.clientsideTime + PLAYER_CLIENT_SEND_MOVEMENT*5;
 		spectating = true;
 	}
 
@@ -2831,6 +2833,11 @@ idPlayer::PrepareForRestart
 ================
 */
 void idPlayer::PrepareForRestart( void ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		allowClientsideMovement = false;
+		nextSendPhysicsInfoTime = gameLocal.clientsideTime + 4000; //3segs without clientsidemovement
+	}
 	ClearPowerUps();
 	Spectate( true );
 	forceRespawn = true;
@@ -3058,22 +3065,8 @@ void idPlayer::SpawnToPoint( const idVec3 &spawn_origin, const idAngles &spawn_a
 		SetOrigin( spec_origin );
 	}
 
-	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) {
-		clientTeleported = true;
-	}
-
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
-		idBitMsg	msg;
-		byte		msgBuf[MAX_EVENT_PARAM_SIZE];
-		msg.Init( msgBuf, sizeof( msgBuf ) );
-		msg.BeginWriting();
-		msg.WriteFloat(spawn_origin.x);
-		msg.WriteFloat(spawn_origin.y);
-		msg.WriteFloat(spawn_origin.z);
-		msg.WriteDeltaFloat( 0.0f, deltaViewAngles[0] );
-		msg.WriteDeltaFloat( 0.0f, deltaViewAngles[1] );
-		msg.WriteDeltaFloat( 0.0f, deltaViewAngles[2] );
-		ServerSendEvent( EVENT_PLAYERSPAWN, &msg, false, -1);
+		ServerSendEvent(EVENT_PLAYERSPAWN, NULL, false, -1);
 	}
 
 	// if this is the first spawn of the map, we don't have a usercmd yet,
@@ -6116,7 +6109,7 @@ void idPlayer::CrashLand( const idVec3 &oldOrigin, const idVec3 &oldVelocity ) {
 		hardDelta	= 45.0f;
 	}
 
-	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && gameLocal.localClientNum == entityNumber && net_clientSideMovement.GetBool() && allowClientsideMovement) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && CanHaveClientsideMovement()) {
 		localTimeToUse = gameLocal.clientsideTime;
 	} else {
 		localTimeToUse = gameLocal.time;
@@ -6189,7 +6182,7 @@ void idPlayer::BobCycle( const idVec3 &pushVelocity ) {
 		return;
 	}
 
-	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased() && net_clientSideMovement.GetBool() && allowClientsideMovement ) {
+	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased() && CanHaveClientsideMovement()) {
 		localGameTime = gameLocal.clientsideTime;
 	} else {
 		localGameTime = gameLocal.time;
@@ -9103,7 +9096,7 @@ void idPlayer::CalculateViewWeaponPos( idVec3 &origin, idMat3 &axis ) {
 	idVec3 gravity = physicsObj.GetGravityNormal();
 
 	// drop the weapon when landing after a jump / fall
-	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && net_clientSideMovement.GetBool() && allowClientsideMovement && entityNumber == gameLocal.localClientNum) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && CanHaveClientsideMovement()) {
 		localTimeToUse =  gameLocal.clientsideTime;
 
 	} else {
@@ -10030,7 +10023,7 @@ void idPlayer::ClientPredictionThink( void ) {
 		AdjustBodyAngles();
 	}
 
-	if ((!isLagged && (!net_clientSideMovement.GetBool() || !allowClientsideMovement)) || (gameLocal.isNewFrame && net_clientSideMovement.GetBool() && allowClientsideMovement)) {
+	if ((!isLagged && !CanHaveClientsideMovement()) || (gameLocal.isNewFrame && CanHaveClientsideMovement())) {
 		// don't allow client to move when lagged
 		Move();
 
@@ -10158,12 +10151,13 @@ void idPlayer::ClientPredictionThink( void ) {
 	bool tmpBecameUnlocked = false;
 	if (net_clientSideMovement.GetBool()  && (gameLocal.localClientNum == entityNumber) && physicsObj.ClientPusherLocked(tmpBecameUnlocked)) {
 		allowClientsideMovement = false;
+		nextSendPhysicsInfoTime = gameLocal.clientsideTime + PLAYER_CLIENT_SEND_MOVEMENT;
 	}
 
 	if ( net_clientSideMovement.GetBool() && gameLocal.isNewFrame && !spectating && (gameLocal.localClientNum == entityNumber) && gameLocal.mpGame.IsGametypeCoopBased() && (gameLocal.clientsideTime >= nextSendPhysicsInfoTime)) {
 
 		if (health > 0) { //alive
-			if (allowClientsideMovement) {
+			if (allowClientsideMovement && clientSpawnedByServer) {
 
 				//sending event to server
 				idBitMsg	msg;
@@ -10359,7 +10353,7 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	physicsObj.ReadFromSnapshot( msg );
 	ReadBindFromSnapshot( msg );
 
-	if ((entityNumber == gameLocal.localClientNum) && !spectating && net_clientSideMovement.GetBool() && allowClientsideMovement) { //clientside movement CODE
+	if (!spectating && CanHaveClientsideMovement()) { //clientside movement CODE
 		msg.ReadDeltaFloat( 0.0f );  //just read but do nothing with this
 		msg.ReadDeltaFloat( 0.0f ); //just read but do nothing with this
 		msg.ReadDeltaFloat( 0.0f ); //just read but do nothing with this
@@ -10453,6 +10447,7 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 			UpdateDeathSkin( true );
 		}
 		// die
+		clientSpawnedByServer = false;
 		AI_DEAD = true;
 		ClearPowerUps();
 		SetAnimState( ANIMCHANNEL_LEGS, "Legs_Death", 4 );
@@ -10473,6 +10468,7 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	} else if ( oldHealth <= 0 && health > 0 ) {
 		// respawn
 		Init();
+		clientSpawnedByServer = true;
 		StopRagdoll();
 		SetPhysics( &physicsObj );
 		physicsObj.EnableClip();
@@ -10570,7 +10566,7 @@ idPlayer::ReadPlayerStateFromSnapshot
 void idPlayer::ReadPlayerStateFromSnapshot( const idBitMsgDelta &msg ) {
 	int i, ammo;
 
-	if (gameLocal.mpGame.IsGametypeCoopBased() && net_clientSideMovement.GetBool() && allowClientsideMovement && gameLocal.localClientNum == this->entityNumber) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && CanHaveClientsideMovement()) {
 		msg.ReadByte();
 		msg.ReadInt();
 		msg.ReadFloat();
@@ -10732,38 +10728,16 @@ bool idPlayer::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			break;
 		}
 		case EVENT_PLAYERSPAWN: {
-			if (net_clientSideMovement.GetBool()) {
-				if (gameLocal.localClientNum == this->entityNumber) {
-					allowClientsideMovement = true;  //hack for clientsidemovement
-					nextSendPhysicsInfoTime = gameLocal.clientsideTime; //hack for clientsidemovement
-				}
-				idVec3	tmpOrigin = vec3_zero;
-				tmpOrigin.x = msg.ReadFloat();
-				tmpOrigin.y = msg.ReadFloat();
-				tmpOrigin.z = msg.ReadFloat();
-				deltaViewAngles[0] = msg.ReadDeltaFloat( 0.0f );
-				deltaViewAngles[1] = msg.ReadDeltaFloat( 0.0f );
-				deltaViewAngles[2] = msg.ReadDeltaFloat( 0.0f );
-				clientTeleported = true;
-				SetOrigin(	tmpOrigin );
-				Move();
-			} else {
-				msg.ReadFloat();
-				msg.ReadFloat();
-				msg.ReadFloat();
-				msg.ReadDeltaFloat( 0.0f );
-				msg.ReadDeltaFloat( 0.0f );
-				msg.ReadDeltaFloat( 0.0f );
+			if (net_clientSideMovement.GetBool() && gameLocal.localClientNum == this->entityNumber) {
+				clientSpawnedByServer = true;
 			}
 			return true;
 
 		}
 		case EVENT_PLAYERTELEPORT: {
-			if (net_clientSideMovement.GetBool()) {
-				if (gameLocal.localClientNum == this->entityNumber) {
-					allowClientsideMovement = true;  //hack for clientsidemovement
-					nextSendPhysicsInfoTime = gameLocal.clientsideTime; //hack for clientsidemovement
-				}
+			if (net_clientSideMovement.GetBool() && gameLocal.localClientNum == this->entityNumber) {
+				allowClientsideMovement = true;  //hack for clientsidemovement
+				nextSendPhysicsInfoTime = gameLocal.clientsideTime; //hack for clientsidemovement
 				idVec3	tmpOrigin = vec3_zero;
 				int		exitEntityNum;
 				tmpOrigin.x = msg.ReadFloat();
@@ -11611,11 +11585,21 @@ void idPlayer::Event_EnableFallDamage(void) {
 }
 
 /*
-================
+================::Ca
 idPlayer::IsPhysicsFrameClientside
 ================
 */
 
 bool idPlayer::IsPhysicsFrameClientside( void ) {
 	return !net_clientSideMovement.GetBool() || !allowClientsideMovement || entityNumber != gameLocal.localClientNum || gameLocal.isNewFrame;
+}
+
+/*
+================
+idPlayer::CS_CanHaveClientsideMovement
+================
+*/
+
+bool idPlayer::CanHaveClientsideMovement(void) {
+	return net_clientSideMovement.GetBool() && allowClientsideMovement && clientSpawnedByServer && entityNumber == gameLocal.localClientNum;
 }
