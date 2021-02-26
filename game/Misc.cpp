@@ -740,6 +740,8 @@ idExplodable::Spawn
 */
 void idExplodable::Spawn( void ) {
 	Hide();
+
+	//fl.coopNetworkSync = true;
 }
 
 /*
@@ -748,10 +750,15 @@ idExplodable::Event_Explode
 ================
 */
 void idExplodable::Event_Explode( idEntity *activator ) {
-	const char *temp;
+	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased())
+	{
+		ServerSendEvent(EVENT_EXPLODE, NULL, false, gameLocal.localClientNum);
 
-	if ( spawnArgs.GetString( "def_damage", "damage_explosion", &temp ) ) {
-		gameLocal.RadiusDamage( GetPhysics()->GetOrigin(), activator, activator, this, this, temp );
+		const char* temp;
+
+		if (spawnArgs.GetString("def_damage", "damage_explosion", &temp)) {
+			gameLocal.RadiusDamage(GetPhysics()->GetOrigin(), activator, activator, this, this, temp);
+		}
 	}
 
 	StartSound( "snd_explode", SND_CHANNEL_ANY, 0, false, NULL );
@@ -764,11 +771,35 @@ void idExplodable::Event_Explode( idEntity *activator ) {
 	renderEntity.shaderParms[SHADERPARM_TIMEOFFSET] = -MS2SEC( gameLocal.time );
 	renderEntity.shaderParms[SHADERPARM_DIVERSITY]	= 0.0f;
 	Show();
-
-	PostEventMS( &EV_Remove, 2000 );
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		CS_PostEventMS(&EV_Remove, 2000);
+	}
+	else {
+		PostEventMS(&EV_Remove, 2000);
+	}
 
 	ActivateTargets( activator );
 }
+
+/*
+================
+idExplodable::ClientReceiveEvent
+================
+*/
+
+bool idExplodable::ClientReceiveEvent(int event, int time, const idBitMsg& msg)
+{
+	switch (event)
+	{
+	case EVENT_EXPLODE: {
+		Event_Explode(NULL);
+		return true;
+	}
+	}
+
+	return idEntity::ClientReceiveEvent(event, time, msg);
+}
+
 
 
 /*
@@ -1417,6 +1448,11 @@ idAnimated::Event_LaunchMissilesUpdate
 =====================
 */
 void idAnimated::Event_LaunchMissilesUpdate( int launchjoint, int targetjoint, int numshots, int framedelay ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		return;
+	}
+
 	idVec3			launchPos;
 	idVec3			targetPos;
 	idMat3			axis;
@@ -1463,6 +1499,11 @@ idAnimated::Event_LaunchMissiles
 =====================
 */
 void idAnimated::Event_LaunchMissiles( const char *projectilename, const char *sound, const char *launchjoint, const char *targetjoint, int numshots, int framedelay ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		return;
+	}
+
 	const idDict *	projectileDef;
 	jointHandle_t	launch;
 	jointHandle_t	target;

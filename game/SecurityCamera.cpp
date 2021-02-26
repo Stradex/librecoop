@@ -212,8 +212,11 @@ void idSecurityCamera::Event_AddLight( void ) {
 	args.Set( "light_right", right.ToString() );
 	args.Set( "light_up", up.ToString() );
 	args.SetFloat( "angle", GetPhysics()->GetAxis()[0].ToYaw() );
+	if (gameLocal.mpGame.IsGametypeCoopBased()) { //avoid crash in coop
+		args.Set("clientside", "1");
+	}
 
-	spotLight = static_cast<idLight *>( gameLocal.SpawnEntityType( idLight::Type, &args ) );
+	spotLight = static_cast<idLight *>( gameLocal.SpawnEntityType( idLight::Type, &args, true ) );
 	spotLight->Bind( this, true );
 	spotLight->UpdateVisuals();
 }

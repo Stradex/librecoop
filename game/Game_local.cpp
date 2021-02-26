@@ -4019,22 +4019,28 @@ idGameLocal::RequirementMet
 ================
 */
 bool idGameLocal::RequirementMet( idEntity *activator, const idStr &requires, int removeItem ) {
-	if ( requires.Length() ) {
-		if ( activator->IsType( idPlayer::Type ) ) {
-			idPlayer *player = static_cast<idPlayer *>(activator);
-			idDict *item = player->FindInventoryItem( requires );
-			if ( item ) {
-				if ( removeItem ) {
-					player->RemoveInventoryItem( item );
-				}
-				return true;
-			} else {
-				return false;
-			}
-		}
+	if (!requires.Length()) {
+		return true;
+	}
+	if (!activator) {
+		return false;
 	}
 
-	return true;
+	if (!activator->IsType(idPlayer::Type)) {
+		return true;
+	}
+
+	idPlayer* player = static_cast<idPlayer*>(activator);
+	idDict* item = player->FindInventoryItem(requires);
+	if (item) {
+
+		if (removeItem) {
+			player->RemoveInventoryItem(item);
+		}
+		return true;
+	}
+
+	return false;
 }
 
 /*
@@ -5011,6 +5017,22 @@ void idGameLocal::SetCameraCoop( idCamera *cam ) {
 	int i;
 	idEntity *ent;
 	idAI *ai;
+
+
+	if (isServer) {
+		idBitMsg	outMsg;
+		byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
+		outMsg.Init(msgBuf, sizeof(msgBuf));
+		outMsg.WriteByte(GAME_RELIABLE_MESSAGE_SETCAMERA);
+		if (cam) {
+			outMsg.WriteShort(cam->entityNumber);
+		}
+		else {
+			outMsg.WriteShort(-1);
+		}
+		networkSystem->ServerSendReliableMessage(-1, outMsg);
+		common->Printf("Syncing camera in coop...\n");
+	}
 
 	// this should fix going into a cinematic when dead.. rare but happens
 	idPlayer *client = GetLocalPlayer();

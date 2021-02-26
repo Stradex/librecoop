@@ -468,6 +468,10 @@ idEntity::idEntity() {
 	eventSyncVital = true; //true by default
 	nextSendEventTime = 0;
 	nextResetEventCountTime = 0;
+
+	// Nicemice: we want to differ between a map entity (static, also spawned) on a client
+	// and a temporary entity
+	isMapEntity = false;
 }
 
 /*
@@ -561,6 +565,8 @@ void idEntity::Spawn( void ) {
 		PostEventMS( &EV_Hide, 0 );
 	}
 	cinematic = spawnArgs.GetBool( "cinematic", "0" );
+
+	spawnArgs.GetBool("mapEntity", "0", isMapEntity); 	// OpenCoop Nicemice: Is it a map entity ?
 
 #if 0
 	if ( !gameLocal.isClient ) {
@@ -4440,6 +4446,17 @@ idEntity::Event_SetModel
 ================
 */
 void idEntity::Event_SetModel( const char *modelname ) {
+
+	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased() && !clientsideNode.InList()) {
+
+		idBitMsg     msg;
+		byte msgBuf[MAX_EVENT_PARAM_SIZE];
+		msg.Init(msgBuf, sizeof(msgBuf));
+
+		msg.WriteString(modelname);
+		ServerSendEvent(EVENT_SETMODEL, &msg, false, -1);
+	}
+
 	SetModel( modelname );
 }
 
@@ -5313,6 +5330,37 @@ void idEntity::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 /*
 ================
+idEntity::WriteHiddenToSnapshot - Nicemice: added
+================
+*/
+
+void idEntity::WriteHiddenToSnapshot(idBitMsgDelta& msg) const {
+
+	msg.WriteBits(IsHidden(), 1);
+}
+
+/*
+================
+idEntity::ReadHiddenFromSnapshot - Nicemice: added
+================
+*/
+void idEntity::ReadHiddenFromSnapshot(const idBitMsgDelta& msg) {
+
+	bool hidden = (msg.ReadBits(1) == 1);
+	if (hidden != IsHidden()) {
+		gameLocal.DWarning("Hidden state hitch on entity %d: %d %s(%s)", entityNumber, entityDefNumber, GetType()->classname, name.c_str());
+		if (hidden) {
+			Hide();
+		}
+		else {
+			Show();
+		}
+	}
+}
+
+
+/*
+================
 idEntity::ServerSendEvent
 
    Saved events are also sent to any client that connects late so all clients
@@ -5331,6 +5379,13 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 	if ( !gameLocal.isNewFrame ) {
 		return;
 	}
+
+	/*
+	// Nicemice
+	if (!fl.coopNetworkSync && !isMapEntity) {
+		return;
+	}
+	*/
 
 	if (clientsideNode.InList()) { //ignore client-side entities only
 		return;
@@ -5524,6 +5579,14 @@ bool idEntity::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			Event_SetGuiParm(guiKey, guiVal);
 
 			gameLocal.DebugPrintf("Receiving EVENT_SETGUIPARM: %s - %s\n", guiKey, guiVal);
+		}
+		//OpenCoop nicemice
+		case EVENT_SETMODEL: {
+			char modelname[MAX_EVENT_PARAM_SIZE];
+			msg.ReadString(modelname, sizeof(modelname));
+			const char* p = modelname;
+			Event_SetModel(p);
+			return true;
 		}
 		default:
 			break;

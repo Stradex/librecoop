@@ -191,7 +191,16 @@ class idExplodable : public idEntity {
 public:
 	CLASS_PROTOTYPE( idExplodable );
 
+	//Nicemice: OpenCoop
+	enum {
+		EVENT_EXPLODE = idEntity::EVENT_MAXEVENTS,
+		EVENT_MAXEVENTS
+	};
+
 	void				Spawn( void );
+
+	// Nicemice: Lets receive events
+	virtual bool		ClientReceiveEvent(int event, int time, const idBitMsg& msg);
 
 private:
 	void				Event_Explode( idEntity *activator );

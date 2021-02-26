@@ -1752,6 +1752,21 @@ void idGameLocal::ClientProcessReliableMessage( int clientNum, const idBitMsg &m
 			common->Printf("[COOP] Receive fade...\n");
 			break;
 		}
+		case GAME_RELIABLE_MESSAGE_SETCAMERA: {
+			int cameraEntityNumber = msg.ReadShort();
+			if (cameraEntityNumber >= 0) {
+				if (entities[cameraEntityNumber] && entities[cameraEntityNumber]->IsType(idCamera::Type)) {
+					gameLocal.SetCameraCoop(static_cast<idCamera*>(entities[cameraEntityNumber]));
+				}
+				else {
+					common->Warning("[COOP FATAL] Received invalid camera entity from server!!\n");
+				}
+			}
+			else {
+				gameLocal.SetCameraCoop(NULL);
+			}
+			break;
+		}
 		default: {
 			Error( "Unknown server->client reliable message: %d", id );
 			break;
@@ -1788,6 +1803,11 @@ gameReturn_t idGameLocal::ClientPrediction( int clientNum, const usercmd_t *clie
 	}
 
 	InitLocalClient( clientNum );
+
+	// Nicemice: FIX FOR THE TIMEMODEL
+	if (clientCmds->gameTime <= time) {
+		return ret;
+	}
 
 	// update the game time
 	framenum++;
@@ -2388,6 +2408,21 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 	numSourceAreas = gameRenderWorld->BoundsInAreas( spectated->GetPlayerPhysics()->GetAbsBounds(), sourceAreas, idEntity::MAX_PVS_AREAS );
 	pvsHandle = gameLocal.pvs.SetupCurrentPVS( sourceAreas, numSourceAreas, PVS_NORMAL );
 
+	/*
+  // Nicemice: Fixes the "camera is not in the same PVS as player" problem
+	if ( player->GetPrivateCameraView() ) {
+	numSourceAreas = spectated->GetPrivateCameraView()->GetNumPVSAreas();
+	memcpy ( sourceAreas, spectated->GetPrivateCameraView()->GetPVSAreas(), sizeof( int ) * numSourceAreas );
+	} else if ( camera ) {
+	numSourceAreas = camera->GetNumPVSAreas();
+	memcpy ( sourceAreas, camera->GetPVSAreas(), sizeof( int ) * numSourceAreas );
+	} else {
+	numSourceAreas = player->GetNumPVSAreas();
+	memcpy ( sourceAreas, spectated->GetPVSAreas(), sizeof( int ) * numSourceAreas );
+	}
+  pvsHandle = gameLocal.pvs.SetupCurrentPVS( sourceAreas, numSourceAreas, PVS_NORMAL );
+  */
+
 	// read the PVS from the snapshot
 #if ASYNC_WRITE_PVS
 	int serverPVS[idEntity::MAX_PVS_AREAS];
@@ -2445,6 +2480,9 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 					// I can see that moving pieces along several PVS could be a legit situation though
 					// this is a band aid, which means something is not done right elsewhere
 					common->DWarning( "client thinks map entity 0x%x (%s) is stale, sequence 0x%x", ent->entityNumber, ent->name.c_str(), sequence );
+					if (clientEntityStates[clientNum][ent->entityNumber]) {
+						ent->Hide();
+					}
 				} else {
 					ent->FreeModelDef();
 					ent->UpdateVisuals();
@@ -2649,6 +2687,21 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 	snapshot->next = clientSnapshots[clientNum];
 	clientSnapshots[clientNum] = snapshot;
 	memset( snapshot->pvs, 0, sizeof( snapshot->pvs ) );
+
+	/*
+	  // Nicemice: Fixes the "camera is not in the same PVS as player" problem
+	if ( player->GetPrivateCameraView() ) {
+    numSourceAreas = spectated->GetPrivateCameraView()->GetNumPVSAreas();
+    memcpy ( sourceAreas, spectated->GetPrivateCameraView()->GetPVSAreas(), sizeof( int ) * numSourceAreas );
+	} else if ( camera ) {
+    numSourceAreas = camera->GetNumPVSAreas();
+    memcpy ( sourceAreas, camera->GetPVSAreas(), sizeof( int ) * numSourceAreas );
+	} else {
+    numSourceAreas = player->GetNumPVSAreas();
+    memcpy ( sourceAreas, spectated->GetPVSAreas(), sizeof( int ) * numSourceAreas );
+	}
+  pvsHandle = gameLocal.pvs.SetupCurrentPVS( sourceAreas, numSourceAreas, PVS_NORMAL );
+  */
 
 	// get PVS for this player
 	// don't use PVSAreas for networking - PVSAreas depends on animations (and md5 bounds), which are not synchronized

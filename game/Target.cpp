@@ -73,18 +73,32 @@ idTarget_Remove::Event_Activate
 ================
 */
 void idTarget_Remove::Event_Activate( idEntity *activator ) {
+	//calledViaScriptThread
 	int			i;
 	idEntity	*ent;
 
 	for( i = 0; i < targets.Num(); i++ ) {
 		ent = targets[ i ].GetEntity();
 		if ( ent ) {
-			ent->PostEventMS( &EV_Remove, 0 );
+			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && !ent->fl.coopNetworkSync) {
+				ent->CS_PostEventMS(&EV_Remove, 0);
+				common->Printf("idTarget_Remove::Event_Activate, child clientside\n");
+			}
+			else {
+				ent->PostEventMS(&EV_Remove, 0);
+			}
+
 		}
 	}
 
 	// delete our self when done
-	PostEventMS( &EV_Remove, 0 );
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		CS_PostEventMS(&EV_Remove, 0);
+		common->Printf("idTarget_Remove::Event_Activate clientside\n");
+	}
+	else {
+		PostEventMS(&EV_Remove, 0);
+	}
 }
 
 
