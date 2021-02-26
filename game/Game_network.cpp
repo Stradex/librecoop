@@ -328,6 +328,13 @@ void idGameLocal::ServerClientConnect( int clientNum, const char *guid ) {
 			delete entities[ clientNum ];
 		}
 	}
+	//COOP: Reset entity snapshot priority info
+	int i;
+	for (i = 0; i < MAX_GENTITIES; i++) {
+		if (mpGame.IsGametypeCoopBased() && coopentities[i]) {
+			coopentities[i]->firstTimeInClientPVS[clientNum] = true;
+		}
+	}
 
 	userInfo[ clientNum ].Clear();
 	mpGame.ServerClientConnect( clientNum );
@@ -2333,7 +2340,6 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 			args.SetInt( "coop_entnum", i );
 			args.Set( "name", va( "entity%d", i ) );
 
-
 			if ( entityDefNumber >= 0 ) {
 				if ( entityDefNumber >= declManager->GetNumDecls( DECL_ENTITYDEF ) ) {
 					Error( "server has %d entityDefs instead of %d", entityDefNumber, declManager->GetNumDecls( DECL_ENTITYDEF ) );
@@ -2761,6 +2767,10 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 			}
 		}
 
+		if (ent->firstTimeInClientPVS[clientNum] && !ent->forceSnapshotUpdateOrigin) {
+			ent->forceSnapshotUpdateOrigin = true;
+		}
+
 		if (!ent->IsActive() && !ent->IsMasterActive() && !ent->firstTimeInClientPVS[clientNum] && !ent->forceNetworkSync && !ent->inSnapshotQueue[clientNum] && !ent->MasterUseOldNetcode()) { //ignore inactive entities that the player already saw before
 			continue;
 		}
@@ -2814,6 +2824,9 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 		} else if (serverSendEntitiesCount >= serverEntitiesLimit) {
 			msg.RestoreWriteState( msgSize, msgWriteBit );
 			entityStateAllocator.Free( newBase );
+			if (ent->forceSnapshotUpdateOrigin) { //Stradex: little hack
+				ent->firstTimeInClientPVS[clientNum] = false; 
+			}
 			ent->inSnapshotQueue[clientNum]++;
 		} else {
 			newBase->next = snapshot->firstEntityState;

@@ -656,19 +656,24 @@ idEntity::~idEntity
 */
 idEntity::~idEntity( void ) {
 
-	if ( gameLocal.GameState() != GAMESTATE_SHUTDOWN && !gameLocal.isClient && ((fl.networkSync && !gameLocal.mpGame.IsGametypeCoopBased()) || (fl.coopNetworkSync && gameLocal.mpGame.IsGametypeCoopBased()))  && entityNumber >= MAX_CLIENTS ) {
-		idBitMsg	msg;
-		byte		msgBuf[ MAX_GAME_MESSAGE_SIZE ];
+	if ( gameLocal.GameState() != GAMESTATE_SHUTDOWN && !gameLocal.isClient && entityNumber >= MAX_CLIENTS ) {
+		if ((fl.networkSync && !gameLocal.mpGame.IsGametypeCoopBased()) || (fl.coopNetworkSync && gameLocal.mpGame.IsGametypeCoopBased())) {
+			idBitMsg	msg;
+			byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
 
-		msg.Init( msgBuf, sizeof( msgBuf ) );
-		msg.WriteByte( GAME_RELIABLE_MESSAGE_DELETE_ENT );
+			msg.Init(msgBuf, sizeof(msgBuf));
+			msg.WriteByte(GAME_RELIABLE_MESSAGE_DELETE_ENT);
 
-		if (gameLocal.mpGame.IsGametypeCoopBased()) {
-			msg.WriteBits(gameLocal.GetCoopId(this), 32);
+			if (gameLocal.mpGame.IsGametypeCoopBased()) {
+				msg.WriteBits(gameLocal.GetCoopId(this), 32);
+			}
+			msg.WriteBits(gameLocal.GetSpawnId(this), 32);
+
+			networkSystem->ServerSendReliableMessage(-1, msg);
 		}
-		msg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
-		
-		networkSystem->ServerSendReliableMessage( -1, msg );
+		else if (gameLocal.mpGame.IsGametypeCoopBased() && isMapEntity && !canBeCsTarget &&!fl.coopNetworkSync) {
+			ServerSendEvent(EVENT_DELETED, NULL, true, gameLocal.localClientNum);
+		}
 	}
 
 	DeconstructScriptObject();
@@ -4542,6 +4547,9 @@ idEntity::Event_Hide
 ================
 */
 void idEntity::Event_Hide( void ) {
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && fl.coopNetworkSync) {
+		forceSnapshotUpdateOrigin = true;
+	}
 	Hide();
 }
 
@@ -5587,6 +5595,11 @@ bool idEntity::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			const char* p = modelname;
 			Event_SetModel(p);
 			return true;
+		}
+		//Stradex
+		case EVENT_DELETED: {
+			gameLocal.Printf("[COOP] delete entity as client\n");
+			Event_SafeRemove();
 		}
 		default:
 			break;

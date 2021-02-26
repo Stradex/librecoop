@@ -400,6 +400,7 @@ public:
 		EVENT_SETGUIPARM, //added by Stradex for coop
 		EVENT_SETMODEL, //nicemice added (OpenCoop)
 		EVENT_CLIENTDAMAGE, //added by Stradex for g_clientsideDamage 1
+		EVENT_DELETED, //added by Stradex
 		EVENT_MAXEVENTS
 	};
 

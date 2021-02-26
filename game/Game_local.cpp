@@ -1052,6 +1052,12 @@ void idGameLocal::LocalMapRestart( ) {
 		serverOverflowEvents[i].event = NULL;
 	}
 
+	// Nicemice: temporary fix for entity synchronisation bug
+	// when restarting a map, this bug should be passed to id
+	// since it effects deathmatch maps also
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		memset(clientEntityStates, 0, sizeof(clientEntityStates));
+	}
 	MapClear( false );
 
 	// clear the smoke particle free list
@@ -1291,6 +1297,9 @@ void idGameLocal::MapPopulate( void ) {
 	}
 	//Sync g_skill here
 
+	mapSpawnCount = 0;  //added for Coop
+	mapCoopCount = 0; //added for Coop
+
 	// parse the key/value pairs and spawn entities
 	SpawnMapEntities();
 
@@ -1305,6 +1314,8 @@ void idGameLocal::MapPopulate( void ) {
 	mapSpawnCount = MAX_CLIENTS + spawnCount - 1;
 
 	mapCoopCount = MAX_CLIENTS + coopCount - 1; //added for Coop
+
+	Printf("mapCoopCount: %d - mapSpawnCount: %d\n", mapCoopCount, mapSpawnCount);
 
 	// execute pending events before the very first game frame
 	// this makes sure the map script main() function is called
@@ -3299,11 +3310,12 @@ void idGameLocal::RegisterTargetEntity( idEntity *ent ) {
 	while( targetentities[firstFreeTargetIndex] && firstFreeTargetIndex < ENTITYNUM_MAX_NORMAL ) {
 		firstFreeTargetIndex++;
 	}
+
 	if ( firstFreeTargetIndex >= ENTITYNUM_MAX_NORMAL ) {
 		Error( "no free target entities" );
 	}
 
-	DebugPrintf("Adding %s to the targetentities array...\n", ent->GetName());
+	//DebugPrintf("Adding %s to the targetentities array...\n", ent->GetName());
 
 	target_entnum = firstFreeTargetIndex++;
 
@@ -3318,6 +3330,10 @@ idGameLocal::RegisterCoopEntity
 */
 void idGameLocal::RegisterCoopEntity( idEntity *ent ) {
 	int coop_entnum;
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && !spawnArgs.GetBool("mapEntity", "0") && firstFreeCoopIndex < mapCoopCount) { //Stradex: Ensure that map entities numbers are never used again to force sync between client and server.
+		firstFreeCoopIndex = mapCoopCount;
+	}
 
 	if ( !spawnArgs.GetInt( "coop_entnum", "0", coop_entnum ) ) {
 		while( coopentities[firstFreeCoopIndex] && firstFreeCoopIndex < ENTITYNUM_MAX_NORMAL ) {
@@ -3350,6 +3366,10 @@ void idGameLocal::RegisterEntity( idEntity *ent ) {
 
 	if ( spawnCount >= ( 1 << ( 32 - GENTITYNUM_BITS ) ) ) {
 		Error( "idGameLocal::RegisterEntity: spawn count overflow" );
+	}
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && !spawnArgs.GetBool("mapEntity", "0") && firstFreeIndex < mapSpawnCount) { //Stradex: Ensure that map entities numbers are never used again to force sync between client and server.
+		firstFreeIndex = mapSpawnCount;
 	}
 
 	if ( !spawnArgs.GetInt( "spawn_entnum", "0", spawn_entnum ) ) {
@@ -3713,7 +3733,9 @@ void idGameLocal::SpawnMapEntities( void ) {
 	for ( i = 1 ; i < numEntities ; i++ ) {
 		mapEnt = mapFile->GetEntity( i );
 		args = mapEnt->epairs;
-
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			args.Set("mapEntity", "1");
+		}
 		if ( !InhibitEntitySpawn( args ) ) {
 			// precache any media specified in the map entity
 			CacheDictionaryMedia( &args );
