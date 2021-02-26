@@ -571,6 +571,7 @@ public:
 	bool						GetAllowFrameCommands( int channelNum) const; //added for COOP
 	void						SetAllowFrameCommands( int channelNum, bool allow);
 	void						UpdateFrameRateMultiplier(float new_framerate_multiplier);  //added for COOP
+
 private:
 	void						FreeData( void );
 	void						PushAnims( int channel, int currentTime, int blendTime );

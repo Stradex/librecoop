@@ -1362,6 +1362,7 @@ void idAnimBlend::CycleAnim( const idDeclModelDef *modelDef, int _animNum, int c
 	animWeights[ 0 ]	= 1.0f;
 	endtime				= -1;
 	cycle				= -1;
+
 	if ( _anim->GetAnimFlags().random_cycle_start ) {
 		// start the animation at a random time so that characters don't walk in sync
 		starttime = currentTime - gameLocal.random.RandomFloat() * _anim->Length();
@@ -3534,7 +3535,7 @@ void idAnimator::SetFrame( int channelNum, int animNum, int frame, int currentTi
 
 /*
 =====================
-idAnimator::~idAnimator
+idAnimator::UpdateFrameRateMultiplier
 =====================
 */
 void idAnimator::UpdateFrameRateMultiplier(float new_framerate_multiplier) {

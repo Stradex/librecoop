@@ -2825,7 +2825,7 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 			msg.RestoreWriteState( msgSize, msgWriteBit );
 			entityStateAllocator.Free( newBase );
 			if (ent->forceSnapshotUpdateOrigin) { //Stradex: little hack
-				ent->firstTimeInClientPVS[clientNum] = false; 
+				ent->firstTimeInClientPVS[clientNum] = true; 
 			}
 			ent->inSnapshotQueue[clientNum]++;
 		} else {

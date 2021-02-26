@@ -123,6 +123,14 @@ public:
 							idActor( void );
 	virtual					~idActor( void );
 
+	enum {
+		ACTOR_ANIM_CYCLE,
+		ACTOR_ANIM_PLAY,
+		ACTOR_ANIM_IDLE,
+		ACTOR_ANIM_STOP
+	};
+
+
 	void					Spawn( void );
 	virtual void			Restart( void );
 
@@ -212,6 +220,15 @@ public:
 
 	void					Event_OverrideAnim( int channel ); //Public for coop. Was private
 	virtual bool			ServerReceiveEvent( int event, int time, const idBitMsg &msg ); //added for coop
+
+	//Coop only dirty hack for smooth sync
+	int						currentTorsoAnim;
+	int						currentLegsAnim;
+	int						currentHeadAnim;
+	int						currentAnimType;
+	void					PlayAnimID(int channel, int anim);
+	void					PlayCycleID(int channel, int anim);
+	void					PlayIdleID(int channel, int anim);
 
 protected:
 	friend class			idAnimState;
