@@ -1035,6 +1035,10 @@ void idGameLocal::LocalMapRestart( ) {
 
 	gamestate = GAMESTATE_SHUTDOWN;
 
+	if (mpGame.IsGametypeCoopBased()) {
+		SetCamera(NULL);
+	}
+
 	for ( i = 0; i < MAX_CLIENTS; i++ ) {
 		if ( entities[ i ] && entities[ i ]->IsType( idPlayer::Type ) ) {
 			static_cast< idPlayer * >( entities[ i ] )->PrepareForRestart();
