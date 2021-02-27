@@ -5600,6 +5600,7 @@ bool idEntity::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 		case EVENT_DELETED: {
 			gameLocal.Printf("[COOP] delete entity as client\n");
 			Event_SafeRemove();
+			return true;
 		}
 		default:
 			break;

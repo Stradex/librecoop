@@ -1755,21 +1755,6 @@ void idGameLocal::ClientProcessReliableMessage( int clientNum, const idBitMsg &m
 			common->Printf("[COOP] Receive fade...\n");
 			break;
 		}
-		case GAME_RELIABLE_MESSAGE_SETCAMERA: {
-			int cameraEntityNumber = msg.ReadShort();
-			if (cameraEntityNumber >= 0) {
-				if (entities[cameraEntityNumber] && entities[cameraEntityNumber]->IsType(idCamera::Type)) {
-					gameLocal.SetCameraCoop(static_cast<idCamera*>(entities[cameraEntityNumber]));
-				}
-				else {
-					common->Warning("[COOP FATAL] Received invalid camera entity from server!!\n");
-				}
-			}
-			else {
-				gameLocal.SetCameraCoop(NULL);
-			}
-			break;
-		}
 		default: {
 			Error( "Unknown server->client reliable message: %d", id );
 			break;

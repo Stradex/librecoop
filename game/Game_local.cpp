@@ -5044,22 +5044,6 @@ void idGameLocal::SetCameraCoop( idCamera *cam ) {
 	idEntity *ent;
 	idAI *ai;
 
-
-	if (isServer) {
-		idBitMsg	outMsg;
-		byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
-		outMsg.Init(msgBuf, sizeof(msgBuf));
-		outMsg.WriteByte(GAME_RELIABLE_MESSAGE_SETCAMERA);
-		if (cam) {
-			outMsg.WriteShort(cam->entityNumber);
-		}
-		else {
-			outMsg.WriteShort(-1);
-		}
-		networkSystem->ServerSendReliableMessage(-1, outMsg);
-		common->Printf("Syncing camera in coop...\n");
-	}
-
 	// this should fix going into a cinematic when dead.. rare but happens
 	idPlayer *client = GetLocalPlayer();
 	/*

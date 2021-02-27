@@ -5279,8 +5279,11 @@ void idEntity::Event_SetGui( int guiNum, const char *guiName) {
 		}
 
 
-	} else {
+	} else if (!gameLocal.mpGame.IsGametypeCoopBased() || gameLocal.isServer ) {
 		gameLocal.Error( "Entity '%s' doesn't have a GUI %d", name.c_str(), guiNum );
+	}
+	else {
+		gameLocal.Warning("[Coop] Entity '%s' doesn't have a GUI %d", name.c_str(), guiNum);
 	}
 
 }
@@ -5737,6 +5740,7 @@ bool idEntity::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 		case EVENT_DELETED: {
 			gameLocal.Printf("[COOP] delete entity as client\n");
 			Event_SafeRemove();
+			return true;
 		}
 #ifdef _D3XP
 		case EVENT_SETGUI: {
