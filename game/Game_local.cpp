@@ -1337,6 +1337,8 @@ idGameLocal::InitFromNewMap
 */
 void idGameLocal::InitFromNewMap( const char *mapName, idRenderWorld *renderWorld, idSoundWorld *soundWorld, bool isServer, bool isClient, int randseed ) {
 
+	int i;
+
 	this->isServer = isServer;
 	this->isClient = isClient;
 	this->isMultiplayer = isServer || isClient;
@@ -1360,7 +1362,7 @@ void idGameLocal::InitFromNewMap( const char *mapName, idRenderWorld *renderWorl
 	firstClientToSpawn = false; //added by Stradex for coop
 	coopMapScriptLoad = false; //added by Stradex for coop
 
-	for (int i=0; i < MAX_CLIENTS; i++) {
+	for (i=0; i < MAX_CLIENTS; i++) {
 		mpGame.playerUseCheckpoints[i] = false;
 		mpGame.playerCheckpoints[i] = vec3_zero;
 	}
@@ -1380,6 +1382,19 @@ void idGameLocal::InitFromNewMap( const char *mapName, idRenderWorld *renderWorl
 	animationLib.FlushUnusedAnims();
 
 	gamestate = GAMESTATE_ACTIVE;
+	
+	//Stradex: fix bug related to noDynamicInteractions entities rendering all black as client in MP
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		int j;
+		for (i = 0; i < MAX_GENTITIES; i++) {
+			if (entities[i] && (entities[i]->IsType(idLight::Type) || entities[i]->IsType(idStaticEntity::Type))) {
+				for (j = 0; j < 3; j++) {
+					entities[i]->ClientPredictionThink();
+				}
+			}
+		}
+	}
+
 }
 
 /*
