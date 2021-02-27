@@ -401,15 +401,12 @@ idAI::idAI() {
 	lastDamageLocation		= 0;
 	//fl.networkSync		= true;
 	fl.coopNetworkSync		= true;
-	currentTorsoAnim = 0;
-	currentLegsAnim = 0;
 	currentAttackDefNum = -1;
 	currentNetAction = NETACTION_NONE;
 	forceNetworkSync = true; //added by Stradex for Coop
 	snapshotPriority = 2; //added by Stradex for coop. High priority for this
 	thereWasEnemy = true; //shouldn't this be false?
 	currentChannelOverride = 0;
-	currentHeadAnim = 0;
 
 	oldHealth = 0; // To check if an entity was resurrected to inform the client about it (used in conjunction with g_clientsideDamage)
 	allowFastMonsters = true;
@@ -5628,8 +5625,8 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteDeltaFloat( 0.0f, deltaViewAngles[2] );
 	msg.WriteDeltaFloat( 0.0f , deltaViewAngles.yaw);
 	msg.WriteShort( health );
-	msg.WriteDir( normalizedLastDamageDir, 9 );
-	msg.WriteShort( lastDamageLocation );
+	//msg.WriteDir( normalizedLastDamageDir, 9 );
+	//msg.WriteShort( lastDamageLocation );
 	msg.WriteBits( move.moveType, idMath::BitsForInteger(NUM_MOVETYPES)); 
 	msg.WriteBits( move.moveCommand, idMath::BitsForInteger(NUM_MOVE_COMMANDS)); 
 	msg.WriteBits( move.moveStatus, idMath::BitsForInteger(NUM_MOVE_STATUS));
@@ -5646,6 +5643,7 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteFloat(anim_turn_yaw);
 	msg.WriteFloat(anim_turn_amount);
 	msg.WriteFloat(anim_turn_angles);
+	msg.WriteShort(currentAnimType);
 	msg.WriteShort(currentTorsoAnim);
 	msg.WriteShort(currentLegsAnim);
 	msg.WriteBits(animator.GetAllowFrameCommands(ANIMCHANNEL_TORSO), 1);
@@ -5709,9 +5707,11 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		return idEntity::ReadFromSnapshot(msg); //original non-coop 
 	}
 
-	int		i, oldHealth, enemySpawnId, torsoAnimId, legsAnimId, headAnimId, enemyEntityId, goalEntityId, focusEntityId, oldCurrentDefAttack;
+	int		i, oldHealth, enemySpawnId, torsoAnimId, legsAnimId, headAnimId, enemyEntityId, goalEntityId, focusEntityId, oldCurrentDefAttack, newAnimType;
 	bool	newHitToggle, stateHitch, hasEnemy, getOriginInfo, headEntityReceivedInfo;
 	bool	snapshotInCinematic, headAllowCommandsFrame;
+
+	headAnimId = 0;
 
 	netActionType_t newNetAction;
 	idVec3	tmpOrigin = vec3_zero;
@@ -5734,8 +5734,8 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	deltaViewAngles[2] = msg.ReadDeltaFloat( 0.0f );
 	deltaViewAngles.yaw = msg.ReadDeltaFloat( 0.0f );
 	health = msg.ReadShort();
-	lastDamageDir = msg.ReadDir( 9 );
-	lastDamageLocation = msg.ReadShort();
+	//lastDamageDir = msg.ReadDir( 9 );
+	//lastDamageLocation = msg.ReadShort();
 	move.moveType = static_cast<moveType_t>(msg.ReadBits(idMath::BitsForInteger(NUM_MOVETYPES)));
 	move.moveCommand = static_cast<moveCommand_t>(msg.ReadBits(idMath::BitsForInteger(NUM_MOVE_COMMANDS)));
 	move.moveStatus = static_cast<moveStatus_t>(msg.ReadBits(idMath::BitsForInteger(NUM_MOVE_STATUS)));
@@ -5752,6 +5752,7 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	anim_turn_amount = msg.ReadFloat();
 	anim_turn_angles = msg.ReadFloat();
 
+	newAnimType = msg.ReadShort();
 	torsoAnimId =  msg.ReadShort();
 	legsAnimId =  msg.ReadShort();
 	animator.SetAllowFrameCommands(ANIMCHANNEL_TORSO, (msg.ReadBits(1) != 0));
@@ -5877,35 +5878,19 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 			return; //Don't play animations in dead bodies in case the server didn't receive the death info yet!
 		}
 
-		if (torsoAnimId != currentTorsoAnim ) {
-			animator.CycleAnim(ANIMCHANNEL_TORSO, torsoAnimId, gameLocal.time, 2);
-		}
-		if (legsAnimId != currentLegsAnim ) {
-			animator.CycleAnim(ANIMCHANNEL_LEGS, legsAnimId, gameLocal.time, 2);
-		}
+		CSProcessAnimations(torsoAnimId, headAnimId, legsAnimId, newAnimType, snapshotInCinematic);
 
 		if (headEntityReceivedInfo && head.GetEntity() && currentHeadAnim != headAnimId) {
-			head.GetEntity()->GetAnimator()->CycleAnim(ANIMCHANNEL_ALL, headAnimId, gameLocal.time, 2);
 			head.GetEntity()->GetAnimator()->SetAllowFrameCommands(ANIMCHANNEL_ALL, headAllowCommandsFrame); 
 		}
 
 	} else {
-		if (torsoAnimId != currentTorsoAnim ) {
-			animator.PlayAnim(ANIMCHANNEL_TORSO, torsoAnimId, gameLocal.time, 2);
-		}
-		if (legsAnimId != currentLegsAnim ) {
-			animator.PlayAnim(ANIMCHANNEL_LEGS, legsAnimId, gameLocal.time, 2);
-		}
+
+		CSProcessAnimations(torsoAnimId, headAnimId, legsAnimId, newAnimType, snapshotInCinematic);
+
 		if (headEntityReceivedInfo && head.GetEntity() && currentHeadAnim != headAnimId) {
-			head.GetEntity()->GetAnimator()->PlayAnim(ANIMCHANNEL_ALL, headAnimId, gameLocal.time, 2);
 			head.GetEntity()->GetAnimator()->SetAllowFrameCommands(ANIMCHANNEL_ALL, headAllowCommandsFrame); 
 		}
-	}
-
-	currentTorsoAnim = torsoAnimId;
-	currentLegsAnim = legsAnimId;
-	if (headEntityReceivedInfo) {
-		currentHeadAnim = headAnimId;
 	}
 
 	if ( msg.HasChanged() ) {
@@ -6128,7 +6113,79 @@ idPlayer *idAI::GetFocusPlayer( void ) {
 	return NULL;
 }
 
+/*
+=======================
+idAI::CSProcessAnimations
+======================
+*/
 
+void idAI::CSProcessAnimations(int newTorsoAnimId, int newHeadAnimId, int newLegsAnimId, int newAnimType, bool cinematic) {
+
+	if (newTorsoAnimId != currentTorsoAnim || currentAnimType != newAnimType) {
+		switch (newAnimType) {
+		case idActor::ACTOR_ANIM_CYCLE:
+			PlayCycleID(ANIMCHANNEL_TORSO, newTorsoAnimId);
+			break;
+
+		case idActor::ACTOR_ANIM_PLAY:
+			if (cinematic) {
+				PlayAnimID(ANIMCHANNEL_TORSO, newTorsoAnimId);
+			}
+			else {
+				PlayCycleID(ANIMCHANNEL_TORSO, newTorsoAnimId);
+			}
+			break;
+		case idActor::ACTOR_ANIM_IDLE:
+			if (cinematic) {
+				PlayIdleID(ANIMCHANNEL_TORSO, newTorsoAnimId);
+			}
+			else {
+				PlayCycleID(ANIMCHANNEL_TORSO, newTorsoAnimId);
+			}
+
+		}
+	}
+
+	if (newLegsAnimId != currentLegsAnim || currentAnimType != newAnimType) {
+		switch (newAnimType) {
+		case idActor::ACTOR_ANIM_CYCLE:
+			PlayCycleID(ANIMCHANNEL_LEGS, newLegsAnimId);
+			break;
+
+		case idActor::ACTOR_ANIM_PLAY:
+			if (cinematic) {
+				PlayAnimID(ANIMCHANNEL_LEGS, newLegsAnimId);
+			}
+			else {
+				PlayCycleID(ANIMCHANNEL_LEGS, newLegsAnimId);
+			}
+			break;
+		case idActor::ACTOR_ANIM_IDLE:
+			if (cinematic) {
+				PlayIdleID(ANIMCHANNEL_LEGS, newLegsAnimId);
+			}
+			else {
+				PlayCycleID(ANIMCHANNEL_LEGS, newLegsAnimId);
+			}
+		}
+	}
+
+	//FIXME, this is not the right way to sync this!
+	if (head.GetEntity() && currentHeadAnim != newHeadAnimId) {
+		if (cinematic) {
+			head.GetEntity()->GetAnimator()->PlayAnim(ANIMCHANNEL_ALL, newHeadAnimId, gameLocal.time, 2);
+		}
+		else {
+			head.GetEntity()->GetAnimator()->CycleAnim(ANIMCHANNEL_ALL, newHeadAnimId, gameLocal.time, 2);
+		}
+
+	}
+
+	currentTorsoAnim = newTorsoAnimId;
+	currentLegsAnim = newLegsAnimId;
+	currentAnimType = newAnimType;
+	currentHeadAnim = newHeadAnimId;
+}
 
 /*
 =======================

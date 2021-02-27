@@ -6992,7 +6992,13 @@ void idPlayer::Spectate( bool spectate ) {
 
 	//Ignore this assert for clients in coop cause the new netcode hide playeers outside the pvs area
 	if (gameLocal.isServer || !gameLocal.mpGame.IsGametypeCoopBased()) {
-		assert( ( teleportEntity.GetEntity() != NULL ) || ( IsHidden() == spectating ) );
+		if (gameLocal.mpGame.IsGametypeCoopBased()) { // FIXME: rare bug that I found in coop as server while doing serverMapRestart during cinematic
+			//How to handle this???
+		}
+		else {
+			assert((teleportEntity.GetEntity() != NULL) || (IsHidden() == spectating));
+
+		}
 	}
 
 	if ( spectating == spectate ) {

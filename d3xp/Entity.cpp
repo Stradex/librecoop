@@ -492,6 +492,10 @@ idEntity::idEntity() {
 	nextSendEventTime = 0;
 	nextResetEventCountTime = 0;
 
+	// Nicemice: we want to differ between a map entity (static, also spawned) on a client
+	// and a temporary entity
+	isMapEntity = false;
+
 #ifdef _D3XP
 	memset( &xrayEntity, 0, sizeof( xrayEntity ) );
 
@@ -606,6 +610,8 @@ void idEntity::Spawn( void ) {
 	}
 	cinematic = spawnArgs.GetBool( "cinematic", "0" );
 
+	spawnArgs.GetBool("mapEntity", "0", isMapEntity); 	// OpenCoop Nicemice: Is it a map entity ?
+
 #if 0
 	if ( !gameLocal.isClient ) {
 		// common->DPrintf( "NET: DBG %s - %s is synced: %s\n", spawnArgs.GetString( "classname", "" ), GetType()->classname, fl.networkSync ? "true" : "false" );
@@ -692,17 +698,21 @@ idEntity::~idEntity
 */
 idEntity::~idEntity( void ) {
 
-	if ( gameLocal.GameState() != GAMESTATE_SHUTDOWN && !gameLocal.isClient && ((fl.networkSync && !gameLocal.mpGame.IsGametypeCoopBased()) || (fl.coopNetworkSync && gameLocal.mpGame.IsGametypeCoopBased()))  && entityNumber >= MAX_CLIENTS ) {
-		idBitMsg	msg;
-		byte		msgBuf[ MAX_GAME_MESSAGE_SIZE ];
+	if (gameLocal.GameState() != GAMESTATE_SHUTDOWN && !gameLocal.isClient && entityNumber >= MAX_CLIENTS) {
+		if ((fl.networkSync && !gameLocal.mpGame.IsGametypeCoopBased()) || (fl.coopNetworkSync && gameLocal.mpGame.IsGametypeCoopBased())) {
+			idBitMsg	msg;
+			byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
 
-		msg.Init( msgBuf, sizeof( msgBuf ) );
-		msg.WriteByte( GAME_RELIABLE_MESSAGE_DELETE_ENT );
-		if (gameLocal.mpGame.IsGametypeCoopBased()) {
-			msg.WriteBits( gameLocal.GetCoopId( this ), 32 );
+			msg.Init(msgBuf, sizeof(msgBuf));
+			msg.WriteByte(GAME_RELIABLE_MESSAGE_DELETE_ENT);
+			if (gameLocal.mpGame.IsGametypeCoopBased()) {
+				msg.WriteBits(gameLocal.GetCoopId(this), 32);
+			}
+			msg.WriteBits(gameLocal.GetSpawnId(this), 32);
+			networkSystem->ServerSendReliableMessage(-1, msg);
+		} else if (gameLocal.mpGame.IsGametypeCoopBased() && isMapEntity && !canBeCsTarget && !fl.coopNetworkSync) {
+			ServerSendEvent(EVENT_DELETED, NULL, true, gameLocal.localClientNum);
 		}
-		msg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
-		networkSystem->ServerSendReliableMessage( -1, msg );
 	}
 
 	DeconstructScriptObject();
@@ -4510,6 +4520,17 @@ idEntity::Event_SetModel
 ================
 */
 void idEntity::Event_SetModel( const char *modelname ) {
+
+	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased() && !clientsideNode.InList()) {
+
+		idBitMsg     msg;
+		byte msgBuf[MAX_EVENT_PARAM_SIZE];
+		msg.Init(msgBuf, sizeof(msgBuf));
+
+		msg.WriteString(modelname);
+		ServerSendEvent(EVENT_SETMODEL, &msg, false, -1);
+	}
+
 	SetModel( modelname );
 }
 
@@ -4595,6 +4616,11 @@ idEntity::Event_Hide
 ================
 */
 void idEntity::Event_Hide( void ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && fl.coopNetworkSync) {
+		forceSnapshotUpdateOrigin = true;
+	}
+
 	Hide();
 }
 
@@ -5472,6 +5498,37 @@ void idEntity::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 /*
 ================
+idEntity::WriteHiddenToSnapshot - Nicemice: added
+================
+*/
+
+void idEntity::WriteHiddenToSnapshot(idBitMsgDelta& msg) const {
+
+	msg.WriteBits(IsHidden(), 1);
+}
+
+/*
+================
+idEntity::ReadHiddenFromSnapshot - Nicemice: added
+================
+*/
+void idEntity::ReadHiddenFromSnapshot(const idBitMsgDelta& msg) {
+
+	bool hidden = (msg.ReadBits(1) == 1);
+	if (hidden != IsHidden()) {
+		gameLocal.DWarning("Hidden state hitch on entity %d: %d %s(%s)", entityNumber, entityDefNumber, GetType()->classname, name.c_str());
+		if (hidden) {
+			Hide();
+		}
+		else {
+			Show();
+		}
+	}
+}
+
+
+/*
+================
 idEntity::ServerSendEvent
 
    Saved events are also sent to any client that connects late so all clients
@@ -5667,6 +5724,19 @@ bool idEntity::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			float value = msg.ReadFloat();
 			SetShaderParm( parmnum, value ); 
 			return true;
+		}
+		//OpenCoop nicemice
+		case EVENT_SETMODEL: {
+			char modelname[MAX_EVENT_PARAM_SIZE];
+			msg.ReadString(modelname, sizeof(modelname));
+			const char* p = modelname;
+			Event_SetModel(p);
+			return true;
+		}
+		//Stradex
+		case EVENT_DELETED: {
+			gameLocal.Printf("[COOP] delete entity as client\n");
+			Event_SafeRemove();
 		}
 #ifdef _D3XP
 		case EVENT_SETGUI: {

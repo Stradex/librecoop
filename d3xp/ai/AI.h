@@ -273,7 +273,7 @@ public:
 	CLASS_PROTOTYPE( idAI );
 
 	enum {
-		EVENT_CLIENTKILL = idEntity::EVENT_MAXEVENTS,
+		EVENT_CLIENTKILL = idActor::EVENT_MAXEVENTS,
 		EVENT_RESURRECTED,
 		EVENT_MAXEVENTS
 	};
@@ -453,8 +453,6 @@ protected:
 	int						lastDamageDef;
 	idVec3					lastDamageDir;
 	int						lastDamageLocation;
-	int						currentTorsoAnim;
-	int						currentLegsAnim;
 	netActionType_t			currentNetAction;
 	idStr					currentVoiceSND;
 	idStr					currentDamageSND;
@@ -462,7 +460,6 @@ protected:
 	idVec3					turnTowardPos; 
 	bool					thereWasEnemy;
 	int						currentChannelOverride;
-	int						currentHeadAnim;
 	int						currentAttackDefNum;
 	int						oldHealth; // To check if an entity was resurrected to inform the client about it (used in conjunction with g_clientsideDamage)
 	bool					allowFastMonsters; // Some entities maybe don't work correctly while using g_fastMonsters
@@ -538,6 +535,7 @@ protected:
 	void					CSAnimMove( void );
 	void					CSKilled( void );
 	void					CSResurrected( void ); //hack for coop (I don't like this because it is too specific for doom 3 only :( )
+	void					CSProcessAnimations(int newTorsoAnimId, int newHeadAnimId, int newLegsAnimId, int newAnimType, bool cinematic);
 	void					Event_OverrideAnim( int channel ); //for netaction
 
 	// damage

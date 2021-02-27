@@ -61,6 +61,17 @@ public:
 	virtual void			WriteToSnapshot( idBitMsgDelta &msg ) const;
 	virtual void			ReadFromSnapshot( const idBitMsgDelta &msg );
 
+	//OpenCoop start
+	enum {
+		EVENT_STARTSPLINE = idEntity::EVENT_MAXEVENTS,
+		EVENT_STOPSPLINE,
+		EVENT_REMOVEINITIALSPLINEANGLES,
+		EVENT_MAXEVENTS
+	};
+
+	virtual bool ClientReceiveEvent(int event, int time, const idBitMsg& msg); 	//Nicemice: added
+	//OpenCoop end
+
 	virtual void			Hide( void );
 	virtual void			Show( void );
 

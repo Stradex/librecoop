@@ -1456,7 +1456,14 @@ bool idAI::PredictTrajectory( const idVec3 &firePos, const idVec3 &target, float
 	idVec3 velocity;
 	idVec3 lastPos, pos;
 
-	assert( targetEntity );
+	if (gameLocal.mpGame.IsGametypeCoopBased()) { //avoid VERY RARE crash in coop
+		if (!targetEntity) {
+			return false;
+		}
+	}
+	else {
+		assert(targetEntity);
+	}
 
 	// check if the projectile starts inside the target
 	if ( targetEntity->GetPhysics()->GetAbsBounds().IntersectsBounds( clip->GetBounds().Translate( firePos ) ) ) {

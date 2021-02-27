@@ -79,12 +79,21 @@ void idTarget_Remove::Event_Activate( idEntity *activator ) {
 	for( i = 0; i < targets.Num(); i++ ) {
 		ent = targets[ i ].GetEntity();
 		if ( ent ) {
-			ent->PostEventMS( &EV_Remove, 0 );
+			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && !ent->fl.coopNetworkSync) {
+				ent->CS_PostEventMS(&EV_Remove, 0);
+			}
+			else {
+				ent->PostEventMS(&EV_Remove, 0);
+			}
 		}
 	}
 
 	// delete our self when done
-	PostEventMS( &EV_Remove, 0 );
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		CS_PostEventMS(&EV_Remove, 0);
+	} else {
+		PostEventMS(&EV_Remove, 0);
+	}
 }
 
 

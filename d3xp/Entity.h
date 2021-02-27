@@ -73,6 +73,8 @@ extern const idEventDef EV_SetSkin;
 extern const idEventDef EV_StartSoundShader;
 extern const idEventDef EV_StopSound;
 extern const idEventDef EV_CacheSoundShader;
+// Nicemice: added
+extern const idEventDef EV_SetModel;
 
 // Think flags
 enum {
@@ -171,6 +173,10 @@ public:
 	bool					eventSyncVital;				//if is vital that this entity always sync events
 	int						nextSendEventTime;			//next time to send event in case of overflow.
 	int						nextResetEventCountTime;
+
+	//From OpenCoop
+	bool					isMapEntity;			  // Nicemice: added
+
 
 	struct entityFlags_s {
 		bool				notarget			:1;	// if true never attack or target this entity
@@ -407,7 +413,9 @@ public:
 		EVENT_STOPSOUNDSHADER,
 		EVENT_ACTIVATE_TARGETS,
 		EVENT_SETNETSHADERPARM,
+		EVENT_SETMODEL, //nicemice added (OpenCoop)
 		EVENT_CLIENTDAMAGE, //added by Stradex for g_clientsideDamage 1
+		EVENT_DELETED, //added by Stradex
 #ifdef _D3XP
 		EVENT_SETGUI,
 		EVENT_GUINAMEDEVENT,
@@ -430,6 +438,10 @@ public:
 
 	void					ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient, bool saveLastOnly=false ); //COOP: was const
 	void					ClientSendEvent( int eventId, const idBitMsg *msg ) const;
+
+	//OpenCoop nicemice
+	void					WriteHiddenToSnapshot(idBitMsgDelta& msg) const;
+	void					ReadHiddenFromSnapshot(const idBitMsgDelta& msg);
 
 protected:
 	renderEntity_t			renderEntity;						// used to present a model to the renderer

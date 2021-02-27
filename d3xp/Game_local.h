@@ -53,9 +53,9 @@ If you have questions concerning this license or the applicable additional terms
 
 const int MAX_SORT_ITERATIONS	= 7500; //COOP: added by stradex. Iterations per player by the server
 const int MAX_SERVER_EVENTS_PER_FRAME = 15; //COOP: May the limit could be higher but shouldn't be necessary, I prefer a bit of desync over events overflow.
-const int SERVER_EVENTS_QUEUE_SIZE = 256; //Added to avoid events overflow by server
+const int SERVER_EVENTS_QUEUE_SIZE = 512; //Added to avoid events overflow by server
 const int SERVER_EVENT_NONE = -999; //Added to avoid events overflow by server
-const int SERVER_EVENT_OVERFLOW_WAIT = 7; //How many frames to wait in case of server event overflow
+const int SERVER_EVENT_OVERFLOW_WAIT = 8; //How many frames to wait in case of server event overflow
 
 /*
 ===============================================================================
@@ -178,7 +178,8 @@ enum {
 	GAME_RELIABLE_MESSAGE_GOTOCHECKPOINT,
 	GAME_RELIABLE_MESSAGE_GLOBALCHECKPOINT,
 	GAME_RELIABLE_MESSAGE_NOCLIP,
-	GAME_RELIABLE_MESSAGE_FADE //For fadeTo, fadeIn, fadeOut FX in coop
+	GAME_RELIABLE_MESSAGE_FADE, //For fadeTo, fadeIn, fadeOut FX in coop
+	GAME_RELIABLE_MESSAGE_SETCAMERA
 };
 
 typedef enum {

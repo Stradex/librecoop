@@ -1137,6 +1137,10 @@ void idGameLocal::LocalMapRestart( ) {
 
 	gamestate = GAMESTATE_SHUTDOWN;
 
+	if (mpGame.IsGametypeCoopBased()) {
+		SetCamera(NULL);
+	}
+
 	for ( i = 0; i < MAX_CLIENTS; i++ ) {
 		if ( entities[ i ] && entities[ i ]->IsType( idPlayer::Type ) ) {
 			static_cast< idPlayer * >( entities[ i ] )->PrepareForRestart();
@@ -1155,6 +1159,13 @@ void idGameLocal::LocalMapRestart( ) {
 		serverOverflowEvents[i].event = NULL;
 	}
 	//coop end
+
+	// Nicemice: temporary fix for entity synchronisation bug
+	// when restarting a map, this bug should be passed to id
+	// since it effects deathmatch maps also
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		memset(clientEntityStates, 0, sizeof(clientEntityStates));
+	}
 
 	MapClear( false );
 
@@ -1405,6 +1416,11 @@ void idGameLocal::MapPopulate( void ) {
 	if ( isMultiplayer ) {
 		cvarSystem->SetCVarBool( "r_skipSpecular", false );
 	}
+
+	mapSpawnCount = 0;  //added for Coop
+	mapCoopCount = 0; //added for Coop
+
+
 	// parse the key/value pairs and spawn entities
 	SpawnMapEntities();
 
@@ -3542,6 +3558,10 @@ void idGameLocal::RegisterEntity( idEntity *ent ) {
 		Error( "idGameLocal::RegisterEntity: spawn count overflow" );
 	}
 
+	if (gameLocal.mpGame.IsGametypeCoopBased() && !spawnArgs.GetBool("mapEntity", "0") && firstFreeIndex < mapSpawnCount) { //Stradex: Ensure that map entities numbers are never used again to force sync between client and server.
+		firstFreeIndex = mapSpawnCount;
+	}
+
 	if ( !spawnArgs.GetInt( "spawn_entnum", "0", spawn_entnum ) ) {
 
 		if (spawnArgs.GetBool("clientside", "0")) { //is  clientside only entity
@@ -3596,6 +3616,10 @@ idGameLocal::RegisterCoopEntity
 */
 void idGameLocal::RegisterCoopEntity( idEntity *ent ) {
 	int coop_entnum;
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && !spawnArgs.GetBool("mapEntity", "0") && firstFreeCoopIndex < mapCoopCount) { //Stradex: Ensure that map entities numbers are never used again to force sync between client and server.
+		firstFreeCoopIndex = mapCoopCount;
+	}
 
 	if ( !spawnArgs.GetInt( "coop_entnum", "0", coop_entnum ) ) {
 		while( coopentities[firstFreeCoopIndex] && firstFreeCoopIndex < ENTITYNUM_MAX_NORMAL ) {
@@ -3976,6 +4000,9 @@ void idGameLocal::SpawnMapEntities( void ) {
 	for ( i = 1 ; i < numEntities ; i++ ) {
 		mapEnt = mapFile->GetEntity( i );
 		args = mapEnt->epairs;
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			args.Set("mapEntity", "1");
+		}
 
 		if ( !InhibitEntitySpawn( args ) ) {
 			// precache any media specified in the map entity
@@ -4279,22 +4306,29 @@ idGameLocal::RequirementMet
 ================
 */
 bool idGameLocal::RequirementMet( idEntity *activator, const idStr &requires, int removeItem ) {
-	if ( requires.Length() ) {
-		if ( activator->IsType( idPlayer::Type ) ) {
-			idPlayer *player = static_cast<idPlayer *>(activator);
-			idDict *item = player->FindInventoryItem( requires );
-			if ( item ) {
-				if ( removeItem ) {
-					player->RemoveInventoryItem( item );
-				}
-				return true;
-			} else {
-				return false;
-			}
-		}
+
+	if (!requires.Length()) {
+		return true;
+	}
+	if (!activator) {
+		return false;
 	}
 
-	return true;
+	if (!activator->IsType(idPlayer::Type)) {
+		return true;
+	}
+
+	idPlayer* player = static_cast<idPlayer*>(activator);
+	idDict* item = player->FindInventoryItem(requires);
+	if (item) {
+
+		if (removeItem) {
+			player->RemoveInventoryItem(item);
+		}
+		return true;
+	}
+
+	return false;
 }
 
 /*
@@ -5594,6 +5628,20 @@ void idGameLocal::SetCameraCoop( idCamera *cam ) {
 	int i;
 	idEntity *ent;
 	idAI *ai;
+
+	if (isServer) {
+		idBitMsg	outMsg;
+		byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
+		outMsg.Init(msgBuf, sizeof(msgBuf));
+		outMsg.WriteByte(GAME_RELIABLE_MESSAGE_SETCAMERA);
+		if (cam) {
+			outMsg.WriteShort(cam->entityNumber);
+		}
+		else {
+			outMsg.WriteShort(-1);
+		}
+		networkSystem->ServerSendReliableMessage(-1, outMsg);
+	}
 
 	// this should fix going into a cinematic when dead.. rare but happens
 	idPlayer *client = GetLocalPlayer();

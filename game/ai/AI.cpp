@@ -5964,7 +5964,6 @@ void idAI::CSProcessAnimations(int newTorsoAnimId, int newHeadAnimId, int newLeg
 		else {
 			head.GetEntity()->GetAnimator()->CycleAnim(ANIMCHANNEL_ALL, newHeadAnimId, gameLocal.time, 2);
 		}
-		
 	}
 
 	currentTorsoAnim = newTorsoAnimId;

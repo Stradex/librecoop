@@ -1396,6 +1396,13 @@ idMover::Event_RemoveInitialSplineAngles
 ================
 */
 void idMover::Event_RemoveInitialSplineAngles( void ) {
+
+	// Nicemice: FIXME: do we need to transmit this event???
+	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
+
+		ServerSendEvent(EVENT_REMOVEINITIALSPLINEANGLES, NULL, false, -1);
+	}
+
 	idCurve_Spline<idVec3> *spline;
 	idAngles ang;
 
@@ -1418,6 +1425,17 @@ void idMover::Event_StartSpline( idEntity *splineEntity ) {
 	if ( !splineEntity ) {
 		return;
 	}
+
+	// Nicemice: added
+	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
+		idBitMsg     msg;
+		byte msgBuf[MAX_EVENT_PARAM_SIZE];
+		msg.Init(msgBuf, sizeof(msgBuf));
+
+		msg.WriteBits(gameLocal.GetSpawnId(splineEntity), 32);
+		ServerSendEvent(EVENT_STARTSPLINE, &msg, false, -1);
+	}
+
 
 	// Needed for savegames
 	splineEnt = splineEntity;
@@ -1452,6 +1470,11 @@ idMover::Event_StopSpline
 ================
 */
 void idMover::Event_StopSpline( void ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+		ServerSendEvent(EVENT_STOPSPLINE, NULL, false, -1);
+	}
+
 	physicsObj.SetSpline( NULL, 0, 0, useSplineAngles );
 	splineEnt = NULL;
 }
@@ -1504,6 +1527,10 @@ void idMover::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	WriteBindToSnapshot( msg );
 	WriteGUIToSnapshot( msg );
 	msg.WriteBits( IsHidden(), 1 );
+	//Nicemice OpenCoop
+	msg.WriteInt(acceltime);
+	msg.WriteInt(deceltime);
+	msg.WriteInt(move_time);
 }
 
 /*
@@ -1526,6 +1553,10 @@ void idMover::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	} else {
 		Show();
 	}
+	//Nicemice OpenCoop
+	acceltime = msg.ReadInt();
+	deceltime = msg.ReadInt();
+	move_time = msg.ReadInt();
 
 
 	if ( msg.HasChanged() ) {
@@ -1547,6 +1578,39 @@ idMover::SetPortalState
 void idMover::SetPortalState( bool open ) {
 	assert( areaPortal );
 	gameLocal.SetPortalState( areaPortal, open ? PS_BLOCK_NONE : PS_BLOCK_ALL );
+}
+
+/*
+================
+idMover::ClientReceiveEvent
+NICEMICE OpenCoop
+================
+*/
+bool idMover::ClientReceiveEvent(int event, int time, const idBitMsg& msg)
+{
+	switch (event)
+	{
+	case EVENT_STARTSPLINE: {
+		// Nicemice: undone
+		int spawnId = msg.ReadBits(32);
+		idEntityPtr< idEntity > entPtr;
+		if (!entPtr.SetSpawnId(spawnId)) {
+			return false;
+		}
+		Event_StartSpline(entPtr.GetEntity());
+		return true;
+	}
+	case EVENT_STOPSPLINE: {
+		Event_StopSpline();
+		return true;
+	}
+	case EVENT_REMOVEINITIALSPLINEANGLES: {
+		Event_RemoveInitialSplineAngles();
+		return true;
+	}
+	}
+
+	return idEntity::ClientReceiveEvent(event, time, msg);
 }
 
 /*
@@ -3109,6 +3173,8 @@ void idMover_Binary::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	physicsObj.WriteToSnapshot( msg );
 	msg.WriteBits( moverState, 3 );
 	WriteBindToSnapshot( msg );
+	// Nicemice OpenCoop: added
+	WriteHiddenToSnapshot(msg);
 }
 
 /*
@@ -3122,6 +3188,8 @@ void idMover_Binary::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	physicsObj.ReadFromSnapshot( msg );
 	moverState = (moverState_t) msg.ReadBits( 3 );
 	ReadBindFromSnapshot( msg );
+	// Nicemice OpenCoop: added
+	ReadHiddenFromSnapshot(msg);
 
 	if ( msg.HasChanged() ) {
 		if ( moverState != oldMoverState ) {
@@ -4462,6 +4530,8 @@ idMover_Periodic::WriteToSnapshot
 void idMover_Periodic::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	physicsObj.WriteToSnapshot( msg );
 	WriteBindToSnapshot( msg );
+	// Nicemice OpenCoop: added
+	WriteHiddenToSnapshot(msg);
 }
 
 /*
@@ -4472,6 +4542,9 @@ idMover_Periodic::ReadFromSnapshot
 void idMover_Periodic::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	physicsObj.ReadFromSnapshot( msg );
 	ReadBindFromSnapshot( msg );
+
+	// Nicemice OpenCoop: added
+	ReadFromSnapshot(msg);
 
 	if ( msg.HasChanged() ) {
 		UpdateVisuals();

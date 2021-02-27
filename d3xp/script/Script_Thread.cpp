@@ -1499,8 +1499,7 @@ void idThread::Event_SetCamera( idEntity *ent ) {
 		return;
 	}
 
-	if ( gameLocal.mpGame.IsGametypeCoopBased() ) {
-		common->Printf("Avoid cinematics in COOP\n");
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
 		return;
 	}
 
