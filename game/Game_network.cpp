@@ -3065,7 +3065,6 @@ idGameLocal::WriteEntityListToEvent
 */
 
 void idGameLocal::WriteEntityListToEvent(idBitMsg& msg) {
-	common->Printf("[COOP] WriteEntityListToEvent\n");
 	int count = 0;
 	int removedCount = CountMapSyncEntitiesRemoved(); //safe way to send data, in case another entity is deleted while writing the message
 	msg.WriteInt(removedCount);
@@ -3087,16 +3086,11 @@ idGameLocal::ReadEntityListFromEvent
 ===============
 */
 void idGameLocal::ReadEntityListFromEvent(const idBitMsg& msg) {
-	common->Printf("[COOP] ReadEntityListFromEvent\n");
 	int entitiesToRemove = msg.ReadInt();
 	for (int i = 0; i < entitiesToRemove; i++) {
 		int entityRemoveId = msg.ReadShort();
 		if (removeSyncEntities[entityRemoveId] && removeSyncEntities[entityRemoveId]->isMapEntity && removeSyncEntities[entityRemoveId]->allowRemoveSync) {
-			common->Printf("[COOP] removing entity at start!\n");
 			removeSyncEntities[entityRemoveId]->CS_PostEventMS(&EV_Remove, 0);
-		}
-		else {
-			common->Warning("[COOP] Trying to remove invalid entity!\n");
 		}
 
 	}

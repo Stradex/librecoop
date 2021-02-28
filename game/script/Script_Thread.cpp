@@ -1544,6 +1544,11 @@ idThread::Event_FadeIn
 ================
 */
 void idThread::Event_FadeIn( idVec3 &color, float time ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		return;
+	}
+
 	idVec4		fadeColor;
 	idPlayer	*player;
 
@@ -1576,6 +1581,11 @@ idThread::Event_FadeOut
 ================
 */
 void idThread::Event_FadeOut( idVec3 &color, float time ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		return;
+	}
+
 	idVec4		fadeColor;
 	idPlayer	*player;
 
@@ -1608,6 +1618,11 @@ idThread::Event_FadeTo
 ================
 */
 void idThread::Event_FadeTo( idVec3 &color, float alpha, float time ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		return;
+	}
+
 	idVec4		fadeColor;
 	idPlayer	*player;
 

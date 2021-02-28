@@ -386,6 +386,7 @@ public:
 	void					FindTargets( void );
 	void					RemoveNullTargets( void );
 	void					ActivateTargets( idEntity *activator ); //was const, changed for coop
+	void					CS_ActivateTargets(idEntity* activator, int timeActivated); //activate targets clientside
 
 	// misc
 	virtual void			Teleport( const idVec3 &origin, const idAngles &angles, idEntity *destination );

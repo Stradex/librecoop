@@ -580,6 +580,7 @@ idDamagable::idDamagable
 idDamagable::idDamagable( void ) {
 	count = 0;
 	nextTriggerTime = 0;
+	allowRemoveSync = true; //coop
 }
 
 /*

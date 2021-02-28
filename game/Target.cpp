@@ -449,7 +449,7 @@ idTarget_FadeEntity::idTarget_FadeEntity( void ) {
 	fadeFrom.Zero();
 	fadeStart = 0;
 	fadeEnd = 0;
-	canBeCsTarget = true;
+	canBeCsTarget = true; 
 }
 
 /*

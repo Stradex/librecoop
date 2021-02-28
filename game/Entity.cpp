@@ -664,7 +664,7 @@ idEntity::~idEntity( void ) {
 
 	if ( gameLocal.GameState() != GAMESTATE_SHUTDOWN && !gameLocal.isClient && entityNumber >= MAX_CLIENTS ) {
 		if ((fl.networkSync && !gameLocal.mpGame.IsGametypeCoopBased()) ||
-			(fl.coopNetworkSync && gameLocal.mpGame.IsGametypeCoopBased())
+			((fl.coopNetworkSync || isMapEntity) && gameLocal.mpGame.IsGametypeCoopBased())
 		) {
 			idBitMsg	msg;
 			byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
@@ -3975,6 +3975,10 @@ idEntity::ActivateTargets
 ==============================
 */
 void idEntity::ActivateTargets( idEntity *activator ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		return CS_ActivateTargets(this, gameLocal.time);
+	}
 	idEntity	*ent;
 	int			i, j;
 
@@ -3993,7 +3997,7 @@ void idEntity::ActivateTargets( idEntity *activator ) {
 
 		if (entityTargetNumber != ENTITYNUM_NONE && gameLocal.targetentities[entityTargetNumber] && sendTargetEvent) {
 			// send message to the clients
-			ServerSendEvent(EVENT_ACTIVATE_TARGETS, NULL, true, -1);
+			ServerSendEvent(EVENT_ACTIVATE_TARGETS, NULL, true, gameLocal.localClientNum);
 		}
 	}
 
@@ -4002,21 +4006,51 @@ void idEntity::ActivateTargets( idEntity *activator ) {
 		if ( !ent ) {
 			continue;
 		}
-		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && (ent->coopNode.InList() || !ent->canBeCsTarget)) {
-			continue; //don't try to activate entities that are already coop synced
-		}
 		if ( ent->RespondsTo( EV_Activate ) || ent->HasSignal( SIG_TRIGGER ) ) {
 			ent->Signal( SIG_TRIGGER );
 			ent->ProcessEvent( &EV_Activate, activator );
-			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
-				ent->allowClientsideThink = true;
-				ent->BecomeActive( TH_PHYSICS );
-				gameLocal.DebugPrintf("Client Activating entity %s\n", ent->GetName());
-			}
 		}
 		for ( j = 0; j < MAX_RENDERENTITY_GUI; j++ ) {
 			if ( ent->renderEntity.gui[ j ] ) {
 				ent->renderEntity.gui[ j ]->Trigger( gameLocal.time );
+			}
+		}
+	}
+}
+
+/*
+==============================
+idEntity::CS_ActivateTargets
+
+"activator" should be set to the entity that initiated the firing.
+==============================
+*/
+
+void idEntity::CS_ActivateTargets(idEntity* activator, int timeActivated) {
+
+	assert(gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased());
+
+	idEntity* ent;
+	int			i, j;
+
+	for (i = 0; i < targets.Num(); i++) {
+		ent = targets[i].GetEntity();
+		if (!ent) {
+			continue;
+		}
+		if (ent->coopNode.InList() || !ent->canBeCsTarget) {
+			continue; //don't try to activate entities that are already coop synced
+		}
+		if (ent->RespondsTo(EV_Activate) || ent->HasSignal(SIG_TRIGGER)) {
+			ent->Signal(SIG_TRIGGER);
+			ent->ProcessEvent(&EV_Activate, activator);
+			ent->allowClientsideThink = true;
+			ent->BecomeActive(TH_PHYSICS);
+			gameLocal.DebugPrintf("Client Activating entity %s\n", ent->GetName());
+		}
+		for (j = 0; j < MAX_RENDERENTITY_GUI; j++) {
+			if (ent->renderEntity.gui[j]) {
+				ent->renderEntity.gui[j]->Trigger(gameLocal.time);
 			}
 		}
 	}

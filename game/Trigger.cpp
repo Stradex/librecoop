@@ -27,9 +27,9 @@ If you have questions concerning this license or the applicable additional terms
 */
 
 #include "sys/platform.h"
+#include "framework/async/NetworkSystem.h" //Coop
 #include "script/Script_Thread.h"
 #include "Player.h"
-
 #include "Trigger.h"
 
 /*
@@ -1037,7 +1037,7 @@ idTrigger_Fade::idTrigger_Fade
 ================
 */
 idTrigger_Fade::idTrigger_Fade(void) {
-	canBeCsTarget = true; //For Coop
+	canBeCsTarget = true; //false, to avoid bug related with clients reconnecting 
 }
 
 
@@ -1054,7 +1054,8 @@ void idTrigger_Fade::Event_Trigger( idEntity *activator ) {
 	player = gameLocal.GetCoopPlayer();
 	if ( player ) {
 		fadeColor = spawnArgs.GetVec4( "fadeColor", "0, 0, 0, 1" );
-		fadeTime = SEC2MS( spawnArgs.GetFloat( "fadeTime", "0.5" ) );
+		int secsFadeTime = spawnArgs.GetFloat("fadeTime", "0.5");
+		fadeTime = SEC2MS(secsFadeTime);
 		player->playerView.Fade( fadeColor, fadeTime );
 		PostEventMS(&EV_ActivateTargets, fadeTime, activator); //server-side only
 	}
