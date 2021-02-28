@@ -377,8 +377,7 @@ Pass damage to body at the bindjoint
 ============
 */
 void idAFAttachment::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir,
-	const char *damageDefName, const float damageScale, const int location ) {
-
+	const char *damageDefName, const float damageScale, const int location, const bool canBeClientDamage) {
 	if ( body ) {
 		body->Damage( inflictor, attacker, dir, damageDefName, damageScale, attachJoint );
 	}
@@ -1363,6 +1362,7 @@ idAFEntity_WithAttachedHead::Spawn
 ================
 */
 void idAFEntity_WithAttachedHead::Spawn( void ) {
+
 	SetupHead();
 	LoadAF();
 
@@ -1427,8 +1427,13 @@ void idAFEntity_WithAttachedHead::SetupHead( void ) {
 		}
 		idDict	args;
 		args.Clear();
+
 		if (gameLocal.mpGame.IsGametypeCoopBased()) {
-			args.Set("clientside", "1");
+			if (isMapEntity) {
+				args.Set("mapEntity", "1"); //if the body is a map entity, then set the head to be one too
+			} else if (!fl.coopNetworkSync) {
+				args.Set("clientside", "1");
+			}
 		}
 
 		headEnt = static_cast<idAFAttachment *>( gameLocal.SpawnEntityType( idAFAttachment::Type, &args, true ) );

@@ -165,7 +165,7 @@ public:
 
 	virtual void			Think( void );
 	virtual void			Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir,
-								const char *damageDefName, const float damageScale, const int location );
+								const char *damageDefName, const float damageScale, const int location, const bool canBeClientDamage = false);
 	virtual void			Killed( idEntity *inflictor, idEntity *attacker, int damage, const idVec3 &dir, int location );
 
 	virtual void			WriteToSnapshot( idBitMsgDelta &msg ) const;
