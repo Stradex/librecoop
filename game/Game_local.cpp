@@ -185,6 +185,7 @@ void idGameLocal::Clear( void ) {
 	memset( usercmds, 0, sizeof( usercmds ) );
 	memset( entities, 0, sizeof( entities ) );
 	memset(coopentities, 0, sizeof(coopentities)); //added for coop
+	memset(removeSyncEntities, 0, sizeof(removeSyncEntities)); //added for coop
 	memset(targetentities, 0, sizeof(targetentities));
 	memset( spawnIds, -1, sizeof( spawnIds ) );
 	memset( coopIds, -1, sizeof( coopIds ) );
@@ -193,6 +194,7 @@ void idGameLocal::Clear( void ) {
 	firstFreeTargetIndex = 0;  //added for coop
 	num_entities = 0;
 	num_coopentities=0;  //added for coop
+	num_removeSyncEntities = 0; //added for coop
 	spawnedEntities.Clear();
 	coopSyncEntities.Clear(); //added for coop
 	activeEntities.Clear();
@@ -961,6 +963,7 @@ void idGameLocal::LoadMap( const char *mapName, int randseed ) {
 	// range are NEVER anything but clients
 	num_entities	= MAX_CLIENTS;
 	num_coopentities = MAX_CLIENTS;
+	num_removeSyncEntities = 0; //added for coop
 	firstFreeIndex	= MAX_CLIENTS;
 	firstFreeCoopIndex = MAX_CLIENTS; //added for Coop
 	firstFreeTargetIndex = MAX_CLIENTS; //added for Coop
@@ -1091,6 +1094,7 @@ void idGameLocal::LocalMapRestart( ) {
 	firstClientToSpawn = false; //added by Stradex for coop
 	coopMapScriptLoad = false; //added by Stradex for coop
 	num_coopentities = 0; //for coop
+	num_removeSyncEntities = 0;
 
 	for (i=0; i < MAX_CLIENTS; i++) {
 		mpGame.playerUseCheckpoints[i] = false;
@@ -1319,7 +1323,7 @@ void idGameLocal::MapPopulate( void ) {
 
 	mapCoopCount = MAX_CLIENTS + coopCount - 1; //added for Coop
 
-	Printf("mapCoopCount: %d - mapSpawnCount: %d\n", mapCoopCount, mapSpawnCount);
+	Printf("mapCoopCount: %d - mapSpawnCount: %d - num_removeSyncEntities: %d\n", mapCoopCount, mapSpawnCount, num_removeSyncEntities);
 
 	// execute pending events before the very first game frame
 	// this makes sure the map script main() function is called
@@ -1369,6 +1373,7 @@ void idGameLocal::InitFromNewMap( const char *mapName, idRenderWorld *renderWorl
 	//COOP END
 
 	num_coopentities = 0; //for coop
+	num_removeSyncEntities = 0;
 
 	//Sync g_skill here!
 
@@ -1674,6 +1679,7 @@ void idGameLocal::MapClear( bool clearClients ) {
 	// range are NEVER anything but clients
 	num_entities	= MAX_CLIENTS;
 	num_coopentities = MAX_CLIENTS;
+	num_removeSyncEntities = 0;
 	firstFreeIndex	= MAX_CLIENTS;
 	firstFreeCoopIndex = MAX_CLIENTS; //added for Coop
 	firstFreeTargetIndex = MAX_CLIENTS; //added for Coop
@@ -3317,6 +3323,46 @@ bool idGameLocal::CheatsOk( bool requirePlayer ) {
 	return false;
 }
 
+/*
+===================
+idGameLocal::RegisterRemoveSyncEntity
+===================
+*/
+
+void idGameLocal::RegisterRemoveSyncEntity(idEntity* ent) {
+	removeSyncEntities[num_removeSyncEntities] = ent;
+	ent->entityRemoveSyncNumber = num_removeSyncEntities;
+	num_removeSyncEntities++;
+}
+
+/*
+===================
+idGameLocal::UnregisterRemoveSyncEntity
+===================
+*/
+
+void idGameLocal::UnregisterRemoveSyncEntity(idEntity* ent) {
+	if (ent->entityRemoveSyncNumber == ENTITYNUM_NONE) {
+		return;
+	}
+	removeSyncEntities[ent->entityRemoveSyncNumber] = NULL;
+}
+
+/*
+===================
+idGameLocal::CountMapSyncEntitiesRemoved
+===================
+*/
+
+int idGameLocal::CountMapSyncEntitiesRemoved() const {
+	int count = 0;
+	for (int i = 0; i < num_removeSyncEntities; i++) {
+		if (!removeSyncEntities[i]) {
+			count++;
+		}
+	}
+	return count;
+}
 
 /*
 ===================

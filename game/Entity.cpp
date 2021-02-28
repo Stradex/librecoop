@@ -409,6 +409,7 @@ idEntity::idEntity() {
 	entityNumber	= ENTITYNUM_NONE;
 	entityCoopNumber = ENTITYNUM_NONE;
 	entityTargetNumber = ENTITYNUM_NONE;
+	entityRemoveSyncNumber = ENTITYNUM_NONE;
 	entityDefNumber = -1;
 
 	spawnNode.SetOwner( this );
@@ -472,6 +473,7 @@ idEntity::idEntity() {
 	// Nicemice: we want to differ between a map entity (static, also spawned) on a client
 	// and a temporary entity
 	isMapEntity = false;
+	allowRemoveSync = false;
 }
 
 /*
@@ -568,6 +570,10 @@ void idEntity::Spawn( void ) {
 
 	spawnArgs.GetBool("mapEntity", "0", isMapEntity); 	// OpenCoop Nicemice: Is it a map entity ?
 
+	if (isMapEntity && allowRemoveSync && gameLocal.mpGame.IsGametypeCoopBased()) { // COOP: We can force sync this entity between client and server so when a client connect it gets to see if this entity already exists or not at server
+		gameLocal.RegisterRemoveSyncEntity(this);
+	}
+
 #if 0
 	if ( !gameLocal.isClient ) {
 		// common->DPrintf( "NET: DBG %s - %s is synced: %s\n", spawnArgs.GetString( "classname", "" ), GetType()->classname, fl.networkSync ? "true" : "false" );
@@ -657,7 +663,9 @@ idEntity::~idEntity
 idEntity::~idEntity( void ) {
 
 	if ( gameLocal.GameState() != GAMESTATE_SHUTDOWN && !gameLocal.isClient && entityNumber >= MAX_CLIENTS ) {
-		if ((fl.networkSync && !gameLocal.mpGame.IsGametypeCoopBased()) || (fl.coopNetworkSync && gameLocal.mpGame.IsGametypeCoopBased())) {
+		if ((fl.networkSync && !gameLocal.mpGame.IsGametypeCoopBased()) ||
+			(fl.coopNetworkSync && gameLocal.mpGame.IsGametypeCoopBased())
+		) {
 			idBitMsg	msg;
 			byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
 
@@ -670,9 +678,6 @@ idEntity::~idEntity( void ) {
 			msg.WriteBits(gameLocal.GetSpawnId(this), 32);
 
 			networkSystem->ServerSendReliableMessage(-1, msg);
-		}
-		else if (gameLocal.mpGame.IsGametypeCoopBased() && isMapEntity && !canBeCsTarget &&!fl.coopNetworkSync) {
-			ServerSendEvent(EVENT_DELETED, NULL, true, gameLocal.localClientNum);
 		}
 	}
 
@@ -707,6 +712,10 @@ idEntity::~idEntity( void ) {
 
 	FreeModelDef();
 	FreeSoundEmitter( false );
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && isMapEntity && entityNumber >= MAX_CLIENTS && allowRemoveSync) {
+		gameLocal.UnregisterRemoveSyncEntity(this);
+	}
 
 	gameLocal.UnregisterEntity( this );
 }
@@ -5384,7 +5393,7 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 	}
 
 	// prevent dupe events caused by frame re-runs
-	if ( !gameLocal.isNewFrame ) {
+	if ( !gameLocal.isNewFrame) {
 		return;
 	}
 
@@ -5405,11 +5414,6 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 
 	if (!eventSyncVital && gameLocal.time <= nextSendEventTime) { //to avoid overflow in case of non-vital entities sending an event in loop
 		return;
-	}
-
-
-	if (eventId == EVENT_ACTIVATE_TARGETS) {
-		gameLocal.DebugPrintf("Sending EVENT_ACTIVATE_TARGETS\n");
 	}
 
 	eventsSend++;
@@ -5594,12 +5598,6 @@ bool idEntity::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			msg.ReadString(modelname, sizeof(modelname));
 			const char* p = modelname;
 			Event_SetModel(p);
-			return true;
-		}
-		//Stradex
-		case EVENT_DELETED: {
-			gameLocal.Printf("[COOP] delete entity as client\n");
-			Event_SafeRemove();
 			return true;
 		}
 		default:

@@ -180,7 +180,8 @@ enum {
 	GAME_RELIABLE_MESSAGE_GOTOCHECKPOINT,
 	GAME_RELIABLE_MESSAGE_GLOBALCHECKPOINT,
 	GAME_RELIABLE_MESSAGE_NOCLIP,
-	GAME_RELIABLE_MESSAGE_FADE //For fadeTo, fadeIn, fadeOut FX in coop
+	GAME_RELIABLE_MESSAGE_FADE, //For fadeTo, fadeIn, fadeOut FX in coop
+	GAME_RELIABLE_MESSAGE_ENTITY_LIST //To sync the entities that were deleted from the map for clients that join
 };
 
 typedef enum {
@@ -302,6 +303,9 @@ public:
 	void					addToServerEventOverFlowList(entityNetEvent_t* event, int clientNum); //To avoid server reliabe messages overflow
 	void					sendServerOverflowEvents( void ); //to send the overflow events that are in queue to avoid event overflow
 	int						overflowEventCountdown; //FIXME: Not pretty way I I think
+
+	idEntity*				removeSyncEntities[MAX_GENTITIES];	//For coop netcode only by Stradex
+	int						num_removeSyncEntities;
 
 	//end: stradex for coop netcode
 
@@ -459,7 +463,13 @@ public:
 	void					RegisterEntity( idEntity *ent );
 	void					RegisterCoopEntity( idEntity *ent ); //added by Stradex for coop
 	void					RegisterTargetEntity( idEntity *ent ); //added by Stradex for coop
+	void					RegisterRemoveSyncEntity(idEntity* ent); //added by Stradex for coop
+	void					UnregisterRemoveSyncEntity(idEntity* ent); //added by Stradex for coop
+	int						CountMapSyncEntitiesRemoved() const;
 	void					UnregisterEntity( idEntity *ent );
+
+	void					WriteEntityListToEvent(idBitMsg& msg);
+	void					ReadEntityListFromEvent(const idBitMsg& msg);
 
 	bool					RequirementMet( idEntity *activator, const idStr &requires, int removeItem );
 

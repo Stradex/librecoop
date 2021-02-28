@@ -77,6 +77,7 @@ idMoveable::idMoveable( void ) {
 	canDamage			= false;
 	fl.networkSync		= false;
 	fl.coopNetworkSync	= true; //just to test something in coop
+	allowRemoveSync		= true;
 }
 
 /*
@@ -1000,6 +1001,10 @@ void idExplodingBarrel::Killed( idEntity *inflictor, idEntity *attacker, int dam
 		PostEventSec( &EV_Explode, f );
 		StartSound( "snd_burn", SND_CHANNEL_ANY, 0, false, NULL );
 		AddParticles( spawnArgs.GetString ( "model_burn", "" ), true );
+
+		if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
+			ServerSendEvent(EVENT_BURNING, NULL, false, -1);
+		}
 		return;
 	} else {
 		state = EXPLODING;
@@ -1201,9 +1206,54 @@ bool idExplodingBarrel::ClientReceiveEvent( int event, int time, const idBitMsg 
 				ExplodingEffects( );
 			}
 			return true;
+		case EVENT_BURNING:
+			state = BURNING;
+			StartSound("snd_burn", SND_CHANNEL_ANY, 0, false, NULL);
+			AddParticles(spawnArgs.GetString("model_burn", ""), true);
+			return true;
 		default:
 			break;
 	}
 
 	return idBarrel::ClientReceiveEvent( event, time, msg );
+}
+
+
+/*
+================
+idExplodingBarrel::ClientPredictionThink
+================
+*/
+void idExplodingBarrel::ClientPredictionThink(void) {
+	idBarrel::ClientPredictionThink();
+
+	if (lightDefHandle >= 0) {
+		if (state == BURNING) {
+			// ramp the color up over 250 ms
+			float pct = (gameLocal.time - lightTime) / 250.f;
+			if (pct > 1.0f) {
+				pct = 1.0f;
+			}
+			light.origin = physicsObj.GetAbsBounds().GetCenter();
+			light.axis = mat3_identity;
+			light.shaderParms[SHADERPARM_RED] = pct;
+			light.shaderParms[SHADERPARM_GREEN] = pct;
+			light.shaderParms[SHADERPARM_BLUE] = pct;
+			light.shaderParms[SHADERPARM_ALPHA] = pct;
+			gameRenderWorld->UpdateLightDef(lightDefHandle, &light);
+		}
+		else {
+			if (gameLocal.time - lightTime > 250) {
+				gameRenderWorld->FreeLightDef(lightDefHandle);
+				lightDefHandle = -1;
+			}
+			return;
+		}
+	}
+
+	if (particleModelDefHandle >= 0) {
+		particleRenderEntity.origin = physicsObj.GetAbsBounds().GetCenter();
+		particleRenderEntity.axis = mat3_identity;
+		gameRenderWorld->UpdateEntityDef(particleModelDefHandle, &particleRenderEntity);
+	}
 }

@@ -1659,6 +1659,7 @@ idStaticEntity::idStaticEntity( void ) {
 	runGui = false;
 	canBeCsTarget = true;
 	eventSyncVital = false; //to avoid overflow! (this could be a problem, needs testing)
+	allowRemoveSync = true;
 }
 
 /*

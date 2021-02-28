@@ -129,6 +129,7 @@ public:
 
 	int						entityCoopNumber;		// index into the entity coop list
 	int						entityTargetNumber;		// index into the entity coop list
+	int						entityRemoveSyncNumber; // index into the entity remove sync list
 
 	idLinkList<idEntity>	spawnNode;				// for being linked into spawnedEntities list
 	idLinkList<idEntity>	activeNode;				// for being linked into activeEntities list
@@ -174,6 +175,7 @@ public:
 	bool					eventSyncVital;				//if is vital that this entity always sync events
 	int						nextSendEventTime;			//next time to send event in case of overflow.
 	int						nextResetEventCountTime;
+	bool					allowRemoveSync;			// entity that can sync the remove state when a client joins the server to let know the client entities that do not exists anymore. 
 
 	//From OpenCoop
 	bool					isMapEntity;			  // Nicemice: added
@@ -417,7 +419,7 @@ public:
 	void					WriteGUIToSnapshot( idBitMsgDelta &msg ) const;
 	void					ReadGUIFromSnapshot( const idBitMsgDelta &msg );
 
-	void					ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient , bool saveLastOnly=false); //COOP: was const, saveLastOnly added
+	void					ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient , bool saveLastOnly=false); //COOP: was const
 	void					ClientSendEvent( int eventId, const idBitMsg *msg ) const;
 
 	//OpenCoop nicemice

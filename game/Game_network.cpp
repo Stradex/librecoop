@@ -506,6 +506,17 @@ void idGameLocal::ServerWriteInitialReliableMessages( int clientNum ) {
 	}
 	networkSystem->ServerSendReliableMessage( clientNum, outMsg );
 
+	// Sync deleted map entities with client (NEW COOP)
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		outMsg.Init(msgBuf, sizeof(msgBuf));
+		outMsg.BeginWriting();
+		outMsg.WriteByte(GAME_RELIABLE_MESSAGE_ENTITY_LIST);
+		WriteEntityListToEvent(outMsg);
+
+		networkSystem->ServerSendReliableMessage(clientNum, outMsg);
+	}
+
+
 	mpGame.ServerWriteInitialReliableMessages( clientNum );
 }
 
@@ -1757,6 +1768,11 @@ void idGameLocal::ClientProcessReliableMessage( int clientNum, const idBitMsg &m
 			}
 
 			common->Printf("[COOP] Receive fade...\n");
+			break;
+		}
+		case GAME_RELIABLE_MESSAGE_ENTITY_LIST: {
+			common->Printf("[COOP] Syncing map entities with server\n");
+			ReadEntityListFromEvent(msg);
 			break;
 		}
 		default: {
@@ -3039,5 +3055,49 @@ void idGameLocal::sendServerOverflowEvents( void )
 	}
 	if (overflowEventCountdown > 0) {
 		serverEventsCount=MAX_SERVER_EVENTS_PER_FRAME; //FIXME: Ugly way for doing this.  Not pretty
+	}
+}
+
+/*
+===============
+idGameLocal::WriteEntityListToEvent
+===============
+*/
+
+void idGameLocal::WriteEntityListToEvent(idBitMsg& msg) {
+	common->Printf("[COOP] WriteEntityListToEvent\n");
+	int count = 0;
+	int removedCount = CountMapSyncEntitiesRemoved(); //safe way to send data, in case another entity is deleted while writing the message
+	msg.WriteInt(removedCount);
+	for (int i = 0; i < num_removeSyncEntities; i++) {
+		if (count >= removedCount) {
+			break;
+		}
+		if (!removeSyncEntities[i]) {
+			msg.WriteShort(i);
+			count++;
+		}
+	}
+
+}
+
+/*
+===============
+idGameLocal::ReadEntityListFromEvent
+===============
+*/
+void idGameLocal::ReadEntityListFromEvent(const idBitMsg& msg) {
+	common->Printf("[COOP] ReadEntityListFromEvent\n");
+	int entitiesToRemove = msg.ReadInt();
+	for (int i = 0; i < entitiesToRemove; i++) {
+		int entityRemoveId = msg.ReadShort();
+		if (removeSyncEntities[entityRemoveId] && removeSyncEntities[entityRemoveId]->isMapEntity && removeSyncEntities[entityRemoveId]->allowRemoveSync) {
+			common->Printf("[COOP] removing entity at start!\n");
+			removeSyncEntities[entityRemoveId]->CS_PostEventMS(&EV_Remove, 0);
+		}
+		else {
+			common->Warning("[COOP] Trying to remove invalid entity!\n");
+		}
+
 	}
 }
