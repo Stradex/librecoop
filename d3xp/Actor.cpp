@@ -720,6 +720,12 @@ void idActor::SetupHead( void ) {
 
 		// copy any sounds in case we have frame commands on the head
 		idDict	args;
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			if (isMapEntity) {
+				args.Set("mapEntity", "1"); //if the body is a map entity, then set the head to be one too
+			}
+		}
+
 		sndKV = spawnArgs.MatchPrefix( "snd_", NULL );
 		while( sndKV ) {
 			args.Set( sndKV->GetKey(), sndKV->GetValue() );

@@ -1244,7 +1244,7 @@ idExplodingBarrel::Damage
 ================
 */
 void idExplodingBarrel::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir,
-					  const char *damageDefName, const float damageScale, const int location ) {
+					  const char *damageDefName, const float damageScale, const int location, const bool canBeClientDamage) {
 
 	const idDict *damageDef = gameLocal.FindEntityDefDict( damageDefName );
 	if ( !damageDef ) {
