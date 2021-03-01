@@ -854,6 +854,7 @@ idTarget_SetInfluence::idTarget_SetInfluence( void ) {
 	soundFaded = false;
 	restoreOnTrigger = false;
 	canBeCsTarget = true;
+	csActivateTargetMaxDelay = 10; //10 seconds of maximum delay betweenclient and server, if more, this entity will not be triggered clientside
 }
 
 /*

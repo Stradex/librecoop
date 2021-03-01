@@ -474,6 +474,7 @@ idEntity::idEntity() {
 	// and a temporary entity
 	isMapEntity = false;
 	allowRemoveSync = false;
+	csActivateTargetMaxDelay = -1; //-1 means infinite time
 }
 
 /*
@@ -664,7 +665,7 @@ idEntity::~idEntity( void ) {
 
 	if ( gameLocal.GameState() != GAMESTATE_SHUTDOWN && !gameLocal.isClient && entityNumber >= MAX_CLIENTS ) {
 		if ((fl.networkSync && !gameLocal.mpGame.IsGametypeCoopBased()) ||
-			((fl.coopNetworkSync || isMapEntity) && gameLocal.mpGame.IsGametypeCoopBased())
+			((fl.coopNetworkSync || (isMapEntity && allowRemoveSync)) && gameLocal.mpGame.IsGametypeCoopBased())
 		) {
 			idBitMsg	msg;
 			byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
@@ -3996,7 +3997,15 @@ void idEntity::ActivateTargets( idEntity *activator ) {
 		}
 
 		if (entityTargetNumber != ENTITYNUM_NONE && gameLocal.targetentities[entityTargetNumber] && sendTargetEvent) {
+			/* 
+			//Experimental unfinished: let know the clients the time to active entities so the clients can decide if they want or not to execute the ActivateTargets
+			idBitMsg     msg;
+			byte msgBuf[MAX_EVENT_PARAM_SIZE];
+			msg.Init(msgBuf, sizeof(msgBuf));
+			msg.WriteInt(gameLocal.time);
 			// send message to the clients
+			ServerSendEvent(EVENT_ACTIVATE_TARGETS, &msg, true, gameLocal.localClientNum);
+			*/
 			ServerSendEvent(EVENT_ACTIVATE_TARGETS, NULL, true, gameLocal.localClientNum);
 		}
 	}
@@ -4041,6 +4050,11 @@ void idEntity::CS_ActivateTargets(idEntity* activator, int timeActivated) {
 		if (ent->coopNode.InList() || !ent->canBeCsTarget) {
 			continue; //don't try to activate entities that are already coop synced
 		}
+		/*
+		if ((idMath::Abs(gameLocal.time - timeActivated) >= SEC2MS(ent->csActivateTargetMaxDelay)) && ent->csActivateTargetMaxDelay != -1) {
+			continue;
+		}
+		*/
 		if (ent->RespondsTo(EV_Activate) || ent->HasSignal(SIG_TRIGGER)) {
 			ent->Signal(SIG_TRIGGER);
 			ent->ProcessEvent(&EV_Activate, activator);
@@ -5607,7 +5621,9 @@ bool idEntity::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			return true;
 		}
 		case EVENT_ACTIVATE_TARGETS: {
-			ActivateTargets(this);
+			//int activatedTime = msg.ReadInt();
+			//CS_ActivateTargets(this, activatedTime);
+			CS_ActivateTargets(this, gameLocal.time);
 			return true;
 		}
 		case EVENT_SETNETSHADERPARM: {

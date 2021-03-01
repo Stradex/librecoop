@@ -1038,6 +1038,7 @@ idTrigger_Fade::idTrigger_Fade
 */
 idTrigger_Fade::idTrigger_Fade(void) {
 	canBeCsTarget = true; //false, to avoid bug related with clients reconnecting 
+	csActivateTargetMaxDelay = 10;
 }
 
 
@@ -1056,7 +1057,9 @@ void idTrigger_Fade::Event_Trigger( idEntity *activator ) {
 		fadeColor = spawnArgs.GetVec4( "fadeColor", "0, 0, 0, 1" );
 		int secsFadeTime = spawnArgs.GetFloat("fadeTime", "0.5");
 		fadeTime = SEC2MS(secsFadeTime);
-		player->playerView.Fade( fadeColor, fadeTime );
+		if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+			player->playerView.Fade(fadeColor, fadeTime);
+		}
 		PostEventMS(&EV_ActivateTargets, fadeTime, activator); //server-side only
 	}
 }

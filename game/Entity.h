@@ -176,6 +176,7 @@ public:
 	int						nextSendEventTime;			//next time to send event in case of overflow.
 	int						nextResetEventCountTime;
 	bool					allowRemoveSync;			// entity that can sync the remove state when a client joins the server to let know the client entities that do not exists anymore. 
+	int						csActivateTargetMaxDelay; //Maximum wait time to activate this target when receive the activate target even from server. (in seconds)
 
 	//From OpenCoop
 	bool					isMapEntity;			  // Nicemice: added
