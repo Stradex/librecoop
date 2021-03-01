@@ -1799,7 +1799,7 @@ void idMultiplayerGame::ExecuteVote( void ) {
 				SavePersistentPlayersInfo(); //saving player info in Coop for the next map
 
 				if (nextMap != "") {
-					gameLocal.Printf("Loading next map ", nextMap);
+					gameLocal.Printf("Loading next map %s", nextMap.c_str());
 					si_map.SetString(nextMap);
 					gameLocal.MapRestart();
 				}

@@ -4171,7 +4171,7 @@ void idAI::BeginAttack( const char *name ) {
 	if (attack.Length() && gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
 		const idDeclEntityDef *meleeDef = gameLocal.FindEntityDef( attack, false );
 		if ( !meleeDef ) {
-			gameLocal.Error( "Unknown damage def '%s' on '%s'", attack, this->name.c_str() );
+			gameLocal.Error( "Unknown damage def '%s' on '%s'", attack.c_str(), this->name.c_str() );
 		}
 		currentAttackDefNum = meleeDef->Index();
 	}
