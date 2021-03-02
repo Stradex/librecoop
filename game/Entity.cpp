@@ -469,6 +469,7 @@ idEntity::idEntity() {
 		snapshotMissingCount[i] = 0;  //added by Stradex for Coop netcode optimization
 		lastSnapshotOrigin[i] = vec3_zero; //added by Stradex for Coop netcode optimization
 		numPVSAreas_snapshot[i] = -1;  //added by Stradex for Coop netcode optimization
+		inRemoteCameraPVS[i] = false;
 	}
 	eventsSend = 0;
 	eventSyncVital = true; //true by default
@@ -5091,10 +5092,7 @@ void idEntity::SetCameraTarget(idEntity* cameraTargetEnt) {
 
 			msg.WriteShort(cameraTarget->entityNumber);
 			ServerSendEvent(EVENT_CAMTARGETUPDATE, &msg, false, -1);
-			gameLocal.Printf("[COOP] Server EVENT_CAMTARGETUPDATE\n");
 		}
-
-		gameLocal.Printf("[COOP] %s SetCameraTarget: %s\n", GetClassname(), cameraTarget->GetClassname());
 	}
 	UpdateVisuals();
 }

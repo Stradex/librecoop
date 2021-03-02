@@ -2595,7 +2595,16 @@ void idGameLocal::snapshotsort_swap(idEntity* entities[], int lhs, int rhs) {
 
 // entities in snapshot queue <-- lower snapshot priority <-- first time in PVS <-- everything else
 bool idGameLocal::snapshotsort_notInOrder(const snapshotsort_context_s &context, idEntity* lhs, idEntity* rhs) {
-	// 1 - elements in snapshot queue should be left
+
+	//1 - inRemoteCameraPVS: optimization for idSecurityCamera
+	if (!lhs->inRemoteCameraPVS[context.clientNum] && rhs->inRemoteCameraPVS[context.clientNum]) {
+		return true;
+	}
+	else if (lhs->inRemoteCameraPVS[context.clientNum] && !rhs->inRemoteCameraPVS[context.clientNum]) {
+		return false;
+	}
+
+	// 2 - elements in snapshot queue should be left
 	if (lhs->inSnapshotQueue[context.clientNum] < rhs->inSnapshotQueue[context.clientNum]) {
 		return true;
 	} else if (lhs->inSnapshotQueue[context.clientNum] > rhs->inSnapshotQueue[context.clientNum]) {
@@ -2603,7 +2612,7 @@ bool idGameLocal::snapshotsort_notInOrder(const snapshotsort_context_s &context,
 	}
 
 	// either both are in snapshot queue or both are not in snapshot queue
-	// 2 - lower priority should be left
+	// 3 - lower priority should be left
 	if (lhs->snapshotPriority > rhs->snapshotPriority) {
 		return true;
 	} else if (lhs->snapshotPriority < rhs->snapshotPriority) {
@@ -2611,7 +2620,7 @@ bool idGameLocal::snapshotsort_notInOrder(const snapshotsort_context_s &context,
 	}
 
 	// both are same priority
-	// 3 - first time in PVS should be left
+	// 4 - first time in PVS should be left
 	if (!lhs->firstTimeInClientPVS[context.clientNum] && rhs->firstTimeInClientPVS[context.clientNum]) {
 		return true;
 	}
@@ -2660,34 +2669,37 @@ idGameLocal::ServerWriteSnapshotCoop
   Write a snapshot of the current game state for the given client.
 ================
 */
-void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg &msg, byte *clientInPVS, int numPVSClients ) {
+void idGameLocal::ServerWriteSnapshotCoop(int clientNum, int sequence, idBitMsg& msg, byte* clientInPVS, int numPVSClients) {
 	int i, j, msgSize, msgWriteBit;
-	idPlayer *player, *spectated = NULL;
-	idEntity *ent;
+	idPlayer* player, * spectated = NULL;
+	idEntity* ent;
 	pvsHandle_t pvsHandle;
+	pvsHandle_t remoteCameraPvsHandle[idEntity::MAX_PVS_AREAS]; //for idSecurityCamera
 	idBitMsgDelta deltaMsg;
-	snapshot_t *snapshot;
-	entityState_t *base, *newBase;
-	int numSourceAreas, sourceAreas[ idEntity::MAX_PVS_AREAS ];
+	snapshot_t* snapshot;
+	entityState_t* base, * newBase;
+	int numSourceAreas, sourceAreas[idEntity::MAX_PVS_AREAS];
+	int remoteCameraPVSCount = 0;
 
 	//Used by stradex for netcode optimization
-	int serverSendEntitiesCount=0;
+	int serverSendEntitiesCount = 0;
 	int serverEntitiesLimit = net_serverSnapshotLimit.GetInteger();
 
-	player = static_cast<idPlayer *>( coopentities[ clientNum ] );
-	
-	if ( !player ) {
+	player = static_cast<idPlayer*>(coopentities[clientNum]);
+
+	if (!player) {
 		return;
 	}
 
-	if ( player->spectating && player->spectator != clientNum && entities[ player->spectator ] ) {
-		spectated = static_cast< idPlayer * >( entities[ player->spectator ] );
-	} else {
+	if (player->spectating && player->spectator != clientNum && entities[player->spectator]) {
+		spectated = static_cast<idPlayer*>(entities[player->spectator]);
+	}
+	else {
 		spectated = player;
 	}
 
 	// free too old snapshots
-	FreeSnapshotsOlderThanSequence( clientNum, sequence - 64 );
+	FreeSnapshotsOlderThanSequence(clientNum, sequence - 64);
 
 	// allocate new snapshot
 	snapshot = snapshotAllocator.Alloc();
@@ -2695,32 +2707,51 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 	snapshot->firstEntityState = NULL;
 	snapshot->next = clientSnapshots[clientNum];
 	clientSnapshots[clientNum] = snapshot;
-	memset( snapshot->pvs, 0, sizeof( snapshot->pvs ) );
+	memset(snapshot->pvs, 0, sizeof(snapshot->pvs));
 
 	/*
 	  // Nicemice: Fixes the "camera is not in the same PVS as player" problem
 	if ( player->GetPrivateCameraView() ) {
-    numSourceAreas = spectated->GetPrivateCameraView()->GetNumPVSAreas();
-    memcpy ( sourceAreas, spectated->GetPrivateCameraView()->GetPVSAreas(), sizeof( int ) * numSourceAreas );
+	numSourceAreas = spectated->GetPrivateCameraView()->GetNumPVSAreas();
+	memcpy ( sourceAreas, spectated->GetPrivateCameraView()->GetPVSAreas(), sizeof( int ) * numSourceAreas );
 	} else if ( camera ) {
-    numSourceAreas = camera->GetNumPVSAreas();
-    memcpy ( sourceAreas, camera->GetPVSAreas(), sizeof( int ) * numSourceAreas );
+	numSourceAreas = camera->GetNumPVSAreas();
+	memcpy ( sourceAreas, camera->GetPVSAreas(), sizeof( int ) * numSourceAreas );
 	} else {
-    numSourceAreas = player->GetNumPVSAreas();
-    memcpy ( sourceAreas, spectated->GetPVSAreas(), sizeof( int ) * numSourceAreas );
+	numSourceAreas = player->GetNumPVSAreas();
+	memcpy ( sourceAreas, spectated->GetPVSAreas(), sizeof( int ) * numSourceAreas );
 	}
   pvsHandle = gameLocal.pvs.SetupCurrentPVS( sourceAreas, numSourceAreas, PVS_NORMAL );
   */
 
-	// get PVS for this player
-	// don't use PVSAreas for networking - PVSAreas depends on animations (and md5 bounds), which are not synchronized
+  // get PVS for this player
+  // don't use PVSAreas for networking - PVSAreas depends on animations (and md5 bounds), which are not synchronized
 	if (gameLocal.inCinematic && gameLocal.GetCamera()) {
-		numSourceAreas = gameRenderWorld->BoundsInAreas( gameLocal.GetCamera()->GetPhysics()->GetAbsBounds(), sourceAreas, idEntity::MAX_PVS_AREAS );
-	} else {
-		numSourceAreas = gameRenderWorld->BoundsInAreas( spectated->GetPlayerPhysics()->GetAbsBounds(), sourceAreas, idEntity::MAX_PVS_AREAS );
+		numSourceAreas = gameRenderWorld->BoundsInAreas(gameLocal.GetCamera()->GetPhysics()->GetAbsBounds(), sourceAreas, idEntity::MAX_PVS_AREAS);
+	}
+	else {
+		numSourceAreas = gameRenderWorld->BoundsInAreas(spectated->GetPlayerPhysics()->GetAbsBounds(), sourceAreas, idEntity::MAX_PVS_AREAS);
 	}
 
-	pvsHandle = gameLocal.pvs.SetupCurrentPVS( sourceAreas, numSourceAreas, PVS_NORMAL );
+	pvsHandle = gameLocal.pvs.SetupCurrentPVS(sourceAreas, numSourceAreas, PVS_NORMAL);
+
+	// Prepare remoteCameraPvsHandle to send snapshots about entities in securities cameras
+	for (i = 0; i < MAX_GENTITIES; i++) {
+		ent = entities[i];
+		if (ent && ent->cameraTarget && ent->PhysicsTeamInPVS(pvsHandle)) {
+			//remoteCameraPvsHandle
+			for (j = 0; j < 4; j++) { //is this necessary?
+				sourceAreas[j] = 0;
+			}
+			numSourceAreas = gameRenderWorld->BoundsInAreas(ent->cameraTarget->GetPhysics()->GetAbsBounds(), sourceAreas, idEntity::MAX_PVS_AREAS);
+			remoteCameraPvsHandle[remoteCameraPVSCount] = gameLocal.pvs.SetupCurrentPVS(sourceAreas, numSourceAreas, PVS_NORMAL);
+			remoteCameraPVSCount++;
+
+			if (remoteCameraPVSCount >= idEntity::MAX_PVS_AREAS) {
+				break;
+			}
+		}
+	}
 
 #if ASYNC_WRITE_TAGS
 	idRandom tagRandom;
@@ -2765,9 +2796,22 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 				//ent->lastSnapshotOrigin[clientNum] = ent->GetRenderEntity()->origin;
 				ent->inSnapshotQueue[clientNum]++; //hack?
 				ent->forceSnapshotUpdateOrigin = true;
+				ent->inRemoteCameraPVS[clientNum] = false; // hack?
 			} else {
-				continue;
+				bool isInRemoteCameraPVS = false;
+				for (i = 0; i < remoteCameraPVSCount; i++) {
+					if (ent->PhysicsTeamInPVS(remoteCameraPvsHandle[i])) {
+						ent->inRemoteCameraPVS[clientNum] = true; //Ensure that this entity is low priority in case of snapshotoverflow
+						isInRemoteCameraPVS = true;
+						break;
+					}
+				}
+				if (!isInRemoteCameraPVS) {
+					continue;
+				}
 			}
+		} else {
+			ent->inRemoteCameraPVS[clientNum] = false;
 		}
 
 		if (ent->firstTimeInClientPVS[clientNum] && !ent->forceSnapshotUpdateOrigin) {
@@ -2867,6 +2911,9 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 
 	// free the PVS
 	pvs.FreeCurrentPVS( pvsHandle );
+	for (i = 0; i < remoteCameraPVSCount; i++) {
+		pvs.FreeCurrentPVS(remoteCameraPvsHandle[i]);
+	}
 
 	// write the game and player state to the snapshot
 	base = clientEntityStates[clientNum][ENTITYNUM_NONE];	// ENTITYNUM_NONE is used for the game and player state
