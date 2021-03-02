@@ -2143,6 +2143,7 @@ gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const userc
 	int			num;
 	clientEventsCount=0; //COOP DEBUG ONLY
 
+	SetupPlayerPVS();
 
 	for( ent = snapshotEntities.Next(); ent != NULL; ent = ent->snapshotNode.Next() ) {
 		if (ent->entityCoopNumber == clientPlayer->entityCoopNumber) {
@@ -2197,6 +2198,7 @@ gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const userc
 		numEntitiesToDeactivate = 0;
 	}
 
+	FreePlayerPVS();
 
 	//COOP DEBUG
 	if (clientEventsCount > 10) {

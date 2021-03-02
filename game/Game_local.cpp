@@ -2278,6 +2278,9 @@ void idGameLocal::SetupPlayerPVS( void ) {
 
 	playerPVS.i = -1;
 	for ( i = 0; i < numClients; i++ ) {
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && i != localClientNum) {
+			continue;
+		}
 		ent = entities[i];
 		if ( !ent || !ent->IsType( idPlayer::Type ) ) {
 			continue;

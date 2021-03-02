@@ -136,7 +136,12 @@ void idSecurityCamera::Spawn( void ) {
 	spawnArgs.GetVector( "viewOffset", "0 0 0", viewOffset );
 
 	if ( spawnArgs.GetBool( "spotLight" ) ) {
-		PostEventMS( &EV_SecurityCam_AddLight, 0 );
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+			PostEventMS(&EV_SecurityCam_AddLight, 0);
+		}
+		else {
+			CS_PostEventMS(&EV_SecurityCam_AddLight, 0);
+		}
 	}
 
 	negativeSweep = ( sweepAngle < 0 ) ? true : false;
@@ -387,7 +392,12 @@ void idSecurityCamera::Think( void ) {
 				StartSound( "snd_sight", SND_CHANNEL_BODY, 0, false, NULL );
 
 				sightTime = spawnArgs.GetFloat( "sightTime", "5" );
-				PostEventSec(&EV_SecurityCam_Alert, sightTime);
+				if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+					CS_PostEventSec(&EV_SecurityCam_Alert, sightTime);
+				}
+				else {
+					PostEventSec(&EV_SecurityCam_Alert, sightTime);
+				}
 			}
 		} else {
 			if (alertMode == ALERT) {
@@ -397,7 +407,12 @@ void idSecurityCamera::Think( void ) {
 				CancelEvents( &EV_SecurityCam_Alert );
 
 				sightResume = spawnArgs.GetFloat( "sightResume", "1.5" );
-				PostEventSec( &EV_SecurityCam_ContinueSweep, sightResume );
+				if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+					CS_PostEventSec(&EV_SecurityCam_ContinueSweep, sightResume);
+				}
+				else {
+					PostEventSec(&EV_SecurityCam_ContinueSweep, sightResume);
+				}
 			}
 
 			if ( sweeping ) {
@@ -448,7 +463,12 @@ void idSecurityCamera::StartSweep( void ) {
 	sweepStart = gameLocal.time;
 	speed = SEC2MS( SweepSpeed() );
 	sweepEnd = sweepStart + speed;
-	PostEventMS( &EV_SecurityCam_Pause, speed );
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		CS_PostEventMS(&EV_SecurityCam_Pause, speed);
+	}
+	else {
+		PostEventMS(&EV_SecurityCam_Pause, speed);
+	}
 	StartSound( "snd_moving", SND_CHANNEL_BODY, 0, false, NULL );
 }
 
@@ -465,7 +485,12 @@ void idSecurityCamera::Event_ContinueSweep( void ) {
 	sweepStart = f;
 	speed = MS2SEC( SweepSpeed() );
 	sweepEnd = sweepStart + speed;
-	PostEventMS( &EV_SecurityCam_Pause, speed * (1.0 - pct));
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		CS_PostEventMS(&EV_SecurityCam_Pause, speed * (1.0 - pct));
+	}
+	else {
+		PostEventMS(&EV_SecurityCam_Pause, speed * (1.0 - pct));
+	}
 	StartSound( "snd_moving", SND_CHANNEL_BODY, 0, false, NULL );
 	SetAlertMode(SCANNING);
 	sweeping = true;
@@ -486,7 +511,11 @@ void idSecurityCamera::Event_Alert( void ) {
 	CancelEvents( &EV_SecurityCam_ContinueSweep );
 
 	wait = spawnArgs.GetFloat( "wait", "20" );
-	PostEventSec( &EV_SecurityCam_ContinueSweep, wait );
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		CS_PostEventSec(&EV_SecurityCam_ContinueSweep, wait);
+	} else {
+		PostEventSec(&EV_SecurityCam_ContinueSweep, wait);
+	}
 }
 
 /*
@@ -512,7 +541,11 @@ void idSecurityCamera::Event_Pause( void ) {
 	sweeping = false;
 	StopSound( SND_CHANNEL_ANY, false );
 	StartSound( "snd_stop", SND_CHANNEL_BODY, 0, false, NULL );
-	PostEventSec( &EV_SecurityCam_ReverseSweep, sweepWait );
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		CS_PostEventSec(&EV_SecurityCam_ReverseSweep, sweepWait);
+	} else {
+		PostEventSec(&EV_SecurityCam_ReverseSweep, sweepWait);
+	}
 }
 
 /*
@@ -585,5 +618,14 @@ void idSecurityCamera::Present( void ) {
 		modelDefHandle = gameRenderWorld->AddEntityDef( &renderEntity );
 	} else {
 		gameRenderWorld->UpdateEntityDef( modelDefHandle, &renderEntity );
+	}
+}
+
+void idSecurityCamera::ClientPredictionThink(void) {
+	if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+		idEntity::ClientPredictionThink();
+	}
+	else {
+		Think();
 	}
 }

@@ -393,6 +393,7 @@ public:
 	virtual void			Teleport( const idVec3 &origin, const idAngles &angles, idEntity *destination );
 	bool					TouchTriggers( void ) const;
 	bool					ClientTouchTriggers( void ) const; //added for Coop
+	void					SetCameraTarget(idEntity * cameraTargetEnt);
 	idCurve_Spline<idVec3> *GetSpline( void ) const;
 	virtual void			ShowEditingDialog( void );
 
@@ -401,10 +402,10 @@ public:
 		EVENT_STOPSOUNDSHADER,
 		EVENT_ACTIVATE_TARGETS, //added by Stradex for coop
 		EVENT_SETNETSHADERPARM, //added by Stradex for coop
-		EVENT_SETGUIPARM, //added by Stradex for coop
+		EVENT_SETKEYVAL, //added by Stradex for coop
 		EVENT_SETMODEL, //nicemice added (OpenCoop)
 		EVENT_CLIENTDAMAGE, //added by Stradex for g_clientsideDamage 1
-		EVENT_DELETED, //added by Stradex
+		EVENT_CAMTARGETUPDATE, //added by Stradex
 		EVENT_MAXEVENTS
 	};
 
