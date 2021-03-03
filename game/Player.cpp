@@ -2441,6 +2441,12 @@ void idPlayer::ServerSpectate( bool spectate ) {
 	}
 }
 
+/*
+===============
+idPlayer::IsCollidingWithPlayer
+================
+*/
+
 bool idPlayer::IsCollidingWithPlayer(void) {
 	idPhysics* phys = GetPhysics();
 	if (!phys->GetNumClipModels()) {

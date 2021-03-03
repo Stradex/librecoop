@@ -468,6 +468,8 @@ public:
 	int						CountMapSyncEntitiesRemoved() const;
 	void					UnregisterEntity( idEntity *ent );
 
+	bool					SecureCheckIfEntityExists(idEntity* ent); //proper secure check about if entity exists, to avoid VERY RARE bug in coop (monorail respawn after dying).
+
 	void					WriteEntityListToEvent(idBitMsg& msg);
 	void					ReadEntityListFromEvent(const idBitMsg& msg);
 

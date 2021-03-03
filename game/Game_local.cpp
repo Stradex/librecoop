@@ -4837,8 +4837,6 @@ idEntity *idGameLocal::SelectInitialSpawnPoint( idPlayer *player ) {
 	float			dist;
 	bool			alone;
 
-	
-
 	if ( !isMultiplayer || !spawnSpots.Num() ) {
 		spot.ent = FindEntityUsingDef( NULL, "info_player_start" );
 		if ( !spot.ent ) {
@@ -4849,9 +4847,9 @@ idEntity *idGameLocal::SelectInitialSpawnPoint( idPlayer *player ) {
 	}
 	if ( player->spectating ) {
 		// plain random spot, don't bother
-		return spawnSpots[ random.RandomInt( spawnSpots.Num() ) ].ent;
+		spot.ent = spawnSpots[random.RandomInt(spawnSpots.Num())].ent;
 	} else if ( player->useInitialSpawns && currentInitialSpot < initialSpots.Num() ) {
-		return initialSpots[ currentInitialSpot++ ];
+		spot.ent = initialSpots[currentInitialSpot++];
 	} else {
 		// check if we are alone in map
 		alone = true;
@@ -4863,33 +4861,41 @@ idEntity *idGameLocal::SelectInitialSpawnPoint( idPlayer *player ) {
 		}
 		if ( alone ) {
 			// don't do distance-based
-			return spawnSpots[ random.RandomInt( spawnSpots.Num() ) ].ent;
-		}
+			spot.ent = spawnSpots[random.RandomInt(spawnSpots.Num())].ent;
+		}	else {
 
-		// find the distance to the closest active player for each spawn spot
-		for( i = 0; i < spawnSpots.Num(); i++ ) {
-			pos = spawnSpots[ i ].ent->GetPhysics()->GetOrigin();
-			spawnSpots[ i ].dist = 0x7fffffff;
-			for( j = 0; j < MAX_CLIENTS; j++ ) {
-				if ( !entities[ j ] || !entities[ j ]->IsType( idPlayer::Type )
-					|| entities[ j ] == player
-					|| static_cast< idPlayer * >( entities[ j ] )->spectating ) {
-					continue;
-				}
+			// find the distance to the closest active player for each spawn spot
+			for (i = 0; i < spawnSpots.Num(); i++) {
+				pos = spawnSpots[i].ent->GetPhysics()->GetOrigin();
+				spawnSpots[i].dist = 0x7fffffff;
+				for (j = 0; j < MAX_CLIENTS; j++) {
+					if (!entities[j] || !entities[j]->IsType(idPlayer::Type)
+						|| entities[j] == player
+						|| static_cast<idPlayer*>(entities[j])->spectating) {
+						continue;
+					}
 
-				dist = ( pos - entities[ j ]->GetPhysics()->GetOrigin() ).LengthSqr();
-				if ( dist < spawnSpots[ i ].dist ) {
-					spawnSpots[ i ].dist = dist;
+					dist = (pos - entities[j]->GetPhysics()->GetOrigin()).LengthSqr();
+					if (dist < spawnSpots[i].dist) {
+						spawnSpots[i].dist = dist;
+					}
 				}
 			}
+
+			// sort the list
+			qsort((void*)spawnSpots.Ptr(), spawnSpots.Num(), sizeof(spawnSpot_t), (int (*)(const void*, const void*))sortSpawnPoints);
+
+			// choose a random one in the top half
+			which = random.RandomInt(spawnSpots.Num() / 2);
+			spot = spawnSpots[which];
 		}
-
-		// sort the list
-		qsort( ( void * )spawnSpots.Ptr(), spawnSpots.Num(), sizeof( spawnSpot_t ), ( int (*)(const void *, const void *) )sortSpawnPoints );
-
-		// choose a random one in the top half
-		which = random.RandomInt( spawnSpots.Num() / 2 );
-		spot = spawnSpots[ which ];
+	}
+	if ((!SecureCheckIfEntityExists(spot.ent) || (spot.ent->entityNumber < MAX_CLIENTS)) && gameLocal.mpGame.IsGametypeCoopBased()) { //Monorail bug related to player spawnspot
+		common->Warning("[COOP FATAL] NULL spot.ent at idGameLocal::SelectInitialSpawnPoint, using info_player_start.\n");
+		spot.ent = FindEntityUsingDef(NULL, "info_player_start");
+		if (!spot.ent) {
+			Error("No info_player_start on map.\n");
+		}
 	}
 	return spot.ent;
 }
@@ -5190,4 +5196,14 @@ void idGameLocal::SetCameraCoop( idCamera *cam ) {
 			}
 		}
 	}
+}
+
+/*
+=============
+idGameLocal::SecureCheckIfEntityIsValid
+=============
+*/
+
+bool idGameLocal::SecureCheckIfEntityExists(idEntity* ent) {
+	return ent && (ent->entityNumber >= 0 && ent->entityNumber < ENTITYNUM_NONE);
 }
