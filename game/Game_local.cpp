@@ -4836,6 +4836,7 @@ idEntity *idGameLocal::SelectInitialSpawnPoint( idPlayer *player ) {
 	idVec3			pos;
 	float			dist;
 	bool			alone;
+	int				spotIndex=-1;
 
 	if ( !isMultiplayer || !spawnSpots.Num() ) {
 		spot.ent = FindEntityUsingDef( NULL, "info_player_start" );
@@ -4847,7 +4848,8 @@ idEntity *idGameLocal::SelectInitialSpawnPoint( idPlayer *player ) {
 	}
 	if ( player->spectating ) {
 		// plain random spot, don't bother
-		spot.ent = spawnSpots[random.RandomInt(spawnSpots.Num())].ent;
+		spotIndex = random.RandomInt(spawnSpots.Num());
+		spot.ent = spawnSpots[spotIndex].ent;
 	} else if ( player->useInitialSpawns && currentInitialSpot < initialSpots.Num() ) {
 		spot.ent = initialSpots[currentInitialSpot++];
 	} else {
@@ -4861,7 +4863,8 @@ idEntity *idGameLocal::SelectInitialSpawnPoint( idPlayer *player ) {
 		}
 		if ( alone ) {
 			// don't do distance-based
-			spot.ent = spawnSpots[random.RandomInt(spawnSpots.Num())].ent;
+			spotIndex = random.RandomInt(spawnSpots.Num());
+			spot.ent = spawnSpots[spotIndex].ent;
 		}	else {
 
 			// find the distance to the closest active player for each spawn spot
@@ -4887,11 +4890,16 @@ idEntity *idGameLocal::SelectInitialSpawnPoint( idPlayer *player ) {
 
 			// choose a random one in the top half
 			which = random.RandomInt(spawnSpots.Num() / 2);
-			spot = spawnSpots[which];
+			spotIndex = which;
+			spot = spawnSpots[spotIndex];
 		}
 	}
+	//spawnSpots.Remove()
 	if ((!SecureCheckIfEntityExists(spot.ent) || (spot.ent->entityNumber < MAX_CLIENTS)) && gameLocal.mpGame.IsGametypeCoopBased()) { //Monorail bug related to player spawnspot
-		common->Warning("[COOP FATAL] NULL spot.ent at idGameLocal::SelectInitialSpawnPoint, using info_player_start.\n");
+		common->Warning("[COOP FATAL] NULL spot.ent at idGameLocal::SelectInitialSpawnPoint, using info_player_start and removing invalid spawnSpot.\n");
+		if (spotIndex != -1) {
+			spawnSpots.RemoveIndex(spotIndex);
+		}
 		spot.ent = FindEntityUsingDef(NULL, "info_player_start");
 		if (!spot.ent) {
 			Error("No info_player_start on map.\n");
