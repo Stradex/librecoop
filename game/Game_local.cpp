@@ -1149,6 +1149,23 @@ void idGameLocal::LocalMapRestart( ) {
 		}
 	}
 
+	//Fix for clientside entities being all black while using noDynamicInteractions spawnArg
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		if (gameLocal.isClient) {
+			int j;
+			for (i = 0; i < MAX_GENTITIES; i++) {
+				if (entities[i] && (entities[i]->IsType(idLight::Type) || entities[i]->IsType(idStaticEntity::Type))) {
+					for (j = 0; j < 3; j++) {
+						entities[i]->ClientPredictionThink();
+					}
+				}
+			}
+		}
+		if (gameRenderWorld) {
+			gameRenderWorld->GenerateAllInteractions();
+		}
+	}
+
 	if (gameLocal.mpGame.IsGametypeCoopBased()) { 
 		idEvent::ServiceEvents();
 	}
