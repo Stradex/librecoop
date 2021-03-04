@@ -622,6 +622,10 @@ void idEntity::Spawn( void ) {
 
 	spawnArgs.GetBool("mapEntity", "0", isMapEntity); 	// OpenCoop Nicemice: Is it a map entity ?
 
+	if (isMapEntity && allowRemoveSync && gameLocal.mpGame.IsGametypeCoopBased()) { // COOP: We can force sync this entity between client and server so when a client connect it gets to see if this entity already exists or not at server
+		gameLocal.RegisterRemoveSyncEntity(this);
+	}
+
 #if 0
 	if ( !gameLocal.isClient ) {
 		// common->DPrintf( "NET: DBG %s - %s is synced: %s\n", spawnArgs.GetString( "classname", "" ), GetType()->classname, fl.networkSync ? "true" : "false" );
@@ -763,6 +767,10 @@ idEntity::~idEntity( void ) {
 		xrayEntityHandle = -1;
 	}
 #endif
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && isMapEntity && entityNumber >= MAX_CLIENTS && allowRemoveSync) {
+		gameLocal.UnregisterRemoveSyncEntity(this);
+	}
 
 	gameLocal.UnregisterEntity( this );
 }

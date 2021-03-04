@@ -494,6 +494,7 @@ void idGameLocal::ServerWriteInitialReliableMessages( int clientNum ) {
 	networkSystem->ServerSendReliableMessage( clientNum, outMsg );
 
 	// Sync deleted map entities with client (NEW COOP)
+
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
 		outMsg.Init(msgBuf, sizeof(msgBuf));
 		outMsg.BeginWriting();
@@ -2555,6 +2556,29 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 	// free the PVS
 	pvs.FreeCurrentPVS( pvsHandle );
 
+	//Read the cinematic data from snapshot coop
+	bool serverIsInCinematic = (msg.ReadBits(1) == 1); //not used yet
+	int serverCameraEntityNumber = msg.ReadShort();
+	int currentCameraEntityNumber=-1;
+	if (gameLocal.GetCamera()) {
+		currentCameraEntityNumber = GetCamera()->entityNumber;
+	}
+	if (currentCameraEntityNumber != serverCameraEntityNumber) {
+		if (serverCameraEntityNumber >= MAX_CLIENTS && gameLocal.entities[serverCameraEntityNumber]->IsType(idCamera::Type)) {
+			SetClientCamera(static_cast<idCamera*>(gameLocal.entities[serverCameraEntityNumber]));
+		} else {
+			SetClientCamera(NULL);
+		}
+	}
+/*
+	//Write the cinematics info to the client
+	msg.WriteBits(inCinematic, 1);
+	if (serverGameCamera && serverGameCamera->isMapEntity) {
+		msg.WriteShort(serverGameCamera->entityNumber);
+	} else {
+		msg.WriteShort(-1);
+	}*/
+
 	// read the game and player state from the snapshot
 	base = clientEntityStates[clientNum][ENTITYNUM_NONE];	// ENTITYNUM_NONE is used for the game and player state
 	if ( base ) {
@@ -2687,6 +2711,7 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 	int i, j, msgSize, msgWriteBit;
 	idPlayer *player, *spectated = NULL;
 	idEntity *ent;
+	idCamera* serverGameCamera = GetCamera();
 	pvsHandle_t pvsHandle;
 	pvsHandle_t remoteCameraPvsHandle[idEntity::MAX_PVS_AREAS]; //for idSecurityCamera
 	idBitMsgDelta deltaMsg;
@@ -2736,7 +2761,6 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 	for (i = 0; i < MAX_GENTITIES; i++) {
 		ent = entities[i];
 		if (ent && ent->cameraTarget && ent->PhysicsTeamInPVS(pvsHandle)) {
-			//remoteCameraPvsHandle
 			for (j = 0; j < 4; j++) { //is this necessary?
 				sourceAreas[j] = 0;
 			}
@@ -2929,6 +2953,14 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 		pvs.FreeCurrentPVS(remoteCameraPvsHandle[i]);
 	}
 
+	//Write the cinematics info to the client
+	msg.WriteBits(inCinematic, 1);
+	if (serverGameCamera && serverGameCamera->isMapEntity) {
+		msg.WriteShort(serverGameCamera->entityNumber);
+	} else {
+		msg.WriteShort(-1);
+	}
+
 	// write the game and player state to the snapshot
 	base = clientEntityStates[clientNum][ENTITYNUM_NONE];	// ENTITYNUM_NONE is used for the game and player state
 	if ( base ) {
@@ -2950,6 +2982,8 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 	}
 
 	WriteGameStateToSnapshot( deltaMsg );
+
+
 
 	// copy the client PVS string
 	memcpy( clientInPVS, snapshot->pvs, ( numPVSClients + 7 ) >> 3 );

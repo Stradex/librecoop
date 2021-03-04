@@ -1202,7 +1202,7 @@ void idGameLocal::LocalMapRestart( ) {
 
 	firstClientToSpawn = false; //added by Stradex for coop
 	coopMapScriptLoad = false; //added by Stradex for coop
-	num_coopentities = MAX_CLIENTS; //for coop (testing)
+	num_coopentities = 0; //for coop (testing)
 	num_removeSyncEntities = 0;
 
 	for (i=0; i < MAX_CLIENTS; i++) {
@@ -5680,10 +5680,53 @@ bool idGameLocal::isNPC(idEntity *ent ) const {
 
 /*
 =============
+idGameLocal::SetClientCamera
+=============
+*/
+void idGameLocal::SetClientCamera(idCamera* cam) {
+	assert(gameLocal.isClient);
+
+	int i;
+	idEntity* ent;
+	idAI* ai;
+	idPlayer* client = GetLocalPlayer();
+
+	camera = cam;
+	if (camera) {
+		inCinematic = true;
+		if (time > cinematicStopTime) {
+			cinematicSkipTime = time + CINEMATIC_SKIP_DELAY;
+		}
+		for (i = 0; i < numClients; i++) {
+			if (entities[i]) {
+				client = static_cast<idPlayer*>(entities[i]);
+				client->EnterCinematic();
+			}
+		}
+	}
+	else {
+		inCinematic = false;
+		cinematicStopTime = time + msec;
+		// show all the player models
+		for (i = 0; i < numClients; i++) {
+			if (entities[i]) {
+				idPlayer* client = static_cast<idPlayer*>(entities[i]);
+				client->ExitCinematic();
+			}
+		}
+	}
+}
+/*
+=============
 idGameLocal::SetCameraCoop
 =============
 */
 void idGameLocal::SetCameraCoop( idCamera *cam ) {
+	
+	if (gameLocal.isClient) {
+		return;
+	}
+
 	int i;
 	idEntity *ent;
 	idAI *ai;
@@ -5719,39 +5762,44 @@ void idGameLocal::SetCameraCoop( idCamera *cam ) {
 		//cvarSystem->SetCVarFloat( "r_znear", 1.0f );
 
 		// hide all the player models
-		for( i = 0; i < numClients; i++ ) {
-			if ( entities[ i ] ) {
-				client = static_cast< idPlayer* >( entities[ i ] );
-				client->EnterCinematic();
-			}
-		}
-
-		if ( !cam->spawnArgs.GetBool( "ignore_enemies" ) && gameLocal.isServer) {
-			// kill any active monsters that are enemies of the player
-			for ( ent = spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next() ) {
-				if ( ent->cinematic || ent->fl.isDormant ) {
-					// only kill entities that aren't needed for cinematics and aren't dormant
-					continue;
+		if (gameLocal.isServer) {
+			for (i = 0; i < numClients; i++) {
+				if (entities[i]) {
+					client = static_cast<idPlayer*>(entities[i]);
+					client->EnterCinematic();
 				}
+			}
 
-				if ( ent->IsType( idAI::Type ) ) {
-					ai = static_cast<idAI *>( ent );
-					if ( !ai->GetEnemy() || !ai->IsActive() ) {
-						// no enemy, or inactive, so probably safe to ignore
+			if (!cam->spawnArgs.GetBool("ignore_enemies")) {
+				// kill any active monsters that are enemies of the player
+				for (ent = spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next()) {
+					if (ent->cinematic || ent->fl.isDormant) {
+						// only kill entities that aren't needed for cinematics and aren't dormant
 						continue;
 					}
-				} else if ( ent->IsType( idProjectile::Type ) ) {
-					// remove all projectiles
-				} else if ( ent->spawnArgs.GetBool( "cinematic_remove" ) ) {
-					// remove anything marked to be removed during cinematics
-				} else {
-					// ignore everything else
-					continue;
-				}
 
-				// remove it
-				DPrintf( "removing '%s' for cinematic\n", ent->GetName() );
-				ent->PostEventMS( &EV_Remove, 0 );
+					if (ent->IsType(idAI::Type)) {
+						ai = static_cast<idAI*>(ent);
+						if (!ai->GetEnemy() || !ai->IsActive()) {
+							// no enemy, or inactive, so probably safe to ignore
+							continue;
+						}
+					}
+					else if (ent->IsType(idProjectile::Type)) {
+						// remove all projectiles
+					}
+					else if (ent->spawnArgs.GetBool("cinematic_remove")) {
+						// remove anything marked to be removed during cinematics
+					}
+					else {
+						// ignore everything else
+						continue;
+					}
+
+					// remove it
+					DPrintf("removing '%s' for cinematic\n", ent->GetName());
+					ent->PostEventMS(&EV_Remove, 0);
+				}
 			}
 		}
 
@@ -5762,11 +5810,13 @@ void idGameLocal::SetCameraCoop( idCamera *cam ) {
 		// restore r_znear
 		//cvarSystem->SetCVarFloat( "r_znear", 3.0f );
 
-		// show all the player models
-		for( i = 0; i < numClients; i++ ) {
-			if ( entities[ i ] ) {
-				idPlayer *client = static_cast< idPlayer* >( entities[ i ] );
-				client->ExitCinematic();
+		if (gameLocal.isServer) {
+			// show all the player models
+			for (i = 0; i < numClients; i++) {
+				if (entities[i]) {
+					idPlayer* client = static_cast<idPlayer*>(entities[i]);
+					client->ExitCinematic();
+				}
 			}
 		}
 	}
