@@ -493,6 +493,16 @@ void idGameLocal::ServerWriteInitialReliableMessages( int clientNum ) {
 	}
 	networkSystem->ServerSendReliableMessage( clientNum, outMsg );
 
+	// Sync deleted map entities with client (NEW COOP)
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		outMsg.Init(msgBuf, sizeof(msgBuf));
+		outMsg.BeginWriting();
+		outMsg.WriteByte(GAME_RELIABLE_MESSAGE_ENTITY_LIST);
+		WriteEntityListToEvent(outMsg);
+
+		networkSystem->ServerSendReliableMessage(clientNum, outMsg);
+	}
+
 	mpGame.ServerWriteInitialReliableMessages( clientNum );
 }
 
@@ -1755,6 +1765,11 @@ void idGameLocal::ClientProcessReliableMessage( int clientNum, const idBitMsg &m
 			common->Printf("[COOP] Receive fade...\n");
 			break;
 		}
+		case GAME_RELIABLE_MESSAGE_ENTITY_LIST: {
+			common->Printf("[COOP] Syncing map entities with server\n");
+			ReadEntityListFromEvent(msg);
+			break;
+		}
 		default: {
 			Error( "Unknown server->client reliable message: %d", id );
 			break;
@@ -2130,6 +2145,8 @@ gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const userc
 	int			num;
 	clientEventsCount=0; //COOP DEBUG ONLY
 
+	SetupPlayerPVS();
+
 	for( ent = snapshotEntities.Next(); ent != NULL; ent = ent->snapshotNode.Next() ) {
 		if (ent->entityCoopNumber == clientPlayer->entityCoopNumber) {
 			continue;
@@ -2197,6 +2214,8 @@ gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const userc
 		//assert( numEntitiesToDeactivate == c );
 		numEntitiesToDeactivate = 0;
 	}
+
+	FreePlayerPVS();
 
 	//COOP DEBUG
 	if (clientEventsCount > 10) {
@@ -2589,7 +2608,16 @@ void idGameLocal::snapshotsort_swap(idEntity* entities[], int lhs, int rhs) {
 
 // entities in snapshot queue <-- lower snapshot priority <-- first time in PVS <-- everything else
 bool idGameLocal::snapshotsort_notInOrder(const snapshotsort_context_s& context, idEntity* lhs, idEntity* rhs) {
-	// 1 - elements in snapshot queue should be left
+
+	//1 - inRemoteCameraPVS: optimization for idSecurityCamera
+	if (!lhs->inRemoteCameraPVS[context.clientNum] && rhs->inRemoteCameraPVS[context.clientNum]) {
+		return true;
+	}
+	else if (lhs->inRemoteCameraPVS[context.clientNum] && !rhs->inRemoteCameraPVS[context.clientNum]) {
+		return false;
+	}
+
+	// 2 - elements in snapshot queue should be left
 	if (lhs->inSnapshotQueue[context.clientNum] < rhs->inSnapshotQueue[context.clientNum]) {
 		return true;
 	}
@@ -2598,7 +2626,7 @@ bool idGameLocal::snapshotsort_notInOrder(const snapshotsort_context_s& context,
 	}
 
 	// either both are in snapshot queue or both are not in snapshot queue
-	// 2 - lower priority should be left
+	// 3 - lower priority should be left
 	if (lhs->snapshotPriority > rhs->snapshotPriority) {
 		return true;
 	}
@@ -2607,7 +2635,7 @@ bool idGameLocal::snapshotsort_notInOrder(const snapshotsort_context_s& context,
 	}
 
 	// both are same priority
-	// 3 - first time in PVS should be left
+	// 4 - first time in PVS should be left
 	if (!lhs->firstTimeInClientPVS[context.clientNum] && rhs->firstTimeInClientPVS[context.clientNum]) {
 		return true;
 	}
@@ -2660,10 +2688,12 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 	idPlayer *player, *spectated = NULL;
 	idEntity *ent;
 	pvsHandle_t pvsHandle;
+	pvsHandle_t remoteCameraPvsHandle[idEntity::MAX_PVS_AREAS]; //for idSecurityCamera
 	idBitMsgDelta deltaMsg;
 	snapshot_t *snapshot;
 	entityState_t *base, *newBase;
 	int numSourceAreas, sourceAreas[ idEntity::MAX_PVS_AREAS ];
+	int remoteCameraPVSCount = 0;
 
 	//REMINDER TO STRADEX: DELETE EVERYTHING RELATED TO serverPriorityNode. IT'S NOT USED FOR ANYTHING
 	//Used by stradex for netcode optimization
@@ -2701,6 +2731,25 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 		numSourceAreas = gameRenderWorld->BoundsInAreas( spectated->GetPlayerPhysics()->GetAbsBounds(), sourceAreas, idEntity::MAX_PVS_AREAS );
 	}
 	pvsHandle = gameLocal.pvs.SetupCurrentPVS( sourceAreas, numSourceAreas, PVS_NORMAL );
+
+	// Prepare remoteCameraPvsHandle to send snapshots about entities in securities cameras
+	for (i = 0; i < MAX_GENTITIES; i++) {
+		ent = entities[i];
+		if (ent && ent->cameraTarget && ent->PhysicsTeamInPVS(pvsHandle)) {
+			//remoteCameraPvsHandle
+			for (j = 0; j < 4; j++) { //is this necessary?
+				sourceAreas[j] = 0;
+			}
+			numSourceAreas = gameRenderWorld->BoundsInAreas(ent->cameraTarget->GetPhysics()->GetAbsBounds(), sourceAreas, idEntity::MAX_PVS_AREAS);
+			remoteCameraPvsHandle[remoteCameraPVSCount] = gameLocal.pvs.SetupCurrentPVS(sourceAreas, numSourceAreas, PVS_NORMAL);
+			remoteCameraPVSCount++;
+
+			if (remoteCameraPVSCount >= idEntity::MAX_PVS_AREAS) {
+				break;
+			}
+		}
+	}
+
 
 #ifdef _D3XP
 	// Add portalSky areas to PVS
@@ -2757,9 +2806,22 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 			if (!ent->forceSnapshotUpdateOrigin && ent->PhysicsTeamInPVS_snapshot( pvsHandle, clientNum )) {
 				ent->inSnapshotQueue[clientNum]++; //hack?
 				ent->forceSnapshotUpdateOrigin = true;
+				ent->inRemoteCameraPVS[clientNum] = false; // hack?
 			} else {
-				continue;
+				bool isInRemoteCameraPVS = false;
+				for (i = 0; i < remoteCameraPVSCount; i++) {
+					if (ent->PhysicsTeamInPVS(remoteCameraPvsHandle[i])) {
+						ent->inRemoteCameraPVS[clientNum] = true; //Ensure that this entity is low priority in case of snapshotoverflow
+						isInRemoteCameraPVS = true;
+						break;
+					}
+				}
+				if (!isInRemoteCameraPVS) {
+					continue;
+				}
 			}
+		} else {
+			ent->inRemoteCameraPVS[clientNum] = false;
 		}
 
 		if (ent->firstTimeInClientPVS[clientNum] && !ent->forceSnapshotUpdateOrigin) {
@@ -2863,6 +2925,9 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 
 	// free the PVS
 	pvs.FreeCurrentPVS( pvsHandle );
+	for (i = 0; i < remoteCameraPVSCount; i++) {
+		pvs.FreeCurrentPVS(remoteCameraPvsHandle[i]);
+	}
 
 	// write the game and player state to the snapshot
 	base = clientEntityStates[clientNum][ENTITYNUM_NONE];	// ENTITYNUM_NONE is used for the game and player state
@@ -3054,5 +3119,49 @@ void idGameLocal::sendServerOverflowEvents( void )
 	}
 	if (overflowEventCountdown > 0) {
 		serverEventsCount=MAX_SERVER_EVENTS_PER_FRAME; //FIXME: Ugly way for doing this.  Not pretty
+	}
+}
+
+/*
+===============
+idGameLocal::WriteEntityListToEvent
+===============
+*/
+
+void idGameLocal::WriteEntityListToEvent(idBitMsg& msg) {
+	common->Printf("[COOP] WriteEntityListToEvent\n");
+	int count = 0;
+	int removedCount = CountMapSyncEntitiesRemoved(); //safe way to send data, in case another entity is deleted while writing the message
+	msg.WriteInt(removedCount);
+	for (int i = 0; i < num_removeSyncEntities; i++) {
+		if (count >= removedCount) {
+			break;
+		}
+		if (!removeSyncEntities[i]) {
+			msg.WriteShort(i);
+			count++;
+		}
+	}
+
+}
+
+/*
+===============
+idGameLocal::ReadEntityListFromEvent
+===============
+*/
+void idGameLocal::ReadEntityListFromEvent(const idBitMsg& msg) {
+	common->Printf("[COOP] ReadEntityListFromEvent\n");
+	int entitiesToRemove = msg.ReadInt();
+	for (int i = 0; i < entitiesToRemove; i++) {
+		int entityRemoveId = msg.ReadShort();
+		if (removeSyncEntities[entityRemoveId] && removeSyncEntities[entityRemoveId]->isMapEntity && removeSyncEntities[entityRemoveId]->allowRemoveSync) {
+			common->Printf("[COOP] removing entity at start!\n");
+			removeSyncEntities[entityRemoveId]->CS_PostEventMS(&EV_Remove, 0);
+		}
+		else {
+			common->Warning("[COOP] Trying to remove invalid entity!\n");
+		}
+
 	}
 }

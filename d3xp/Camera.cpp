@@ -212,7 +212,7 @@ void idCameraView::Stop( void ) {
 
 /*
 =====================
-idCameraView::Spawn
+idCameraView::SetAttachment
 =====================
 */
 void idCameraView::SetAttachment( idEntity **e, const char *p  ) {
@@ -236,7 +236,12 @@ void idCameraView::Spawn( void ) {
 	}
 	fov = spawnArgs.GetFloat("fov", "90");
 
-	PostEventMS( &EV_Camera_SetAttachments, 0 );
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		CS_PostEventMS(&EV_Camera_SetAttachments, 0);
+	}
+	else {
+		PostEventMS(&EV_Camera_SetAttachments, 0);
+	}
 
 	UpdateChangeableSpawnArgs(NULL);
 }

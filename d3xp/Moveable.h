@@ -184,9 +184,11 @@ public:
 	virtual void			WriteToSnapshot( idBitMsgDelta &msg ) const;
 	virtual void			ReadFromSnapshot( const idBitMsgDelta &msg );
 	virtual bool			ClientReceiveEvent( int event, int time, const idBitMsg &msg );
+	virtual void			ClientPredictionThink(void); //added for Coop
 
 	enum {
 		EVENT_EXPLODE = idEntity::EVENT_MAXEVENTS,
+		EVENT_BURNING,
 		EVENT_MAXEVENTS
 	};
 

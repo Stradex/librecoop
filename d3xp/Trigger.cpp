@@ -1120,8 +1120,11 @@ void idTrigger_Fade::Event_Trigger( idEntity *activator ) {
 	player = gameLocal.GetCoopPlayer();
 	if ( player ) {
 		fadeColor = spawnArgs.GetVec4( "fadeColor", "0, 0, 0, 1" );
-		fadeTime = SEC2MS( spawnArgs.GetFloat( "fadeTime", "0.5" ) );
-		player->playerView.Fade( fadeColor, fadeTime );
+		int secsFadeTime = spawnArgs.GetFloat("fadeTime", "0.5");
+		fadeTime = SEC2MS(secsFadeTime);
+		if (!gameLocal.mpGame.IsGametypeCoopBased()) {
+			player->playerView.Fade(fadeColor, fadeTime);
+		}
 		PostEventMS( &EV_ActivateTargets, fadeTime, activator );
 	}
 }

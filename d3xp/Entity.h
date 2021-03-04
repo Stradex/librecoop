@@ -129,6 +129,7 @@ public:
 	int						entityDefNumber;		// index into the entity def list
 	int						entityCoopNumber;		// index into the entity coop list
 	int						entityTargetNumber;		// index into the entity target list
+	int						entityRemoveSyncNumber; // index into the entity remove sync list
 
 	idLinkList<idEntity>	spawnNode;				// for being linked into spawnedEntities list
 	idLinkList<idEntity>	activeNode;				// for being linked into activeEntities list
@@ -161,6 +162,7 @@ public:
 	bool					firstTimeInClientPVS[MAX_CLIENTS]; //added for Netcode optimization for COOP (Stradex)
 	bool					forceNetworkSync;		//FIXME: I think there's no need of this. Just duct tape to fix the new netcode 
 	int						inSnapshotQueue[MAX_CLIENTS];		//IF there's a snapshot overflow (see net_serverSnapshotLimit) we're going to need a snapshotqueue
+	bool					inRemoteCameraPVS[MAX_CLIENTS];		//Netcode optimization for security cameras, if the entity it's in a remote camera pvs only, then it's lowest priority to sync in case of snapshot overflow)
 	bool					readByServer;			//if the entity was already tried to be sent in the snapshot
 	int						snapshotPriority;		//The priority of this entity (useful when snapshot overflow
 	int						snapshotMissingCount[MAX_CLIENTS];	//Missing snapshots count for coop
@@ -173,6 +175,7 @@ public:
 	bool					eventSyncVital;				//if is vital that this entity always sync events
 	int						nextSendEventTime;			//next time to send event in case of overflow.
 	int						nextResetEventCountTime;
+	bool					allowRemoveSync;			// entity that can sync the remove state when a client joins the server to let know the client entities that do not exists anymore. 
 
 	//From OpenCoop
 	bool					isMapEntity;			  // Nicemice: added
@@ -400,11 +403,13 @@ public:
 	void					FindTargets( void );
 	void					RemoveNullTargets( void );
 	void					ActivateTargets( idEntity *activator );
+	void					CS_ActivateTargets(idEntity* activator, int timeActivated); //activate targets clientside
 
 	// misc
 	virtual void			Teleport( const idVec3 &origin, const idAngles &angles, idEntity *destination );
 	bool					TouchTriggers( void ) const;
 	bool					ClientTouchTriggers( void ) const; //added for Coop
+	void					SetCameraTarget(idEntity* cameraTargetEnt);
 	idCurve_Spline<idVec3> *GetSpline( void ) const;
 	virtual void			ShowEditingDialog( void );
 
@@ -415,7 +420,8 @@ public:
 		EVENT_SETNETSHADERPARM,
 		EVENT_SETMODEL, //nicemice added (OpenCoop)
 		EVENT_CLIENTDAMAGE, //added by Stradex for g_clientsideDamage 1
-		EVENT_DELETED, //added by Stradex
+		EVENT_CAMTARGETUPDATE, //added by StradeX
+		EVENT_SETKEYVAL, //added by Stradex for coop
 #ifdef _D3XP
 		EVENT_SETGUI,
 		EVENT_GUINAMEDEVENT,

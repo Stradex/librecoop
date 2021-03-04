@@ -409,7 +409,12 @@ void idEntity::UpdateChangeableSpawnArgs( const idDict *source ) {
 	target = source->GetString( "cameraTarget" );
 	if ( target && target[0] ) {
 		// update the camera taget
-		PostEventMS( &EV_UpdateCameraTarget, 0 );
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+			CS_PostEventMS(&EV_UpdateCameraTarget, 0);
+		}
+		else {
+			PostEventMS(&EV_UpdateCameraTarget, 0);
+		}
 	}
 
 	for ( i = 0; i < MAX_RENDERENTITY_GUI; i++ ) {
@@ -594,7 +599,12 @@ void idEntity::Spawn( void ) {
 	temp = spawnArgs.GetString( "cameraTarget" );
 	if ( temp && temp[0] ) {
 		// update the camera taget
-		PostEventMS( &EV_UpdateCameraTarget, 0 );
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+			CS_PostEventMS(&EV_UpdateCameraTarget, 0);
+		}
+		else {
+			PostEventMS(&EV_UpdateCameraTarget, 0);
+		}
 	}
 
 	for ( i = 0; i < MAX_RENDERENTITY_GUI; i++ ) {
@@ -699,7 +709,9 @@ idEntity::~idEntity
 idEntity::~idEntity( void ) {
 
 	if (gameLocal.GameState() != GAMESTATE_SHUTDOWN && !gameLocal.isClient && entityNumber >= MAX_CLIENTS) {
-		if ((fl.networkSync && !gameLocal.mpGame.IsGametypeCoopBased()) || (fl.coopNetworkSync && gameLocal.mpGame.IsGametypeCoopBased())) {
+		if ((fl.networkSync && !gameLocal.mpGame.IsGametypeCoopBased()) || 
+			((fl.coopNetworkSync || (isMapEntity && allowRemoveSync)) && gameLocal.mpGame.IsGametypeCoopBased())
+		) {
 			idBitMsg	msg;
 			byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
 
@@ -710,9 +722,7 @@ idEntity::~idEntity( void ) {
 			}
 			msg.WriteBits(gameLocal.GetSpawnId(this), 32);
 			networkSystem->ServerSendReliableMessage(-1, msg);
-		} else if (gameLocal.mpGame.IsGametypeCoopBased() && isMapEntity && !canBeCsTarget && !fl.coopNetworkSync) {
-			ServerSendEvent(EVENT_DELETED, NULL, true, gameLocal.localClientNum);
-		}
+		} 
 	}
 
 	DeconstructScriptObject();
@@ -3860,6 +3870,23 @@ bool idEntity::HandleGuiCommands( idEntity *entityGui, const char *cmds ) {
 				if ( src.ReadToken( &token2 ) && src.ReadToken(&token3) && src.ReadToken( &token4 ) ) {
 					idEntity *ent = gameLocal.FindEntity( token2 );
 					if ( ent ) {
+						if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && ent->isMapEntity) { // && cameraTarget??
+							if (idStr::FindText(token3, "gui_parm", false) >= 0) { //hack sync :3
+								idStr strToken3(token3.c_str());
+								int start = 8; //"gui_parm" length
+								int len = strToken3.Length() - start;
+								int guiParmId = atoi(strToken3.Mid(start, len).c_str());
+								int guiParmVal = atoi(token4);
+								idBitMsg     msg;
+								byte msgBuf[MAX_EVENT_PARAM_SIZE];
+								msg.Init(msgBuf, sizeof(msgBuf));
+								msg.WriteShort(ent->entityNumber);
+								msg.WriteShort(guiParmId);
+								msg.WriteShort(guiParmVal);
+								// send message to the clients
+								ServerSendEvent(EVENT_SETKEYVAL, &msg, false, -1);
+							}
+						}
 						ent->spawnArgs.Set( token3, token4 );
 						ent->UpdateChangeableSpawnArgs( NULL );
 						ent->UpdateVisuals();
@@ -4030,6 +4057,11 @@ idEntity::ActivateTargets
 ==============================
 */
 void idEntity::ActivateTargets( idEntity *activator ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+		return CS_ActivateTargets(this, gameLocal.time);
+	}
+
 	idEntity	*ent;
 	int			i, j;
 
@@ -4056,21 +4088,51 @@ void idEntity::ActivateTargets( idEntity *activator ) {
 		if ( !ent ) {
 			continue;
 		}
-		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && (ent->coopNode.InList() || !ent->canBeCsTarget)) {
-			continue; //don't try to activate entities that are already coop synced
-		}
+
 		if ( ent->RespondsTo( EV_Activate ) || ent->HasSignal( SIG_TRIGGER ) ) {
 			ent->Signal( SIG_TRIGGER );
 			ent->ProcessEvent( &EV_Activate, activator );
-			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
-				ent->allowClientsideThink = true;
-				ent->BecomeActive( TH_PHYSICS );
-				common->DPrintf("[COOP DEBUG] Client Activating entity %s\n", ent->GetName());
-			}
 		}
 		for ( j = 0; j < MAX_RENDERENTITY_GUI; j++ ) {
 			if ( ent->renderEntity.gui[ j ] ) {
 				ent->renderEntity.gui[ j ]->Trigger( gameLocal.time );
+			}
+		}
+	}
+}
+
+/*
+==============================
+idEntity::CS_ActivateTargets
+"activator" should be set to the entity that initiated the firing.
+==============================
+*/
+
+void idEntity::CS_ActivateTargets(idEntity* activator, int timeActivated) {
+
+	assert(gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased());
+
+	idEntity* ent;
+	int			i, j;
+
+	for (i = 0; i < targets.Num(); i++) {
+		ent = targets[i].GetEntity();
+		if (!ent) {
+			continue;
+		}
+		if (ent->coopNode.InList() || !ent->canBeCsTarget) {
+			continue; //don't try to activate entities that are already coop synced
+		}
+		if (ent->RespondsTo(EV_Activate) || ent->HasSignal(SIG_TRIGGER)) {
+			ent->Signal(SIG_TRIGGER);
+			ent->ProcessEvent(&EV_Activate, activator);
+			ent->allowClientsideThink = true;
+			ent->BecomeActive(TH_PHYSICS);
+			gameLocal.DebugPrintf("Client Activating entity %s\n", ent->GetName());
+		}
+		for (j = 0; j < MAX_RENDERENTITY_GUI; j++) {
+			if (ent->renderEntity.gui[j]) {
+				ent->renderEntity.gui[j]->Trigger(gameLocal.time);
 			}
 		}
 	}
@@ -5046,21 +5108,40 @@ void idEntity::Event_UpdateCameraTarget( void ) {
 	idVec3 dir;
 
 	target = spawnArgs.GetString( "cameraTarget" );
+	SetCameraTarget(gameLocal.FindEntity(target)); // coop
+}
 
-	cameraTarget = gameLocal.FindEntity( target );
+/*
+================
+idEntity::SetCameraTarget
+================
+*/
 
-	if ( cameraTarget ) {
-		kv = cameraTarget->spawnArgs.MatchPrefix( "target", NULL );
-		while( kv ) {
-			idEntity *ent = gameLocal.FindEntity( kv->GetValue() );
-			if ( ent && idStr::Icmp( ent->GetEntityDefName(), "target_null" ) == 0) {
+void idEntity::SetCameraTarget(idEntity* cameraTargetEnt) {
+	const idKeyValue* kv;
+	idVec3 dir;
+	cameraTarget = cameraTargetEnt;
+	if (cameraTarget) {
+		kv = cameraTarget->spawnArgs.MatchPrefix("target", NULL);
+		while (kv) {
+			idEntity* ent = gameLocal.FindEntity(kv->GetValue());
+			if (ent && idStr::Icmp(ent->GetEntityDefName(), "target_null") == 0) {
 				dir = ent->GetPhysics()->GetOrigin() - cameraTarget->GetPhysics()->GetOrigin();
 				dir.Normalize();
-				cameraTarget->SetAxis( dir.ToMat3() );
+				cameraTarget->SetAxis(dir.ToMat3());
 				SetAxis(dir.ToMat3());
 				break;
 			}
-			kv = cameraTarget->spawnArgs.MatchPrefix( "target", kv );
+			kv = cameraTarget->spawnArgs.MatchPrefix("target", kv);
+		}
+
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && isMapEntity) {
+			idBitMsg     msg;
+			byte msgBuf[MAX_EVENT_PARAM_SIZE];
+			msg.Init(msgBuf, sizeof(msgBuf));
+
+			msg.WriteShort(cameraTarget->entityNumber);
+			ServerSendEvent(EVENT_CAMTARGETUPDATE, &msg, false, -1);
 		}
 	}
 	UpdateVisuals();
@@ -5719,7 +5800,7 @@ bool idEntity::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			return true;
 		}
 		case EVENT_ACTIVATE_TARGETS: {
-			ActivateTargets(this);
+			CS_ActivateTargets(this, gameLocal.time);
 			return true;
 		}
 		case EVENT_SETNETSHADERPARM: {
@@ -5737,9 +5818,32 @@ bool idEntity::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			return true;
 		}
 		//Stradex
-		case EVENT_DELETED: {
-			gameLocal.Printf("[COOP] delete entity as client\n");
-			Event_SafeRemove();
+		case EVENT_SETKEYVAL: {
+			idStr guiParmStr, guiParmValStr;
+			int entitySetId = msg.ReadShort();
+			int guiParmId = msg.ReadShort();
+			int guiParmVal = msg.ReadShort();
+
+			if (gameLocal.entities[entitySetId] && gameLocal.entities[entitySetId]->isMapEntity) {
+				idEntity* entitySet = gameLocal.entities[entitySetId];
+				guiParmStr = "";
+				guiParmValStr = "";
+				sprintf(guiParmStr, "gui_parm%d", guiParmId);
+				sprintf(guiParmValStr, "%d", guiParmVal);
+				entitySet->spawnArgs.Set(guiParmStr, guiParmValStr);
+				entitySet->UpdateChangeableSpawnArgs(NULL);
+				entitySet->UpdateVisuals();
+			}
+			return true;
+		}
+
+		case EVENT_CAMTARGETUPDATE: {
+			int cameraTargetId = msg.ReadShort();
+			idEntity* cameraTargetEnt = gameLocal.entities[cameraTargetId];
+			if (cameraTargetEnt) {
+				spawnArgs.Set("cameraTarget", cameraTargetEnt->GetName());
+			}
+			UpdateChangeableSpawnArgs(NULL);
 			return true;
 		}
 #ifdef _D3XP

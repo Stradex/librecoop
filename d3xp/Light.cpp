@@ -919,6 +919,11 @@ idLight::Event_Hide
 ================
 */
 void idLight::Event_Hide( void ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && isMapEntity) {
+		ServerSendEvent(EVENT_NETHIDE, NULL, true, -1, true);
+	}
+
 	Hide();
 	PresentModelDefChange();
 	Off();
@@ -930,6 +935,12 @@ idLight::Event_Show
 ================
 */
 void idLight::Event_Show( void ) {
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer && isMapEntity) {
+		gameLocal.Printf("[Coop] Trying to sync show: %s\n", GetName());
+		ServerSendEvent(EVENT_NETSHOW, NULL, true, -1, true);
+	}
+
 	Show();
 	PresentModelDefChange();
 	On();
@@ -1213,6 +1224,14 @@ bool idLight::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 		case EVENT_FADEOUT: {
 			float eventTime = msg.ReadFloat();
 			FadeOut(eventTime);
+			return true;
+		}
+		case EVENT_NETSHOW: {
+			Event_Show();
+			return true;
+		}
+		case EVENT_NETHIDE: {
+			Event_Hide();
 			return true;
 		}
 		default:

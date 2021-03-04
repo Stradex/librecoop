@@ -222,6 +222,7 @@ void idGameLocal::Clear( void ) {
 	memset( usercmds, 0, sizeof( usercmds ) );
 	memset( entities, 0, sizeof( entities ) );
 	memset(coopentities, 0, sizeof(coopentities)); //added for coop
+	memset(removeSyncEntities, 0, sizeof(removeSyncEntities)); //added for coop
 	memset(targetentities, 0, sizeof(targetentities));
 	memset( spawnIds, -1, sizeof( spawnIds ) );
 	memset( coopIds, -1, sizeof( coopIds ) ); //added for coop
@@ -230,6 +231,7 @@ void idGameLocal::Clear( void ) {
 	firstFreeTargetIndex = 0;  //added for coop
 	num_entities = 0;
 	num_coopentities=0;  //added for coop
+	num_removeSyncEntities = 0; //added for coop
 	spawnedEntities.Clear();
 	coopSyncEntities.Clear(); //added for coop
 	activeEntities.Clear();
@@ -1057,6 +1059,7 @@ void idGameLocal::LoadMap( const char *mapName, int randseed ) {
 	// range are NEVER anything but clients
 	num_entities	= MAX_CLIENTS;
 	num_coopentities = MAX_CLIENTS; //added for Coop
+	num_removeSyncEntities = 0; //added for coop
 	firstFreeIndex	= MAX_CLIENTS;
 	firstFreeCoopIndex = MAX_CLIENTS; //added for Coop
 	firstFreeCsIndex = CS_ENTITIES_START; //added for Coop
@@ -1199,7 +1202,8 @@ void idGameLocal::LocalMapRestart( ) {
 
 	firstClientToSpawn = false; //added by Stradex for coop
 	coopMapScriptLoad = false; //added by Stradex for coop
-	num_coopentities = 0; //for coop
+	num_coopentities = MAX_CLIENTS; //for coop (testing)
+	num_removeSyncEntities = 0;
 
 	for (i=0; i < MAX_CLIENTS; i++) {
 		mpGame.playerUseCheckpoints[i] = false;
@@ -1248,6 +1252,20 @@ void idGameLocal::LocalMapRestart( ) {
 					static_cast<idAI*>(ent)->Init_CoopScriptFix();
 				}
 			}
+		}
+		//Fix for clientside entities being all black while using noDynamicInteractions spawnArg
+		if (gameLocal.isClient) {
+			int j;
+			for (i = 0; i < MAX_GENTITIES; i++) {
+				if (entities[i] && (entities[i]->IsType(idLight::Type) || entities[i]->IsType(idStaticEntity::Type))) {
+					for (j = 0; j < 3; j++) {
+						entities[i]->ClientPredictionThink();
+					}
+				}
+			}
+		}
+		if (gameRenderWorld) {
+			gameRenderWorld->GenerateAllInteractions();
 		}
 		idEvent::ServiceEvents();
 	}
@@ -1435,6 +1453,8 @@ void idGameLocal::MapPopulate( void ) {
 	mapSpawnCount = MAX_CLIENTS + spawnCount - 1;
 	mapCoopCount = MAX_CLIENTS + coopCount - 1; //added for Coop
 
+	Printf("mapCoopCount: %d - mapSpawnCount: %d - num_removeSyncEntities: %d\n", mapCoopCount, mapSpawnCount, num_removeSyncEntities);
+
 	// execute pending events before the very first game frame
 	// this makes sure the map script main() function is called
 	// before the physics are run so entities can bind correctly
@@ -1473,7 +1493,8 @@ void idGameLocal::InitFromNewMap( const char *mapName, idRenderWorld *renderWorl
 
 	firstClientToSpawn = false; //added by Stradex for coop
 	coopMapScriptLoad = false; //added by Stradex for coop
-	num_coopentities = 0; //for coop
+	num_coopentities = MAX_CLIENTS; //for coop
+	num_removeSyncEntities = 0;
 
 	for (i=0; i < MAX_CLIENTS; i++) {
 		mpGame.playerUseCheckpoints[i] = false;
@@ -1817,6 +1838,7 @@ void idGameLocal::MapClear( bool clearClients ) {
 	// range are NEVER anything but clients
 	num_entities	= MAX_CLIENTS;
 	num_coopentities = MAX_CLIENTS;
+	num_removeSyncEntities = 0;
 	firstFreeIndex	= MAX_CLIENTS;
 	firstFreeCoopIndex = MAX_CLIENTS; //added for Coop
 	firstFreeTargetIndex = MAX_CLIENTS; //added for Coop
@@ -2448,6 +2470,11 @@ void idGameLocal::SetupPlayerPVS( void ) {
 
 	playerPVS.i = -1;
 	for ( i = 0; i < numClients; i++ ) {
+
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && i != localClientNum) {
+			continue;
+		}
+
 		ent = entities[i];
 		if ( !ent || !ent->IsType( idPlayer::Type ) ) {
 			continue;
@@ -5139,6 +5166,8 @@ idEntity *idGameLocal::SelectInitialSpawnPoint( idPlayer *player ) {
 	idVec3			pos;
 	float			dist;
 	bool			alone;
+	int				spotIndex = -1;
+
 
 #ifdef CTF
 	if ( !isMultiplayer || !spawnSpots.Num() || ( mpGame.IsGametypeFlagBased() && ( !teamSpawnSpots[0].Num() || !teamSpawnSpots[1].Num() ) ) ) { /* CTF */
@@ -5165,7 +5194,8 @@ idEntity *idGameLocal::SelectInitialSpawnPoint( idPlayer *player ) {
 
 	if ( player->spectating ) {
 		// plain random spot, don't bother
-		return spawnSpots[ random.RandomInt( spawnSpots.Num() ) ].ent;
+		spotIndex = random.RandomInt(spawnSpots.Num());
+		spot.ent = spawnSpots[spotIndex].ent;
 #ifdef CTF
 	} else if ( useInitialSpots ) {
 		if ( mpGame.IsGametypeFlagBased() ) { /* CTF */
@@ -5173,7 +5203,7 @@ idEntity *idGameLocal::SelectInitialSpawnPoint( idPlayer *player ) {
 			player->useInitialSpawns = false;							// only use the initial spawn once
 			return teamInitialSpots[ player->team ][ teamCurrentInitialSpot[ player->team ]++ ];
 		}
-		return initialSpots[ currentInitialSpot++ ];
+		spot.ent = initialSpots[currentInitialSpot++];
 #else
 	} else if ( player->useInitialSpawns && currentInitialSpot < initialSpots.Num() ) {
 		return initialSpots[ currentInitialSpot++ ];
@@ -5196,79 +5226,95 @@ idEntity *idGameLocal::SelectInitialSpawnPoint( idPlayer *player ) {
 			}
 #endif
 			// don't do distance-based
-			return spawnSpots[ random.RandomInt( spawnSpots.Num() ) ].ent;
+			spotIndex = random.RandomInt(spawnSpots.Num());
+			spot.ent = spawnSpots[spotIndex].ent;
 		}
+		else {
 
 #ifdef CTF
-		if ( mpGame.IsGametypeFlagBased() ) /* CTF */
-		{
-			// TODO : make as reusable method, same code as below
-			int team = player->team;
-			assert( team == 0 || team == 1 );
+			if (mpGame.IsGametypeFlagBased()) /* CTF */
+			{
+				// TODO : make as reusable method, same code as below
+				int team = player->team;
+				assert(team == 0 || team == 1);
 
-			// find the distance to the closest active player for each spawn spot
-			for( i = 0; i < teamSpawnSpots[ team ].Num(); i++ ) {
-				pos = teamSpawnSpots[ team ][ i ].ent->GetPhysics()->GetOrigin();
+				// find the distance to the closest active player for each spawn spot
+				for (i = 0; i < teamSpawnSpots[team].Num(); i++) {
+					pos = teamSpawnSpots[team][i].ent->GetPhysics()->GetOrigin();
 
-				// skip initial spawn points for CTF
-				if ( teamSpawnSpots[ team ][ i ].ent->spawnArgs.GetBool("initial") ) {
-					teamSpawnSpots[ team ][ i ].dist = 0x0;
-					continue;
-				}
-
-				teamSpawnSpots[ team ][ i ].dist = 0x7fffffff;
-
-				for( j = 0; j < MAX_CLIENTS; j++ ) {
-					if ( !entities[ j ] || !entities[ j ]->IsType( idPlayer::Type )
-						|| entities[ j ] == player
-						|| static_cast< idPlayer * >( entities[ j ] )->spectating ) {
+					// skip initial spawn points for CTF
+					if (teamSpawnSpots[team][i].ent->spawnArgs.GetBool("initial")) {
+						teamSpawnSpots[team][i].dist = 0x0;
 						continue;
 					}
 
-					dist = ( pos - entities[ j ]->GetPhysics()->GetOrigin() ).LengthSqr();
-					if ( dist < teamSpawnSpots[ team ][ i ].dist ) {
-						teamSpawnSpots[ team ][ i ].dist = dist;
+					teamSpawnSpots[team][i].dist = 0x7fffffff;
+
+					for (j = 0; j < MAX_CLIENTS; j++) {
+						if (!entities[j] || !entities[j]->IsType(idPlayer::Type)
+							|| entities[j] == player
+							|| static_cast<idPlayer*>(entities[j])->spectating) {
+							continue;
+						}
+
+						dist = (pos - entities[j]->GetPhysics()->GetOrigin()).LengthSqr();
+						if (dist < teamSpawnSpots[team][i].dist) {
+							teamSpawnSpots[team][i].dist = dist;
+						}
+					}
+				}
+
+				// sort the list
+				qsort((void*)teamSpawnSpots[team].Ptr(), teamSpawnSpots[team].Num(), sizeof(spawnSpot_t), (int (*)(const void*, const void*))sortSpawnPoints);
+
+				// choose a random one in the top half
+				which = random.RandomInt(teamSpawnSpots[team].Num() / 2);
+				spot = teamSpawnSpots[team][which];
+				//			assert( teamSpawnSpots[ team ][ which ].dist != 0 );
+
+				return spot.ent;
+			}
+#endif
+
+			// find the distance to the closest active player for each spawn spot
+			for (i = 0; i < spawnSpots.Num(); i++) {
+				pos = spawnSpots[i].ent->GetPhysics()->GetOrigin();
+				spawnSpots[i].dist = 0x7fffffff;
+				for (j = 0; j < MAX_CLIENTS; j++) {
+					if (!entities[j] || !entities[j]->IsType(idPlayer::Type)
+						|| entities[j] == player
+						|| static_cast<idPlayer*>(entities[j])->spectating) {
+						continue;
+					}
+
+					dist = (pos - entities[j]->GetPhysics()->GetOrigin()).LengthSqr();
+					if (dist < spawnSpots[i].dist) {
+						spawnSpots[i].dist = dist;
 					}
 				}
 			}
 
 			// sort the list
-			qsort( ( void * )teamSpawnSpots[ team ].Ptr(), teamSpawnSpots[ team ].Num(), sizeof( spawnSpot_t ), ( int (*)(const void *, const void *) )sortSpawnPoints );
+			qsort((void*)spawnSpots.Ptr(), spawnSpots.Num(), sizeof(spawnSpot_t), (int (*)(const void*, const void*))sortSpawnPoints);
 
 			// choose a random one in the top half
-			which = random.RandomInt( teamSpawnSpots[ team ].Num() / 2 );
-			spot = teamSpawnSpots[ team ][ which ];
-//			assert( teamSpawnSpots[ team ][ which ].dist != 0 );
-
-			return spot.ent;
+			which = random.RandomInt(spawnSpots.Num() / 2);
+			spotIndex = which;
+			spot = spawnSpots[spotIndex];
 		}
-#endif
-
-		// find the distance to the closest active player for each spawn spot
-		for( i = 0; i < spawnSpots.Num(); i++ ) {
-			pos = spawnSpots[ i ].ent->GetPhysics()->GetOrigin();
-			spawnSpots[ i ].dist = 0x7fffffff;
-			for( j = 0; j < MAX_CLIENTS; j++ ) {
-				if ( !entities[ j ] || !entities[ j ]->IsType( idPlayer::Type )
-					|| entities[ j ] == player
-					|| static_cast< idPlayer * >( entities[ j ] )->spectating ) {
-					continue;
-				}
-
-				dist = ( pos - entities[ j ]->GetPhysics()->GetOrigin() ).LengthSqr();
-				if ( dist < spawnSpots[ i ].dist ) {
-					spawnSpots[ i ].dist = dist;
-				}
-			}
-		}
-
-		// sort the list
-		qsort( ( void * )spawnSpots.Ptr(), spawnSpots.Num(), sizeof( spawnSpot_t ), ( int (*)(const void *, const void *) )sortSpawnPoints );
-
-		// choose a random one in the top half
-		which = random.RandomInt( spawnSpots.Num() / 2 );
-		spot = spawnSpots[ which ];
 	}
+
+	if ((!SecureCheckIfEntityExists(spot.ent) || (spot.ent->entityNumber < MAX_CLIENTS)) && gameLocal.mpGame.IsGametypeCoopBased()) { //Monorail bug related to player spawnspot
+		common->Warning("[COOP FATAL] NULL spot.ent at idGameLocal::SelectInitialSpawnPoint, using info_player_start and removing invalid spawnSpot.\n");
+		if (spotIndex != -1) {
+			spawnSpots.RemoveIndex(spotIndex);
+		}
+		spot.ent = FindEntityUsingDef(NULL, "info_player_start");
+		if (!spot.ent) {
+			Error("No info_player_start on map.\n");
+		}
+	}
+
 	return spot.ent;
 }
 
@@ -5725,3 +5771,54 @@ void idGameLocal::SetCameraCoop( idCamera *cam ) {
 		}
 	}
 } 
+
+/*
+===================
+idGameLocal::RegisterRemoveSyncEntity
+===================
+*/
+
+void idGameLocal::RegisterRemoveSyncEntity(idEntity* ent) {
+	removeSyncEntities[num_removeSyncEntities] = ent;
+	ent->entityRemoveSyncNumber = num_removeSyncEntities;
+	num_removeSyncEntities++;
+}
+
+/*
+===================
+idGameLocal::UnregisterRemoveSyncEntity
+===================
+*/
+
+void idGameLocal::UnregisterRemoveSyncEntity(idEntity* ent) {
+	if (ent->entityRemoveSyncNumber == ENTITYNUM_NONE) {
+		return;
+	}
+	removeSyncEntities[ent->entityRemoveSyncNumber] = NULL;
+}
+
+/*
+===================
+idGameLocal::CountMapSyncEntitiesRemoved
+===================
+*/
+
+int idGameLocal::CountMapSyncEntitiesRemoved() const {
+	int count = 0;
+	for (int i = 0; i < num_removeSyncEntities; i++) {
+		if (!removeSyncEntities[i]) {
+			count++;
+		}
+	}
+	return count;
+}
+
+/*
+=============
+idGameLocal::SecureCheckIfEntityIsValid
+=============
+*/
+
+bool idGameLocal::SecureCheckIfEntityExists(idEntity* ent) {
+	return ent && (ent->entityNumber >= 0 && ent->entityNumber < ENTITYNUM_NONE);
+}
