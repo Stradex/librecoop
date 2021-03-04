@@ -298,6 +298,8 @@ public:
 	virtual void			ReadFromSnapshot( const idBitMsgDelta &msg );  //Added for COOP by Stradex
 	virtual bool			ServerReceiveEvent( int event, int time, const idBitMsg &msg ); //Added for COOP by Stradex
 	virtual bool			ClientReceiveEvent( int event, int time, const idBitMsg &msg ); //Added for COOP by Stradex
+	void					WriteAnimToSnapshot(idBitMsgDelta& msg) const;
+	void					ReadAnimFromSnapshot(const idBitMsgDelta& msg);
 	void					ClientProcessNetAction(netActionType_t newAction);  //Added for COOP by Stradex
 	idPlayer				*GetClosestPlayerEnemy( void );
 	idPlayer				*GetClosestPlayer( void );

@@ -222,7 +222,7 @@ void idGameLocal::Clear( void ) {
 	memset( usercmds, 0, sizeof( usercmds ) );
 	memset( entities, 0, sizeof( entities ) );
 	memset(coopentities, 0, sizeof(coopentities)); //added for coop
-	memset(removeSyncEntities, 0, sizeof(removeSyncEntities)); //added for coop
+	memset(removeSyncEntities, 0, sizeof( removeSyncEntities )); //added for coop
 	memset(targetentities, 0, sizeof(targetentities));
 	memset( spawnIds, -1, sizeof( spawnIds ) );
 	memset( coopIds, -1, sizeof( coopIds ) ); //added for coop
