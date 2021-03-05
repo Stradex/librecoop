@@ -230,6 +230,11 @@ public:
 	int						currentLegsAnim;
 	int						currentHeadAnim;
 	int						currentAnimType;
+	int						snapshotTorsoAnim;
+	int						snapshotLegsAnim;
+	int						snapshotHeadAnim;
+	int						snapshotAnimType;
+
 	void					PlayAnimID(int channel, int anim);
 	void					PlayCycleID(int channel, int anim);
 	void					PlayIdleID(int channel, int anim);

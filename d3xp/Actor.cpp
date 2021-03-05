@@ -486,6 +486,10 @@ idActor::idActor( void ) {
 	currentLegsAnim = 0;
 	currentHeadAnim = 0;
 	currentAnimType = ACTOR_ANIM_CYCLE;
+	snapshotTorsoAnim = 0;
+	snapshotLegsAnim = 0;
+	snapshotHeadAnim = 0;
+	snapshotAnimType = ACTOR_ANIM_CYCLE;
 
 	killedByGrabber = false;
 #ifdef _D3XP

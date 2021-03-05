@@ -5587,6 +5587,41 @@ void idAI::ClientPredictionThink( void ) {
 
 /*
 ================
+ idAI::WriteAnimToSnapshot
+================
+*/
+
+void  idAI::WriteAnimToSnapshot(idBitMsgDelta& msg) const {
+	msg.WriteFloat(anim_turn_yaw);
+	msg.WriteFloat(anim_turn_amount);
+	msg.WriteFloat(anim_turn_angles);
+	msg.WriteShort(currentAnimType);
+	msg.WriteShort(currentTorsoAnim);
+	msg.WriteShort(currentLegsAnim);
+	msg.WriteBits(animator.GetAllowFrameCommands(ANIMCHANNEL_TORSO), 1);
+	msg.WriteBits(animator.GetAllowFrameCommands(ANIMCHANNEL_LEGS), 1);
+}
+
+/*
+================
+ idAI::ReadAnimFromSnapshot
+================
+*/
+
+void idAI::ReadAnimFromSnapshot(const idBitMsgDelta& msg) {
+	anim_turn_yaw = msg.ReadFloat();
+	anim_turn_amount = msg.ReadFloat();
+	anim_turn_angles = msg.ReadFloat();
+	snapshotAnimType = msg.ReadShort();
+	snapshotTorsoAnim = msg.ReadShort();
+	snapshotLegsAnim = msg.ReadShort();
+	animator.SetAllowFrameCommands(ANIMCHANNEL_TORSO, (msg.ReadBits(1) != 0));
+	animator.SetAllowFrameCommands(ANIMCHANNEL_LEGS, (msg.ReadBits(1) != 0));
+}
+
+
+/*
+================
  idAI::WriteToSnapshot
 ================
 */
@@ -5616,17 +5651,16 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 		msg.WriteFloat(GetPhysics()->GetOrigin().z);
 	}
 
-
+	WriteHiddenToSnapshot( msg );
 	physicsObj.WriteToSnapshot( msg );
-	
 	WriteBindToSnapshot( msg );
+	WriteAnimToSnapshot( msg );
+
 	msg.WriteDeltaFloat( 0.0f, deltaViewAngles[0] );
 	msg.WriteDeltaFloat( 0.0f, deltaViewAngles[1] );
 	msg.WriteDeltaFloat( 0.0f, deltaViewAngles[2] );
 	msg.WriteDeltaFloat( 0.0f , deltaViewAngles.yaw);
 	msg.WriteShort( health );
-	//msg.WriteDir( normalizedLastDamageDir, 9 );
-	//msg.WriteShort( lastDamageLocation );
 	msg.WriteBits( move.moveType, idMath::BitsForInteger(NUM_MOVETYPES)); 
 	msg.WriteBits( move.moveCommand, idMath::BitsForInteger(NUM_MOVE_COMMANDS)); 
 	msg.WriteBits( move.moveStatus, idMath::BitsForInteger(NUM_MOVE_STATUS));
@@ -5640,14 +5674,6 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	msg.WriteShort(move.anim);
 	msg.WriteFloat(current_yaw);
 	msg.WriteFloat(ideal_yaw);
-	msg.WriteFloat(anim_turn_yaw);
-	msg.WriteFloat(anim_turn_amount);
-	msg.WriteFloat(anim_turn_angles);
-	msg.WriteShort(currentAnimType);
-	msg.WriteShort(currentTorsoAnim);
-	msg.WriteShort(currentLegsAnim);
-	msg.WriteBits(animator.GetAllowFrameCommands(ANIMCHANNEL_TORSO), 1);
-	msg.WriteBits(animator.GetAllowFrameCommands(ANIMCHANNEL_LEGS), 1);
 	msg.WriteByte(currentNetAction);
 	
 	msg.WriteFloat(turnTowardPos.x);
@@ -5668,7 +5694,6 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 		msg.WriteShort(current_cinematic);
 	}
 
-	msg.WriteBits( fl.hidden, 1);
 	msg.WriteBits( fl.takedamage, 1 );
 	//renderEntity FX
 	msg.WriteBits( renderEntity.noShadow, 1);
@@ -5707,7 +5732,7 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		return idEntity::ReadFromSnapshot(msg); //original non-coop 
 	}
 
-	int		i, oldHealth, enemySpawnId, torsoAnimId, legsAnimId, headAnimId, enemyEntityId, goalEntityId, focusEntityId, oldCurrentDefAttack, newAnimType;
+	int		i, oldHealth, enemySpawnId, headAnimId, enemyEntityId, goalEntityId, focusEntityId, oldCurrentDefAttack;
 	bool	newHitToggle, stateHitch, hasEnemy, getOriginInfo, headEntityReceivedInfo;
 	bool	snapshotInCinematic, headAllowCommandsFrame;
 
@@ -5727,15 +5752,16 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		tmpOrigin.z = msg.ReadFloat();
 	}
 
+	ReadHiddenFromSnapshot(msg);
 	physicsObj.ReadFromSnapshot( msg );
 	ReadBindFromSnapshot( msg );
+	ReadAnimFromSnapshot( msg );
+
 	deltaViewAngles[0] = msg.ReadDeltaFloat( 0.0f );
 	deltaViewAngles[1] = msg.ReadDeltaFloat( 0.0f );
 	deltaViewAngles[2] = msg.ReadDeltaFloat( 0.0f );
 	deltaViewAngles.yaw = msg.ReadDeltaFloat( 0.0f );
 	health = msg.ReadShort();
-	//lastDamageDir = msg.ReadDir( 9 );
-	//lastDamageLocation = msg.ReadShort();
 	move.moveType = static_cast<moveType_t>(msg.ReadBits(idMath::BitsForInteger(NUM_MOVETYPES)));
 	move.moveCommand = static_cast<moveCommand_t>(msg.ReadBits(idMath::BitsForInteger(NUM_MOVE_COMMANDS)));
 	move.moveStatus = static_cast<moveStatus_t>(msg.ReadBits(idMath::BitsForInteger(NUM_MOVE_STATUS)));
@@ -5748,15 +5774,6 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	move.anim = msg.ReadShort();
 	current_yaw = msg.ReadFloat();
 	ideal_yaw = msg.ReadFloat();
-	anim_turn_yaw = msg.ReadFloat();
-	anim_turn_amount = msg.ReadFloat();
-	anim_turn_angles = msg.ReadFloat();
-
-	newAnimType = msg.ReadShort();
-	torsoAnimId =  msg.ReadShort();
-	legsAnimId =  msg.ReadShort();
-	animator.SetAllowFrameCommands(ANIMCHANNEL_TORSO, (msg.ReadBits(1) != 0));
-	animator.SetAllowFrameCommands(ANIMCHANNEL_LEGS, (msg.ReadBits(1) != 0));
 	newNetAction = static_cast<netActionType_t>(msg.ReadByte());
 
 	turnTowardPos.x= msg.ReadFloat();
@@ -5785,9 +5802,6 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		current_cinematic = msg.ReadShort();
 	}
 
-	bool isInvisible=false;
-	isInvisible = msg.ReadBits( 1 ) != 0;
-
 	fl.takedamage = msg.ReadBits( 1 ) != 0;
 
 	//fx
@@ -5815,12 +5829,6 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	}
 
 	//No more msg read from here 
-
-	if (isInvisible && !IsHidden()) {
-		Hide();
-	} else if (!isInvisible && IsHidden()) {
-		Show();
-	}
 
 	if (g_clientsideDamage.GetBool() && nextTimeHealthReaded > gameLocal.clientsideTime && health > oldHealth) { //In case server is trying to override our recent clientside damage. Could be a problem for enemies with regeneration
 		health = oldHealth; //avoid bug with g_clientsideDamage 1
@@ -5878,7 +5886,7 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 			return; //Don't play animations in dead bodies in case the server didn't receive the death info yet!
 		}
 
-		CSProcessAnimations(torsoAnimId, headAnimId, legsAnimId, newAnimType, snapshotInCinematic);
+		CSProcessAnimations(snapshotTorsoAnim, headAnimId, snapshotLegsAnim, snapshotAnimType, snapshotInCinematic);
 
 		if (headEntityReceivedInfo && head.GetEntity() && currentHeadAnim != headAnimId) {
 			head.GetEntity()->GetAnimator()->SetAllowFrameCommands(ANIMCHANNEL_ALL, headAllowCommandsFrame); 
@@ -5886,7 +5894,7 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 	} else {
 
-		CSProcessAnimations(torsoAnimId, headAnimId, legsAnimId, newAnimType, snapshotInCinematic);
+		CSProcessAnimations(snapshotTorsoAnim, headAnimId, snapshotLegsAnim, snapshotAnimType, snapshotInCinematic);
 
 		if (headEntityReceivedInfo && head.GetEntity() && currentHeadAnim != headAnimId) {
 			head.GetEntity()->GetAnimator()->SetAllowFrameCommands(ANIMCHANNEL_ALL, headAllowCommandsFrame); 
@@ -6124,7 +6132,9 @@ void idAI::CSProcessAnimations(int newTorsoAnimId, int newHeadAnimId, int newLeg
 	if (newTorsoAnimId != currentTorsoAnim || currentAnimType != newAnimType) {
 		switch (newAnimType) {
 		case idActor::ACTOR_ANIM_CYCLE:
-			PlayCycleID(ANIMCHANNEL_TORSO, newTorsoAnimId);
+			//PlayCycleID(ANIMCHANNEL_TORSO, newTorsoAnimId);
+			torsoAnim.idleAnim = false;
+			animator.CycleAnim(ANIMCHANNEL_TORSO, newTorsoAnimId, gameLocal.time, 2); //FIXME, this is not the right way to sync this!
 			break;
 
 		case idActor::ACTOR_ANIM_PLAY:
@@ -6132,7 +6142,9 @@ void idAI::CSProcessAnimations(int newTorsoAnimId, int newHeadAnimId, int newLeg
 				PlayAnimID(ANIMCHANNEL_TORSO, newTorsoAnimId);
 			}
 			else {
-				PlayCycleID(ANIMCHANNEL_TORSO, newTorsoAnimId);
+				//PlayCycleID(ANIMCHANNEL_TORSO, newTorsoAnimId);
+				torsoAnim.idleAnim = false;
+				animator.CycleAnim(ANIMCHANNEL_TORSO, newTorsoAnimId, gameLocal.time, 2); //FIXME, this is not the right way to sync this!
 			}
 			break;
 		case idActor::ACTOR_ANIM_IDLE:
@@ -6140,7 +6152,9 @@ void idAI::CSProcessAnimations(int newTorsoAnimId, int newHeadAnimId, int newLeg
 				PlayIdleID(ANIMCHANNEL_TORSO, newTorsoAnimId);
 			}
 			else {
-				PlayCycleID(ANIMCHANNEL_TORSO, newTorsoAnimId);
+				//PlayCycleID(ANIMCHANNEL_TORSO, newTorsoAnimId);
+				torsoAnim.idleAnim = false;
+				animator.CycleAnim(ANIMCHANNEL_TORSO, newTorsoAnimId, gameLocal.time, 2); //FIXME, this is not the right way to sync this!
 			}
 
 		}
@@ -6149,7 +6163,9 @@ void idAI::CSProcessAnimations(int newTorsoAnimId, int newHeadAnimId, int newLeg
 	if (newLegsAnimId != currentLegsAnim || currentAnimType != newAnimType) {
 		switch (newAnimType) {
 		case idActor::ACTOR_ANIM_CYCLE:
-			PlayCycleID(ANIMCHANNEL_LEGS, newLegsAnimId);
+			//PlayCycleID(ANIMCHANNEL_LEGS, newLegsAnimId);
+			legsAnim.idleAnim = false;
+			animator.CycleAnim(ANIMCHANNEL_LEGS, newLegsAnimId, gameLocal.time, 2); //FIXME, this is not the right way to sync this!
 			break;
 
 		case idActor::ACTOR_ANIM_PLAY:
@@ -6157,7 +6173,9 @@ void idAI::CSProcessAnimations(int newTorsoAnimId, int newHeadAnimId, int newLeg
 				PlayAnimID(ANIMCHANNEL_LEGS, newLegsAnimId);
 			}
 			else {
-				PlayCycleID(ANIMCHANNEL_LEGS, newLegsAnimId);
+				//PlayCycleID(ANIMCHANNEL_LEGS, newLegsAnimId);
+				legsAnim.idleAnim = false;
+				animator.CycleAnim(ANIMCHANNEL_LEGS, newLegsAnimId, gameLocal.time, 2); //FIXME, this is not the right way to sync this!
 			}
 			break;
 		case idActor::ACTOR_ANIM_IDLE:
@@ -6165,7 +6183,9 @@ void idAI::CSProcessAnimations(int newTorsoAnimId, int newHeadAnimId, int newLeg
 				PlayIdleID(ANIMCHANNEL_LEGS, newLegsAnimId);
 			}
 			else {
-				PlayCycleID(ANIMCHANNEL_LEGS, newLegsAnimId);
+				//PlayCycleID(ANIMCHANNEL_LEGS, newLegsAnimId);
+				legsAnim.idleAnim = false;
+				animator.CycleAnim(ANIMCHANNEL_LEGS, newLegsAnimId, gameLocal.time, 2); //FIXME, this is not the right way to sync this!
 			}
 		}
 	}
