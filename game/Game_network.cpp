@@ -1812,11 +1812,6 @@ gameReturn_t idGameLocal::ClientPrediction( int clientNum, const usercmd_t *clie
 
 	InitLocalClient( clientNum );
 
-	// Nicemice: FIX FOR THE TIMEMODEL
-	if (clientCmds->gameTime <= time) {
-		return ret;
-	}
-
 	// update the game time
 	framenum++;
 	previousTime = time;
@@ -2417,21 +2412,6 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 	numSourceAreas = gameRenderWorld->BoundsInAreas( spectated->GetPlayerPhysics()->GetAbsBounds(), sourceAreas, idEntity::MAX_PVS_AREAS );
 	pvsHandle = gameLocal.pvs.SetupCurrentPVS( sourceAreas, numSourceAreas, PVS_NORMAL );
 
-	/*
-  // Nicemice: Fixes the "camera is not in the same PVS as player" problem
-	if ( player->GetPrivateCameraView() ) {
-	numSourceAreas = spectated->GetPrivateCameraView()->GetNumPVSAreas();
-	memcpy ( sourceAreas, spectated->GetPrivateCameraView()->GetPVSAreas(), sizeof( int ) * numSourceAreas );
-	} else if ( camera ) {
-	numSourceAreas = camera->GetNumPVSAreas();
-	memcpy ( sourceAreas, camera->GetPVSAreas(), sizeof( int ) * numSourceAreas );
-	} else {
-	numSourceAreas = player->GetNumPVSAreas();
-	memcpy ( sourceAreas, spectated->GetPVSAreas(), sizeof( int ) * numSourceAreas );
-	}
-  pvsHandle = gameLocal.pvs.SetupCurrentPVS( sourceAreas, numSourceAreas, PVS_NORMAL );
-  */
-
 	// read the PVS from the snapshot
 #if ASYNC_WRITE_PVS
 	int serverPVS[idEntity::MAX_PVS_AREAS];
@@ -2542,6 +2522,22 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 
 	// free the PVS
 	pvs.FreeCurrentPVS( pvsHandle );
+
+	//Read the cinematic data from snapshot coop
+	bool serverIsInCinematic = (msg.ReadBits(1) == 1); //not used yet
+	int serverCameraEntityNumber = msg.ReadShort();
+	int currentCameraEntityNumber = -1;
+	if (gameLocal.GetCamera()) {
+		currentCameraEntityNumber = GetCamera()->entityNumber;
+	}
+	if (currentCameraEntityNumber != serverCameraEntityNumber) {
+		if (serverCameraEntityNumber >= MAX_CLIENTS && gameLocal.entities[serverCameraEntityNumber]->IsType(idCamera::Type)) {
+			SetClientCamera(static_cast<idCamera*>(gameLocal.entities[serverCameraEntityNumber]));
+		}
+		else {
+			SetClientCamera(NULL);
+		}
+	}
 
 	// read the game and player state from the snapshot
 	base = clientEntityStates[clientNum][ENTITYNUM_NONE];	// ENTITYNUM_NONE is used for the game and player state
@@ -2673,6 +2669,7 @@ void idGameLocal::ServerWriteSnapshotCoop(int clientNum, int sequence, idBitMsg&
 	int i, j, msgSize, msgWriteBit;
 	idPlayer* player, * spectated = NULL;
 	idEntity* ent;
+	idCamera* serverGameCamera = GetCamera();
 	pvsHandle_t pvsHandle;
 	pvsHandle_t remoteCameraPvsHandle[idEntity::MAX_PVS_AREAS]; //for idSecurityCamera
 	idBitMsgDelta deltaMsg;
@@ -2708,21 +2705,6 @@ void idGameLocal::ServerWriteSnapshotCoop(int clientNum, int sequence, idBitMsg&
 	snapshot->next = clientSnapshots[clientNum];
 	clientSnapshots[clientNum] = snapshot;
 	memset(snapshot->pvs, 0, sizeof(snapshot->pvs));
-
-	/*
-	  // Nicemice: Fixes the "camera is not in the same PVS as player" problem
-	if ( player->GetPrivateCameraView() ) {
-	numSourceAreas = spectated->GetPrivateCameraView()->GetNumPVSAreas();
-	memcpy ( sourceAreas, spectated->GetPrivateCameraView()->GetPVSAreas(), sizeof( int ) * numSourceAreas );
-	} else if ( camera ) {
-	numSourceAreas = camera->GetNumPVSAreas();
-	memcpy ( sourceAreas, camera->GetPVSAreas(), sizeof( int ) * numSourceAreas );
-	} else {
-	numSourceAreas = player->GetNumPVSAreas();
-	memcpy ( sourceAreas, spectated->GetPVSAreas(), sizeof( int ) * numSourceAreas );
-	}
-  pvsHandle = gameLocal.pvs.SetupCurrentPVS( sourceAreas, numSourceAreas, PVS_NORMAL );
-  */
 
   // get PVS for this player
   // don't use PVSAreas for networking - PVSAreas depends on animations (and md5 bounds), which are not synchronized
@@ -2913,6 +2895,15 @@ void idGameLocal::ServerWriteSnapshotCoop(int clientNum, int sequence, idBitMsg&
 	pvs.FreeCurrentPVS( pvsHandle );
 	for (i = 0; i < remoteCameraPVSCount; i++) {
 		pvs.FreeCurrentPVS(remoteCameraPvsHandle[i]);
+	}
+
+	//Write the cinematics info to the client
+	msg.WriteBits(inCinematic, 1);
+	if (serverGameCamera && serverGameCamera->isMapEntity) {
+		msg.WriteShort(serverGameCamera->entityNumber);
+		}
+	else {
+		msg.WriteShort(-1);
 	}
 
 	// write the game and player state to the snapshot

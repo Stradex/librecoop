@@ -482,6 +482,7 @@ public:
 	bool					InPlayerPVS( idEntity *ent ) const;
 	bool					InPlayerConnectedArea( idEntity *ent ) const;
 
+	void					SetClientCamera(idCamera* cam); // new cinematics netcode
 	void					SetCameraCoop( idCamera *cam ); //Cinematics in coop testing
 	void					SetCamera( idCamera *cam );
 	idCamera *				GetCamera( void ) const;

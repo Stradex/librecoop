@@ -1810,11 +1810,6 @@ gameReturn_t idGameLocal::ClientPrediction( int clientNum, const usercmd_t *clie
 
 	InitLocalClient( clientNum );
 
-	// Nicemice: FIX FOR THE TIMEMODEL
-	if (clientCmds->gameTime <= time) {
-		return ret;
-	}
-
 	// update the game time
 	framenum++;
 	previousTime = time;

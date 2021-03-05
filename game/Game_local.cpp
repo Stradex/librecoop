@@ -5131,43 +5131,67 @@ bool idGameLocal::isNPC(idEntity *ent ) const {
 
 /*
 =============
+idGameLocal::SetClientCamera
+=============
+*/
+void idGameLocal::SetClientCamera(idCamera* cam) {
+	assert(gameLocal.isClient);
+
+	int i;
+	idEntity* ent;
+	idAI* ai;
+	idPlayer* client = GetLocalPlayer();
+
+	camera = cam;
+	if (camera) {
+		inCinematic = true;
+		if (time > cinematicStopTime) {
+			cinematicSkipTime = time + CINEMATIC_SKIP_DELAY;
+		}
+		for (i = 0; i < numClients; i++) {
+			if (entities[i]) {
+				client = static_cast<idPlayer*>(entities[i]);
+				client->EnterCinematic();
+			}
+		}
+	} else {
+		inCinematic = false;
+		cinematicStopTime = time + msec;
+		// show all the player models
+		for (i = 0; i < numClients; i++) {
+			if (entities[i]) {
+				idPlayer* client = static_cast<idPlayer*>(entities[i]);
+				client->ExitCinematic();
+			}
+		}
+	}
+}
+
+/*
+=============
 idGameLocal::SetCameraCoop
 =============
 */
 void idGameLocal::SetCameraCoop( idCamera *cam ) {
+
+	if (gameLocal.isClient) {
+		return;
+	}
+
 	int i;
 	idEntity *ent;
 	idAI *ai;
 
 	// this should fix going into a cinematic when dead.. rare but happens
 	idPlayer *client = GetLocalPlayer();
-	/*
-	if ( client->health <= 0 || client->AI_DEAD ) {
-		return;
-	}
-	*/
 
 	camera = cam;
 	if ( camera ) {
 		inCinematic = true;
 
-		/*
-		//not able to skip cinematics in coop yet
-		if ( skipCinematic && camera->spawnArgs.GetBool( "disconnect" ) ) {
-			camera->spawnArgs.SetBool( "disconnect", false );
-			cvarSystem->SetCVarFloat( "r_znear", 3.0f );
-			cmdSystem->BufferCommandText( CMD_EXEC_APPEND, "disconnect\n" );
-			skipCinematic = false;
-			return;
-		}
-		*/
-
 		if ( time > cinematicStopTime ) {
 			cinematicSkipTime = time + CINEMATIC_SKIP_DELAY;
 		}
-
-		// set r_znear so that transitioning into/out of the player's head doesn't clip through the view
-		//cvarSystem->SetCVarFloat( "r_znear", 1.0f );
 
 		// hide all the player models
 		for( i = 0; i < numClients; i++ ) {
@@ -5205,13 +5229,9 @@ void idGameLocal::SetCameraCoop( idCamera *cam ) {
 				ent->PostEventMS( &EV_Remove, 0 );
 			}
 		}
-
 	} else {
 		inCinematic = false;
 		cinematicStopTime = time + msec;
-
-		// restore r_znear
-		//cvarSystem->SetCVarFloat( "r_znear", 3.0f );
 
 		// show all the player models
 		for( i = 0; i < numClients; i++ ) {

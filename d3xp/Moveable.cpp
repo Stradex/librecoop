@@ -106,6 +106,7 @@ void idMoveable::Spawn( void ) {
 	float density, friction, bouncyness, mass;
 	int clipShrink;
 	idStr clipModelName;
+	bool failedToLoadCollisionModel=false;
 
 	// check if a clip model is set
 	spawnArgs.GetString( "clipmodel", "", clipModelName );
@@ -114,13 +115,19 @@ void idMoveable::Spawn( void ) {
 	}
 
 	if ( !collisionModelManager->TrmFromModel( clipModelName, trm ) ) {
-		gameLocal.Error( "idMoveable '%s': cannot load collision model %s", name.c_str(), clipModelName.c_str() );
-		return;
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+			fl.coopNetworkSync = false;
+			fl.networkSync = false;
+			failedToLoadCollisionModel = true;
+		} else {
+			gameLocal.Error("idMoveable '%s': cannot load collision model %s", name.c_str(), clipModelName.c_str());
+			return;
+		}
 	}
 
 	// if the model should be shrinked
 	clipShrink = spawnArgs.GetInt( "clipshrink" );
-	if ( clipShrink != 0 ) {
+	if ( clipShrink != 0 && !failedToLoadCollisionModel) {
 		trm.Shrink( clipShrink * CM_CLIP_EPSILON );
 	}
 
@@ -141,7 +148,9 @@ void idMoveable::Spawn( void ) {
 	damage = spawnArgs.GetString( "def_damage", "" );
 #ifdef _D3XP
 	monsterDamage = spawnArgs.GetString( "monster_damage", "" );
-	fl.networkSync = true;
+	if (!failedToLoadCollisionModel) {
+		fl.networkSync = true;
+	}
 	attacker = NULL;
 #endif
 	canDamage = spawnArgs.GetBool( "damageWhenActive" ) ? false : true;
@@ -161,8 +170,10 @@ void idMoveable::Spawn( void ) {
 
 	// setup the physics
 	physicsObj.SetSelf( this );
-	physicsObj.SetClipModel( new idClipModel( trm ), density );
-	physicsObj.GetClipModel()->SetMaterial( GetRenderModelMaterial() );
+	if (!failedToLoadCollisionModel) {
+		physicsObj.SetClipModel(new idClipModel(trm), density);
+		physicsObj.GetClipModel()->SetMaterial(GetRenderModelMaterial());
+	}
 	physicsObj.SetOrigin( GetPhysics()->GetOrigin() );
 	physicsObj.SetAxis( GetPhysics()->GetAxis() );
 	physicsObj.SetBouncyness( bouncyness );
@@ -186,7 +197,7 @@ void idMoveable::Spawn( void ) {
 		physicsObj.DisableImpact();
 	}
 
-	if ( spawnArgs.GetBool( "nonsolid" ) ) {
+	if ( spawnArgs.GetBool( "nonsolid" ) || failedToLoadCollisionModel) {
 		BecomeNonSolid();
 	}
 
