@@ -2146,7 +2146,14 @@ gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const userc
 		}
 		ent->clientSideEntity = false; //this entity is not clientside
 		ent->thinkFlags |= TH_PHYSICS;
-		ent->ClientPredictionThink();
+		if (ent->allowClientsideThink) {
+			ent->clientSideEntity = true; //HACK!
+			ent->Think();
+			ent->clientSideEntity = false; //HACK!
+		}
+		else {
+			ent->ClientPredictionThink();
+		}
 	}
 
 	SortActiveEntityList();

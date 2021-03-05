@@ -569,6 +569,7 @@ public:
 	idAI*					GetFocusCharacter( void ); // COOP
 	int						nextTimeCoopTeleported; //Hack for opencoop maps
 	int						nextTimeReadHealth; //for g_clientsideDamage 1
+	int						nextTimeSendDamage; //for g_clientsideDamage 1
 	bool					noFallDamage;		//ductape fix for coop while using teleport with net_clientsideMovement 1
 	bool					clientTeleported;	//for net_clientsideMovement 1
 	bool					clientSpawnedByServer;	//Used with allowClientsideMovement to determine if an entity can have clientside Movement or not
