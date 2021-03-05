@@ -4869,10 +4869,6 @@ idAI::Hide
 */
 void idAI::Hide( void ) {
 
-	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
-		currentNetAction = NETACTION_HIDE; //added by Stradex for COOP
-	}
-
 	idActor::Hide();
 	fl.takedamage = false;
 	physicsObj.SetContents( 0 );
@@ -4891,10 +4887,6 @@ idAI::Show
 ================
 */
 void idAI::Show( void ) {
-	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
-		currentNetAction = NETACTION_SHOW; //added by Stradex for COOP
-	}
-
 	idActor::Show();
 	if ( spawnArgs.GetBool( "big_monster" ) ) {
 		physicsObj.SetContents( 0 );
@@ -5420,15 +5412,13 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	WriteHiddenToSnapshot(msg);
 	physicsObj.WriteToSnapshot( msg );
 	WriteBindToSnapshot( msg );
-	WriteAnimToSnapshot(msg);
+	WriteAnimToSnapshot(msg); //maybe this to be an event instead of snapshot?
 
 	msg.WriteDeltaFloat( 0.0f, deltaViewAngles[0] );
 	msg.WriteDeltaFloat( 0.0f, deltaViewAngles[1] );
 	msg.WriteDeltaFloat( 0.0f, deltaViewAngles[2] );
 	msg.WriteDeltaFloat( 0.0f , deltaViewAngles.yaw);
 	msg.WriteShort( health );
-	//msg.WriteDir( normalizedLastDamageDir, 9 );
-	//msg.WriteShort( lastDamageLocation );
 	msg.WriteBits( move.moveType, idMath::BitsForInteger(NUM_MOVETYPES)); 
 	msg.WriteBits( move.moveCommand, idMath::BitsForInteger(NUM_MOVE_COMMANDS)); 
 	msg.WriteBits( move.moveStatus, idMath::BitsForInteger(NUM_MOVE_STATUS));
@@ -5451,8 +5441,8 @@ void idAI::WriteToSnapshot( idBitMsgDelta &msg ) const {
 	int enemyEntityNum = enemy.GetEntity() ? enemy.GetEntity()->entityCoopNumber : -1;
 	int goalEntityNum = move.goalEntity.GetEntity() ? move.goalEntity.GetEntity()->entityCoopNumber : -1;
 
-	msg.WriteInt( enemyEntityNum );
-	msg.WriteInt( goalEntityNum );
+	msg.WriteShort( enemyEntityNum );
+	msg.WriteShort( goalEntityNum );
 
 	msg.WriteShort( currentChannelOverride );
 	msg.WriteBits( disableGravity, 1 );
@@ -5524,15 +5514,13 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	ReadHiddenFromSnapshot( msg );
 	physicsObj.ReadFromSnapshot( msg );
 	ReadBindFromSnapshot( msg );
-	ReadAnimFromSnapshot( msg );
+	ReadAnimFromSnapshot( msg ); //maybe this to be an event instead of snapshot?
 
 	deltaViewAngles[0] = msg.ReadDeltaFloat( 0.0f );
 	deltaViewAngles[1] = msg.ReadDeltaFloat( 0.0f );
 	deltaViewAngles[2] = msg.ReadDeltaFloat( 0.0f );
 	deltaViewAngles.yaw = msg.ReadDeltaFloat( 0.0f );
 	health = msg.ReadShort();
-	//lastDamageDir = msg.ReadDir( 9 );
-	//lastDamageLocation = msg.ReadShort();
 	move.moveType = static_cast<moveType_t>(msg.ReadBits(idMath::BitsForInteger(NUM_MOVETYPES)));
 	move.moveCommand = static_cast<moveCommand_t>(msg.ReadBits(idMath::BitsForInteger(NUM_MOVE_COMMANDS)));
 	move.moveStatus = static_cast<moveStatus_t>(msg.ReadBits(idMath::BitsForInteger(NUM_MOVE_STATUS)));
@@ -5554,8 +5542,8 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 
 	lastVisibleEnemyPos = turnTowardPos; //DELETE ME LATER
 
-	enemyEntityId = msg.ReadInt();
-	goalEntityId =  msg.ReadInt();
+	enemyEntityId = msg.ReadShort();
+	goalEntityId =  msg.ReadShort();
 
 	if (enemyEntityId >= 0 && gameLocal.coopentities[enemyEntityId] && gameLocal.coopentities[enemyEntityId]->IsType(idActor::Type)) {
 		enemy = static_cast<idActor*>(gameLocal.coopentities[enemyEntityId]);
@@ -5563,8 +5551,6 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 	if (goalEntityId >= 0 && gameLocal.coopentities[goalEntityId]) {
 		move.goalEntity = gameLocal.coopentities[goalEntityId];
 	}
-
-
 	currentChannelOverride = msg.ReadShort();
 
 	disableGravity = msg.ReadBits( 1 ) != 0;
@@ -5668,24 +5654,6 @@ void idAI::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		if (headEntityReceivedInfo && head.GetEntity() && currentHeadAnim != headAnimId) {
 			head.GetEntity()->GetAnimator()->SetAllowFrameCommands(ANIMCHANNEL_ALL, headAllowCommandsFrame);
 		}
-		/*
-		if (torsoAnimId != currentTorsoAnim ) {
-			animator.PlayAnim(ANIMCHANNEL_TORSO, torsoAnimId, gameLocal.time, 2);
-		}
-		if (legsAnimId != currentLegsAnim ) {
-			animator.PlayAnim(ANIMCHANNEL_LEGS, legsAnimId, gameLocal.time, 2);
-		}
-		if (headEntityReceivedInfo && head.GetEntity() && currentHeadAnim != headAnimId) {
-			head.GetEntity()->GetAnimator()->PlayAnim(ANIMCHANNEL_ALL, headAnimId, gameLocal.time, 2);
-			head.GetEntity()->GetAnimator()->SetAllowFrameCommands(ANIMCHANNEL_ALL, headAllowCommandsFrame); 
-		}
-
-		currentTorsoAnim = torsoAnimId;
-		currentLegsAnim = legsAnimId;
-		if (headEntityReceivedInfo) {
-			currentHeadAnim = headAnimId;
-		}
-		*/
 	}
 	if ( msg.HasChanged() ) {
 		if (getOriginInfo) { //lets update origin then
@@ -5814,12 +5782,6 @@ void idAI::ClientProcessNetAction(netActionType_t newAction) {
 	switch (currentNetAction) {
 		case NETACTION_NONE:
 			//Nothing
-		break;
-		case NETACTION_SHOW:
-			Show();
-		break;
-		case NETACTION_HIDE:
-			Hide();
 		break;
 		case NETACTION_OVERRIDEANIM:
 			Event_OverrideAnim(currentChannelOverride);
