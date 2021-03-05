@@ -125,16 +125,16 @@ void idBitMsg::WriteBits( int value, int numBits ) {
 	if ( numBits != 32 ) {
 		if ( numBits > 0 ) {
 			if ( value > ( 1 << numBits ) - 1 ) {
-				idLib::common->Warning( "idBitMsg::WriteBits: value overflow %d %d", value, numBits );
+				idLib::common->DWarning( "idBitMsg::WriteBits: value overflow %d %d", value, numBits );
 			} else if ( value < 0 ) {
-				idLib::common->Warning( "idBitMsg::WriteBits: value overflow %d %d", value, numBits );
+				idLib::common->DWarning( "idBitMsg::WriteBits: value overflow %d %d", value, numBits );
 			}
 		} else {
 			int r = 1 << ( - 1 - numBits );
 			if ( value > r - 1 ) {
-				idLib::common->Warning( "idBitMsg::WriteBits: value overflow %d %d", value, numBits );
+				idLib::common->DWarning( "idBitMsg::WriteBits: value overflow %d %d", value, numBits );
 			} else if ( value < -r ) {
-				idLib::common->Warning( "idBitMsg::WriteBits: value overflow %d %d", value, numBits );
+				idLib::common->DWarning( "idBitMsg::WriteBits: value overflow %d %d", value, numBits );
 			}
 		}
 	}

@@ -5459,7 +5459,7 @@ void idPlayer::UpdateWeapon( void ) {
 			weapon.GetEntity()->GetWeaponDef( animPrefix, inventory.clip[ idealWeapon ] );
 
 			if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased() && !weapon.GetEntity()->IsLinked()) {
-				gameLocal.Warning("[FATAL]: Avoid crash at idPlayer::UpdateWeapon 2\n");
+				gameLocal.DWarning("[FATAL]: Avoid crash at idPlayer::UpdateWeapon 2\n");
 				return; //More duct tape :(
 			}
 			assert( weapon.GetEntity()->IsLinked() );
@@ -8867,8 +8867,21 @@ void idPlayer::Teleport( const idVec3 &origin, const idAngles &angles, idEntity 
 
 	teleportEntity = destination;
 
-	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) {
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
 		clientTeleported = true;
+		if (gameLocal.isClient) {
+			allowClientsideMovement = true;
+			nextSendPhysicsInfoTime = gameLocal.clientsideTime;
+		}
+		else if (gameLocal.isServer) {
+			CancelEvents(&EV_Player_EnableReadClientPhysics);
+			PostEventSec(&EV_Player_EnableReadClientPhysics, 5.0f);
+			serverReadPlayerPhysics = false;
+		}
+		//UGH, I am tired so this is the only fix I have right now
+		noFallDamage = true;
+		CancelEvents(&EV_Player_EnableFallDamage);
+		PostEventSec(&EV_Player_EnableFallDamage, 5.0f);
 	}
 
 	if ( !gameLocal.isClient && !noclip ) {
@@ -9933,8 +9946,20 @@ void idPlayer::Event_ExitTeleporter( void ) {
 	// clear the ik heights so model doesn't appear in the wrong place
 	walkIK.EnableAll();
 
-	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) {
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
 		clientTeleported = true;
+		if (gameLocal.isClient) {
+			allowClientsideMovement = true;
+			nextSendPhysicsInfoTime = gameLocal.clientsideTime;
+		} else if (gameLocal.isServer) {
+			CancelEvents(&EV_Player_EnableReadClientPhysics);
+			PostEventSec(&EV_Player_EnableReadClientPhysics, 5.0f);
+			serverReadPlayerPhysics = false;
+		}
+		//UGH, I am tired so this is the only fix I have right now
+		noFallDamage = true;
+		CancelEvents(&EV_Player_EnableFallDamage);
+		PostEventSec(&EV_Player_EnableFallDamage, 5.0f);
 	}
 
 	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
@@ -10184,7 +10209,7 @@ void idPlayer::ClientPredictionThink( void ) {
 	if ( net_clientSideMovement.GetBool() && gameLocal.isNewFrame && !spectating && (gameLocal.localClientNum == entityNumber) && gameLocal.mpGame.IsGametypeCoopBased() && (gameLocal.clientsideTime >= nextSendPhysicsInfoTime)) {
 
 		if (health > 0) { //alive
-			if (allowClientsideMovement && clientSpawnedByServer) {
+			if (allowClientsideMovement && clientSpawnedByServer && serverReadPlayerPhysics) {
 
 				//sending event to server
 				idBitMsg	msg;
@@ -10200,7 +10225,6 @@ void idPlayer::ClientPredictionThink( void ) {
 				msg.WriteDeltaFloat( 0.0f, deltaViewAngles[2] );
 				msg.WriteBits(clientTeleported, 1);
 				ClientSendEvent( EVENT_PLAYERPHYSICS, &msg );
-
 				clientTeleported = false;
 			}
 
@@ -10354,6 +10378,7 @@ void idPlayer::WriteToSnapshot( idBitMsgDelta &msg ) const {
 		msg.WriteInt( airTics );
 		msg.WriteBits( noclip, 1 );
 		msg.WriteBits( fl.hidden, 1);
+		msg.WriteBits(serverReadPlayerPhysics, 1);
 		msg.WriteFloat(stamina);
 	}
 }
@@ -10430,7 +10455,7 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 				Show();
 			}
 		}
-
+		serverReadPlayerPhysics = (msg.ReadBits(1) != 0);
 		newStamina = msg.ReadFloat();
 		if (entityNumber != gameLocal.localClientNum || !net_clientSideMovement.GetBool() || !allowClientsideMovement) {
 			stamina = newStamina;
@@ -10657,8 +10682,7 @@ bool idPlayer::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 					clientTeleported = false;
 					Move();
 				}
-			}
-			else {
+			} else {
 				physicsObj.ClearFromEvent(msg);
 				msg.ReadDeltaFloat(0.0f);
 				msg.ReadDeltaFloat(0.0f);
@@ -11307,8 +11331,20 @@ void idPlayer::Teleport( const idVec3 &origin, const idAngles &angles) {
 	idealLegsYaw = 0.0f;
 	oldViewYaw = viewAngles.yaw;
 
-	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) {
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
 		clientTeleported = true;
+		if (gameLocal.isClient) {
+			allowClientsideMovement = true;
+			nextSendPhysicsInfoTime = gameLocal.clientsideTime;
+		} else if (gameLocal.isServer) {
+			CancelEvents(&EV_Player_EnableReadClientPhysics);
+			PostEventSec(&EV_Player_EnableReadClientPhysics, 5.0f);
+			serverReadPlayerPhysics = false;
+		}
+		//UGH, I am tired so this is the only fix I have right now
+		noFallDamage = true;
+		CancelEvents(&EV_Player_EnableFallDamage);
+		PostEventSec(&EV_Player_EnableFallDamage, 5.0f);
 	}
 	if ( gameLocal.isMultiplayer ) {
 		playerView.Flash( colorWhite, 140 );
@@ -11650,5 +11686,5 @@ idPlayer::CS_CanHaveClientsideMovement
 */
 
 bool idPlayer::CanHaveClientsideMovement(void) {
-	return net_clientSideMovement.GetBool() && allowClientsideMovement && clientSpawnedByServer && entityNumber == gameLocal.localClientNum;
+	return net_clientSideMovement.GetBool() && allowClientsideMovement && clientSpawnedByServer && serverReadPlayerPhysics && entityNumber == gameLocal.localClientNum;
 }
