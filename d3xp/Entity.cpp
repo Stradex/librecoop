@@ -46,6 +46,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "Misc.h"//added for coop
 #include "ai/AI.h"//added for coop
 #include "physics/Physics_StaticMulti.h" //added for Coop
+#include "Moveable.h" //added for Coop
 
 
 #include "Entity.h"
@@ -555,7 +556,10 @@ void idEntity::Spawn( void ) {
 		fl.networkSync = false;
 	}
 
+
+
 	gameLocal.RegisterEntity( this ); //afer networkSync so coopentities can get updated correctly..
+
 
 	spawnArgs.GetString( "classname", NULL, &classname );
 	const idDeclEntityDef *def = gameLocal.FindEntityDef( classname, false );
@@ -620,7 +624,7 @@ void idEntity::Spawn( void ) {
 	}
 	cinematic = spawnArgs.GetBool( "cinematic", "0" );
 
-	spawnArgs.GetBool("mapEntity", "0", isMapEntity); 	// OpenCoop Nicemice: Is it a map entity ?
+	spawnArgs.GetBool("mapEntity", "0", isMapEntity);
 
 	if (isMapEntity && allowRemoveSync && gameLocal.mpGame.IsGametypeCoopBased()) { // COOP: We can force sync this entity between client and server so when a client connect it gets to see if this entity already exists or not at server
 		gameLocal.RegisterRemoveSyncEntity(this);

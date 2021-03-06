@@ -2149,7 +2149,13 @@ gameReturn_t	idGameLocal::RunClientSideFrame(idPlayer	*clientPlayer, const userc
 		}
 		ent->clientSideEntity = false; //this entity is not clientside
 		ent->thinkFlags |= TH_PHYSICS;
-		ent->ClientPredictionThink();
+		if (ent->allowClientsideThink) {
+			ent->clientSideEntity = true; //HACK!
+			ent->Think();
+			ent->clientSideEntity = false; //HACK!
+		} else {
+			ent->ClientPredictionThink();
+		}
 	}
 
 	SortActiveEntityList();
@@ -3180,7 +3186,6 @@ idGameLocal::ReadEntityListFromEvent
 ===============
 */
 void idGameLocal::ReadEntityListFromEvent(const idBitMsg& msg) {
-	common->Printf("[COOP] ReadEntityListFromEvent\n");
 	int entitiesToRemove = msg.ReadInt();
 	for (int i = 0; i < entitiesToRemove; i++) {
 		int entityRemoveId = msg.ReadShort();
@@ -3188,9 +3193,5 @@ void idGameLocal::ReadEntityListFromEvent(const idBitMsg& msg) {
 			common->Printf("[COOP] removing entity at start!\n");
 			removeSyncEntities[entityRemoveId]->CS_PostEventMS(&EV_Remove, 0);
 		}
-		else {
-			common->Warning("[COOP] Trying to remove invalid entity!\n");
-		}
-
 	}
 }

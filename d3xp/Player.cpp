@@ -93,6 +93,7 @@ const float MIN_BOB_SPEED = 5.0f;
 
 // delay for reading health after g_clientside 1 damage
 const int READHEALTH_DELAY_AFTERDAMAGE = 400; //200ms ping as max
+const int SENDDAMAGE_DELAY_MS = 125; //to avoid overflow send of events
 
 const idEventDef EV_Player_GetButtons( "getButtons", NULL, 'd' );
 const idEventDef EV_Player_GetMove( "getMove", NULL, 'v' );
@@ -1675,9 +1676,11 @@ idPlayer::idPlayer() {
 	nextTimeCoopTeleported = 0;
 	playerDamageReceived	= 0;	//added g_clientsideDamage 1
 	nextTimeReadHealth		= 0; 	//added g_clientsideDamage 1
+	nextTimeSendDamage = 0;
 	noFallDamage = false;	//added to fix bug related with fall damage and teleport with net_clientsideMovement 1
 	clientTeleported = false;
 	clientSpawnedByServer = false;
+	firstTimeSpawnedInMap = true;
 }
 
 /*
@@ -1983,6 +1986,7 @@ void idPlayer::Init( void ) {
 	allowClientsideMovement = false; //added by Stradex
 	nextSendPhysicsInfoTime = gameLocal.clientsideTime + PLAYER_CLIENT_SEND_MOVEMENT*5; //disable clientside movement two seconds
 	nextTimeReadHealth = 0; //added for g_clientsideDamage 1
+	nextTimeSendDamage = 0;
 	clientSpawnedByServer = false;
 	serverReadPlayerPhysics = false;
 	//coop ends
@@ -3032,6 +3036,11 @@ void idPlayer::SpawnFromSpawnSpot( void ) {
 
 	SelectInitialSpawnPoint( spawn_origin, spawn_angles );
 	SpawnToPoint( spawn_origin, spawn_angles );
+
+	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased() && firstTimeSpawnedInMap && entityNumber != gameLocal.localClientNum) { //Give all pdas, keys and security stuff that the server already stores
+		gameLocal.LoadGlobalInventory(entityNumber);
+		firstTimeSpawnedInMap = false;
+	}
 }
 
 /*
@@ -10112,19 +10121,21 @@ void idPlayer::ClientPredictionThink( void ) {
 
 	if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isNewFrame) {
 		if (g_clientsideDamage.GetBool() && playerDamageReceived > 0 && gameLocal.localClientNum == this->entityNumber  ) {
-			idBitMsg	msg;
-			byte		msgBuf[MAX_EVENT_PARAM_SIZE];
-			msg.Init( msgBuf, sizeof( msgBuf ) );
-			msg.BeginWriting();
-			msg.WriteShort(playerDamageReceived);
-			msg.WriteShort(lastDamageLocation);
-			msg.WriteFloat( lastDamageDir.x );
-			msg.WriteFloat( lastDamageDir.y );
-			msg.WriteFloat( lastDamageDir.z );
-			ClientSendEvent(EVENT_SENDDAMAGE, &msg);
-			//gameLocal.DebugPrintf("EVENT_SENDDAMAGE: %d\n", playerDamageReceived);
+			if (gameLocal.clientsideTime >= nextTimeSendDamage) {
+				idBitMsg	msg;
+				byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+				msg.Init(msgBuf, sizeof(msgBuf));
+				msg.BeginWriting();
+				msg.WriteShort(playerDamageReceived);
+				msg.WriteShort(lastDamageLocation);
+				msg.WriteFloat(lastDamageDir.x);
+				msg.WriteFloat(lastDamageDir.y);
+				msg.WriteFloat(lastDamageDir.z);
+				ClientSendEvent(EVENT_SENDDAMAGE, &msg);
+				nextTimeSendDamage = gameLocal.clientsideTime + SENDDAMAGE_DELAY_MS;
+				playerDamageReceived = 0;
+			}
 			nextTimeReadHealth = gameLocal.clientsideTime + READHEALTH_DELAY_AFTERDAMAGE;
-			playerDamageReceived = 0;
 		}
 
 		UpdateAir();

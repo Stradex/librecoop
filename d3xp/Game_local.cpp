@@ -219,6 +219,7 @@ void idGameLocal::Clear( void ) {
 		persistentPlayerInfo[i].Clear();
 	}
 	persistentPlayerInfoClientside.Clear();
+	serverLevelInventory.Clear();
 	memset( usercmds, 0, sizeof( usercmds ) );
 	memset( entities, 0, sizeof( entities ) );
 	memset(coopentities, 0, sizeof(coopentities)); //added for coop
@@ -750,6 +751,57 @@ idGameLocal::SetPersistentPlayerInfo
 */
 void idGameLocal::SetPersistentPlayerInfo( int clientNum, const idDict &playerInfo ) {
 	persistentPlayerInfo[ clientNum ] = playerInfo;
+}
+
+/*
+===========
+idGameLocal::SaveGlobalInventory
+============
+*/
+
+void idGameLocal::SaveGlobalInventory(idDict* item) {
+	int itemsCount = serverLevelInventory.Num();
+	int i;
+	for (i = 0; i < itemsCount; i++) {
+		if (idStr::Icmp(item->GetString("inv_name"), serverLevelInventory[i]->GetString("inv_name")) == 0) {
+			common->Printf("[COOP] Item was already saved by server\n");
+			return;
+		}
+	}
+	common->Printf("[COOP] Saving item %s\n", item->GetString("inv_name"));
+	serverLevelInventory.Append(new idDict(*item));
+}
+
+/*
+===========
+idGameLocal::LoadGlobalInventory
+============
+*/
+
+void idGameLocal::LoadGlobalInventory(int clientNum) {
+	if (clientNum < 0 || clientNum > MAX_CLIENTS) {
+		return;
+	}
+	if (!entities[clientNum] || !entities[clientNum]->IsType(idPlayer::Type)) {
+		return;
+	}
+
+	idPlayer* p = static_cast<idPlayer*>(entities[clientNum]);
+	bool oldSpectating = p->spectating; //HACK to be able to give inventory to player even while spectating
+	p->spectating = false;
+	int itemsCount = serverLevelInventory.Num();
+	int i;
+	for (i = 0; i < itemsCount; i++) {
+		const char* pdaNameStr = serverLevelInventory[i]->GetString("pda_name");
+		if (pdaNameStr == NULL || *pdaNameStr == 0) { //key or other stuff
+			p->GiveInventoryItem(serverLevelInventory[i]);
+		}
+		else { // pda security
+			p->inventory.pdaSecurity.AddUnique(serverLevelInventory[i]->GetString("inv_name"));
+		}
+	}
+	p->spectating = oldSpectating; //end hack
+
 }
 
 /*
@@ -1850,6 +1902,7 @@ void idGameLocal::MapClear( bool clearClients ) {
 	nextGibTime		= 0;
 
 	vacuumAreaNum = -1;		// if an info_vacuum is spawned, it will set this
+	serverLevelInventory.Clear();
 }
 
 /*

@@ -106,7 +106,6 @@ void idMoveable::Spawn( void ) {
 	float density, friction, bouncyness, mass;
 	int clipShrink;
 	idStr clipModelName;
-	bool failedToLoadCollisionModel=false;
 
 	// check if a clip model is set
 	spawnArgs.GetString( "clipmodel", "", clipModelName );
@@ -116,10 +115,14 @@ void idMoveable::Spawn( void ) {
 
 	if ( !collisionModelManager->TrmFromModel( clipModelName, trm ) ) {
 		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
-			fl.coopNetworkSync = false;
-			fl.networkSync = false;
-			failedToLoadCollisionModel = true;
-			gameLocal.Error("idMoveable '%s': cannot load collision model %s, entityDefName: %s\n", name.c_str(), clipModelName.c_str(), GetEntityDefName());
+			clipModelName = "models/mapobjects/filler/burgereat.lwo"; // DIRTY DISGUSTING HACK TO AVOID VERY RARE RANDOM CRASH
+	
+			if (!collisionModelManager->TrmFromModel(clipModelName, trm)) {
+				gameLocal.Error("idMoveable '%s': cannot load collision model %s, entityDefName: %s\n", name.c_str(), clipModelName.c_str(), GetEntityDefName());
+			}
+			else {
+				gameLocal.Warning("[COOP] Crash avoided using a default collision model with entity: %s\n", GetEntityDefName());
+			}
 		} else {
 			gameLocal.Error("idMoveable '%s': cannot load collision model %s", name.c_str(), clipModelName.c_str());
 			return;
@@ -128,7 +131,7 @@ void idMoveable::Spawn( void ) {
 
 	// if the model should be shrinked
 	clipShrink = spawnArgs.GetInt( "clipshrink" );
-	if ( clipShrink != 0 && !failedToLoadCollisionModel) {
+	if ( clipShrink != 0) {
 		trm.Shrink( clipShrink * CM_CLIP_EPSILON );
 	}
 
@@ -149,9 +152,7 @@ void idMoveable::Spawn( void ) {
 	damage = spawnArgs.GetString( "def_damage", "" );
 #ifdef _D3XP
 	monsterDamage = spawnArgs.GetString( "monster_damage", "" );
-	if (!failedToLoadCollisionModel) {
-		fl.networkSync = true;
-	}
+	fl.networkSync = true;
 	attacker = NULL;
 #endif
 	canDamage = spawnArgs.GetBool( "damageWhenActive" ) ? false : true;
@@ -171,10 +172,8 @@ void idMoveable::Spawn( void ) {
 
 	// setup the physics
 	physicsObj.SetSelf( this );
-	if (!failedToLoadCollisionModel) {
-		physicsObj.SetClipModel(new idClipModel(trm), density);
-		physicsObj.GetClipModel()->SetMaterial(GetRenderModelMaterial());
-	}
+	physicsObj.SetClipModel(new idClipModel(trm), density);
+	physicsObj.GetClipModel()->SetMaterial(GetRenderModelMaterial());
 	physicsObj.SetOrigin( GetPhysics()->GetOrigin() );
 	physicsObj.SetAxis( GetPhysics()->GetAxis() );
 	physicsObj.SetBouncyness( bouncyness );
@@ -198,7 +197,7 @@ void idMoveable::Spawn( void ) {
 		physicsObj.DisableImpact();
 	}
 
-	if ( spawnArgs.GetBool( "nonsolid" ) || failedToLoadCollisionModel) {
+	if ( spawnArgs.GetBool( "nonsolid" )) {
 		BecomeNonSolid();
 	}
 
