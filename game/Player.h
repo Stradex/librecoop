@@ -574,6 +574,7 @@ public:
 	bool					clientTeleported;	//for net_clientsideMovement 1
 	bool					clientSpawnedByServer;	//Used with allowClientsideMovement to determine if an entity can have clientside Movement or not
 	bool					serverReadPlayerPhysics; //Used with allowClientsideMovement to determine if an entity can have clientside Movement or not
+	bool					firstTimeSpawnedInMap; //Used first time spawned in map
 
 	//Client-side stuff for coop
 	bool					CS_Give( const char *statname, const char *value );

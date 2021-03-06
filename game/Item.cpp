@@ -361,6 +361,9 @@ bool idItem::GiveToPlayer( idPlayer *player ) {
 
 		if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
 			if (idStr::FindText(this->GetEntityDefName(), "item_key", false) >= 0) { //HACK: Key items
+
+				gameLocal.SaveGlobalInventory(&spawnArgs);
+
 				cmdSystem->BufferCommandText( CMD_EXEC_NOW, va( "say '%s^0' picked up Key: %s!\n", gameLocal.userInfo[ player->entityNumber ].GetString( "ui_name" ), spawnArgs.GetString( "inv_name" ) ) );
 				for (int i=0; i < gameLocal.numClients; i++) {
 					idPlayer* p = gameLocal.GetClientByNum(i);
@@ -1045,6 +1048,9 @@ bool idPDAItem::GiveToPlayer(idPlayer *player) {
 	}
 	const char *str = spawnArgs.GetString( "pda_name" );
 	if ( player ) {
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			gameLocal.SaveGlobalInventory(&spawnArgs);
+		}
 		player->GivePDA( str, &spawnArgs);
 	}
 	return true;

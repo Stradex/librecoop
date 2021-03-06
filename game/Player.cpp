@@ -375,6 +375,7 @@ void idInventory::GetPersistantData( idDict &dict ) {
 		sprintf( key, "email_%i", i );
 		dict.Set( key, emails[ i ].c_str() );
 	}
+
 	dict.SetInt( "emails", emails.Num() );
 
 	// weapons
@@ -1406,6 +1407,7 @@ idPlayer::idPlayer() {
 	noFallDamage			= false;	//added to fix bug related with fall damage and teleport with net_clientsideMovement 1
 	clientTeleported		= false;	//added to fix bug related with fall damage and teleport with net_clientsideMovement 1
 	clientSpawnedByServer	= false;	//added to fix bug related with fall damage and teleport with net_clientsideMovement 1
+	firstTimeSpawnedInMap	= true;
 }
 
 /*
@@ -2553,6 +2555,11 @@ void idPlayer::SpawnFromSpawnSpot( void ) {
 
 	SelectInitialSpawnPoint( spawn_origin, spawn_angles );
 	SpawnToPoint( spawn_origin, spawn_angles );
+
+	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased() && firstTimeSpawnedInMap && entityNumber != gameLocal.localClientNum) { //Give all pdas, keys and security stuff that the server already stores
+		gameLocal.LoadGlobalInventory(entityNumber);
+		firstTimeSpawnedInMap = false;
+	}
 }
 
 /*
@@ -3791,9 +3798,11 @@ void idPlayer::GivePDA( const char *pdaName, idDict *item)
 
 	if ( item ) {
 		inventory.pdaSecurity.AddUnique( item->GetString( "inv_name" ) );
+		//gameLocal.serverLevelInventory.Set()
 		if (gameLocal.mpGame.IsGametypeCoopBased()) {
 			idPlayer* p;
 			cmdSystem->BufferCommandText( CMD_EXEC_NOW, va( "say '%s^0' picked up PDA: %s!\n", gameLocal.userInfo[ this->entityNumber ].GetString( "ui_name" ), item->GetString( "inv_name" ) ) );
+			gameLocal.SaveGlobalInventory(item);
 			for (int j=0; j < gameLocal.numClients; j++) {
 				if (!gameLocal.entities[j]) {
 					continue;
@@ -8674,9 +8683,6 @@ void idPlayer::ClientPredictionThink( void ) {
 				ClientSendEvent(EVENT_SENDDAMAGE, &msg);
 				nextTimeSendDamage = gameLocal.clientsideTime + SENDDAMAGE_DELAY_MS;
 				playerDamageReceived = 0;
-			}
-			else {
-				common->Printf("[COOP] Waiting to send damange!\n");
 			}
 			nextTimeReadHealth = gameLocal.clientsideTime + READHEALTH_DELAY_AFTERDAMAGE;
 		}

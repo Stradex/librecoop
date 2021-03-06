@@ -119,6 +119,7 @@ void idMoveable::Spawn( void ) {
 			fl.coopNetworkSync = false;
 			fl.networkSync = false;
 			failedToLoadCollisionModel = true;
+			gameLocal.Error("idMoveable '%s': cannot load collision model %s, entityDefName: %s\n", name.c_str(), clipModelName.c_str(), GetEntityDefName());
 		} else {
 			gameLocal.Error("idMoveable '%s': cannot load collision model %s", name.c_str(), clipModelName.c_str());
 			return;
