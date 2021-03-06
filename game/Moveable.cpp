@@ -108,8 +108,20 @@ void idMoveable::Spawn( void ) {
 	}
 
 	if ( !collisionModelManager->TrmFromModel( clipModelName, trm ) ) {
-		gameLocal.Error( "idMoveable '%s': cannot load collision model %s", name.c_str(), clipModelName.c_str() );
-		return;
+		if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+			clipModelName = "models/mapobjects/filler/burgereat.lwo"; // DIRTY DISGUSTING HACK TO AVOID VERY RARE RANDOM CRASH
+
+			if (!collisionModelManager->TrmFromModel(clipModelName, trm)) {
+				gameLocal.Error("idMoveable '%s': cannot load collision model %s, entityDefName: %s\n", name.c_str(), clipModelName.c_str(), GetEntityDefName());
+			}
+			else {
+				gameLocal.Warning("[COOP] Crash avoided using a default collision model with entity: %s\n", GetEntityDefName());
+			}
+		}
+		else {
+			gameLocal.Error("idMoveable '%s': cannot load collision model %s", name.c_str(), clipModelName.c_str());
+			return;
+		}
 	}
 
 	// if the model should be shrinked

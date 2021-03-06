@@ -3471,7 +3471,7 @@ bool idActor::ServerReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			tmpDir.y = msg.ReadFloat();
 			tmpDir.z = msg.ReadFloat();
 
-			if (gameLocal.entities[clientEntityNum] && gameLocal.entities[clientEntityNum]->IsType(idPlayer::Type)) {
+			if (clientEntityNum >= 0 && clientEntityNum < MAX_CLIENTS && gameLocal.entities[clientEntityNum] && gameLocal.entities[clientEntityNum]->IsType(idPlayer::Type)) {
 				lastPlayerDamage = gameLocal.entities[clientEntityNum];
 			}
 
