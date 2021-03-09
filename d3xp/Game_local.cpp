@@ -4525,8 +4525,8 @@ void idGameLocal::RadiusDamage( const idVec3 &origin, idEntity *inflictor, idEnt
 			continue;
 		}
 
-		if (gameLocal.isClient && ent->entityNumber != this->localClientNum) {
-			continue; // for g_clientsideDamage 1
+		if (!ProjectileCanDoRadiusDamage(inflictor, attacker, ent)) {
+			continue;
 		}
 
 		// find the distance from the edge of the bounding box
@@ -4569,6 +4569,39 @@ void idGameLocal::RadiusDamage( const idVec3 &origin, idEntity *inflictor, idEnt
 	if ( push && !gameLocal.isClient ) {
 		RadiusPush( origin, radius, push * dmgPower, attacker, ignorePush, attackerPushScale, false );
 	}
+}
+
+/*
+==============
+idGameLocal::ProjectileCanDoClientsideDamage
+==============
+*/
+bool idGameLocal::ProjectileCanDoRadiusDamage(idEntity* inflictor, idEntity* attacker, idEntity* victim) {
+	if (gameLocal.isServer) {
+		return true;
+	}
+
+	if (!g_clientsideDamage.GetBool()) {
+		return false;
+	}
+
+	if (!inflictor || !inflictor->clientsideNode.InList()) {
+		return false;
+	}
+
+	if (victim && victim->entityNumber == this->localClientNum) {
+		return true;
+	}
+
+	if (!attacker || attacker->entityNumber != this->localClientNum) {
+		return false;
+	}
+
+	if (inflictor && inflictor->IsType(idProjectile::Type) && static_cast<idProjectile*>(inflictor)->selfClientside) {
+		return true;
+	}
+
+	return false;
 }
 
 /*

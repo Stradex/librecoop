@@ -666,6 +666,8 @@ private:
 	bool					isSnapshotEntity(idEntity* ent); //added for COOP by Stradex
 	idEntity*				getEntityBySpawnId(int spawnId);  //added for COOP by Stradex
 
+	bool					ProjectileCanDoRadiusDamage(idEntity* inflictor, idEntity* attacker, idEntity* victim);
+
 	virtual void			GetMapLoadingGUI( char gui[ MAX_STRING_CHARS ] );
 };
 
