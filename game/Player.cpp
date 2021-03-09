@@ -7455,7 +7455,7 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 			damage = 1;
 		}
 
-		if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && gameLocal.localClientNum == this->entityNumber && attacker && attacker->IsType(idAI::Type)) {
+		if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && gameLocal.localClientNum == this->entityNumber && attacker && (attacker->IsType(idAI::Type) || attacker == this)) {
 			playerDamageReceived += damage;
 			if (health > 0) {
 				health -= damage;
@@ -7463,8 +7463,12 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 					health = 1; //don't let a player die clientside... yet
 				}
 			}
-		} else if (!gameLocal.mpGame.IsGametypeCoopBased() || !g_clientsideDamage.GetBool() || !canBeClientDamage || !attacker || !attacker->IsType(idAI::Type) || 
-			(gameLocal.isServer && gameLocal.localClientNum == this->entityNumber)) {
+
+			if (nextTimeReadHealth <= gameLocal.clientsideTime) { //Disable instantly reading health from server after taking damage
+				nextTimeReadHealth = gameLocal.clientsideTime + READHEALTH_DELAY_AFTERDAMAGE;
+			}
+		} else if (!gameLocal.isClient && (!gameLocal.mpGame.IsGametypeCoopBased() || !g_clientsideDamage.GetBool() || !canBeClientDamage || !attacker || !attacker->IsType(idAI::Type) || 
+			(gameLocal.isServer && gameLocal.localClientNum == this->entityNumber))) {
 			health -= damage;
 		}
 
