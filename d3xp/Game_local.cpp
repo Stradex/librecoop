@@ -1316,7 +1316,7 @@ void idGameLocal::LocalMapRestart( ) {
 				}
 			}
 		}
-		if (gameRenderWorld) {
+		if (gameRenderWorld && localClientNum != -1) { //fix: don't execute this in a dedicated server!, it's stupid!
 			gameRenderWorld->GenerateAllInteractions();
 		}
 		idEvent::ServiceEvents();
