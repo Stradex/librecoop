@@ -3465,26 +3465,7 @@ idDoor::ClientPredictionThink
 ================
 */
 void idDoor::ClientPredictionThink( void ) {
-
 	idEntity::Think();
-
-	 //not good with the new netcode
-	/*
-	Think(); //test
-
-	if (this->clientSideEntity) { //FIXME: This is like ductape to fix clientside only doors not closing. 
-		if (this->moverState == MOVER_1TO2) {
-		//common->Printf("stateStartTime: %d - Duration :%d\n", stateStartTime, duration);
-			if (gameLocal.time > stateStartTime + duration) { //time to close this bugged door
-				Event_Reached_BinaryMover(); //FIXME: It's called twice
-			}
-		} else if (this->moverState == MOVER_2TO1) {
-			if (gameLocal.time > stateStartTime + duration) { //Confirm the door was closed
-				SetMoverState( MOVER_POS1, gameLocal.time ); //FIXME: It's called twice
-			}
-		}
-	}
-	*/
 }
 
 /*
