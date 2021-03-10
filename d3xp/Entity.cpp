@@ -678,6 +678,12 @@ void idEntity::Spawn( void ) {
 #endif
 }
 
+/*
+================
+idEntity::Call_ConstructScriptObject
+================
+*/
+
 void idEntity::Call_ConstructScriptObject( void ) {
 	const char			*scriptObjectName;
 	// setup script object
@@ -708,6 +714,35 @@ void idEntity::Call_FindTargets(void) {
 		}
 	}
 }
+
+/*
+================
+idEntity::SyncGuiParmInt
+================
+*/
+
+void idEntity::SyncGuiParmInt(const int guiParmId, const int guiParmValue) {
+	idStr guiParmStr;
+
+	sprintf(guiParmStr, "gui_parm%d", guiParmId);
+
+	spawnArgs.SetInt(guiParmStr, guiParmValue);
+	if (GetRenderEntity() && GetRenderEntity()->gui[0]) {
+		GetRenderEntity()->gui[0]->SetStateInt(guiParmStr, guiParmValue);
+	}
+
+	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
+		idBitMsg     msg;
+		byte msgBuf[MAX_EVENT_PARAM_SIZE];
+		msg.Init(msgBuf, sizeof(msgBuf));
+		msg.WriteShort(guiParmId);
+		msg.WriteShort(guiParmValue);
+		// send message to the clients
+		ServerSendEvent(EVENT_SYNCGUIPARM, &msg, true, -1, true);
+	}
+
+}
+
 
 /*
 ================
@@ -5822,15 +5857,6 @@ bool idEntity::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			SetShaderParm( parmnum, value ); 
 			return true;
 		}
-		//OpenCoop nicemice
-		case EVENT_SETMODEL: {
-			char modelname[MAX_EVENT_PARAM_SIZE];
-			msg.ReadString(modelname, sizeof(modelname));
-			const char* p = modelname;
-			Event_SetModel(p);
-			return true;
-		}
-		//Stradex
 		case EVENT_SETKEYVAL: {
 			idStr guiParmStr, guiParmValStr;
 			int entitySetId = msg.ReadShort();
@@ -5857,6 +5883,21 @@ bool idEntity::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 				spawnArgs.Set("cameraTarget", cameraTargetEnt->GetName());
 			}
 			UpdateChangeableSpawnArgs(NULL);
+			return true;
+		}
+		case EVENT_SYNCGUIPARM: {
+			int guiParmId = msg.ReadShort();
+			int guiParmVal = msg.ReadShort();
+
+			SyncGuiParmInt(guiParmId, guiParmVal);
+			return true;
+		}
+
+		case EVENT_SETMODEL: { //OpenCoop nicemice
+			char modelname[MAX_EVENT_PARAM_SIZE];
+			msg.ReadString(modelname, sizeof(modelname));
+			const char* p = modelname;
+			Event_SetModel(p);
 			return true;
 		}
 #ifdef _D3XP

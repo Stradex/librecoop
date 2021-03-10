@@ -670,6 +670,34 @@ void idEntity::Call_FindTargets(void) {
 
 /*
 ================
+idEntity::SyncGuiParmInt
+================
+*/
+
+void idEntity::SyncGuiParmInt(const int guiParmId, const int guiParmValue) {
+	idStr guiParmStr;
+
+	sprintf(guiParmStr, "gui_parm%d", guiParmId);
+
+	spawnArgs.SetInt(guiParmStr, guiParmValue);
+	if (GetRenderEntity() && GetRenderEntity()->gui[0]) {
+		GetRenderEntity()->gui[0]->SetStateInt(guiParmStr, guiParmValue);
+	}
+
+	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
+		idBitMsg     msg;
+		byte msgBuf[MAX_EVENT_PARAM_SIZE];
+		msg.Init(msgBuf, sizeof(msgBuf));
+		msg.WriteShort(guiParmId);
+		msg.WriteShort(guiParmValue);
+		// send message to the clients
+		ServerSendEvent(EVENT_SYNCGUIPARM, &msg, true, -1, true);
+	}
+
+}
+
+/*
+================
 idEntity::~idEntity
 ================
 */
@@ -5707,8 +5735,14 @@ bool idEntity::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			UpdateChangeableSpawnArgs(NULL);
 			return true;
 		}
-		//OpenCoop nicemice
-		case EVENT_SETMODEL: {
+		case EVENT_SYNCGUIPARM: {
+			int guiParmId = msg.ReadShort();
+			int guiParmVal = msg.ReadShort();
+
+			SyncGuiParmInt(guiParmId, guiParmVal);
+			return true;
+		}
+		case EVENT_SETMODEL: { //OpenCoop nicemice
 			char modelname[MAX_EVENT_PARAM_SIZE];
 			msg.ReadString(modelname, sizeof(modelname));
 			const char* p = modelname;

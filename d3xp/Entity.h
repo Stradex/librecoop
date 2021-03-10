@@ -325,6 +325,7 @@ public:
 	bool					IsBoundToMover( void ) const; //added for coop netcode
 	void					Call_ConstructScriptObject( void ); //added by stradex to fix a bug at localMapRestart
 	void					Call_FindTargets( void ); //added by stradex to fix a bug at localMapRestart
+	void					SyncGuiParmInt(const int guiParmId, const int guiParmValue);
 
 	// physics
 							// set a new physics object to be used by this entity
@@ -422,6 +423,7 @@ public:
 		EVENT_CLIENTDAMAGE, //added by Stradex for g_clientsideDamage 1
 		EVENT_CAMTARGETUPDATE, //added by StradeX
 		EVENT_SETKEYVAL, //added by Stradex for coop
+		EVENT_SYNCGUIPARM, //added by Stradex for coop
 #ifdef _D3XP
 		EVENT_SETGUI,
 		EVENT_GUINAMEDEVENT,

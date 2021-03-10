@@ -5612,10 +5612,17 @@ bool idPlayer::HandleSingleGuiCommand( idEntity *entityGui, idLexer *src ) {
 			int _health = entityGui->spawnArgs.GetInt( "gui_parm1" );
 			int amt = ( _health >= HEALTH_PER_DOSE ) ? HEALTH_PER_DOSE : _health;
 			_health -= amt;
-			entityGui->spawnArgs.SetInt( "gui_parm1", _health );
-			if ( entityGui->GetRenderEntity() && entityGui->GetRenderEntity()->gui[ 0 ] ) {
-				entityGui->GetRenderEntity()->gui[ 0 ]->SetStateInt( "gui_parm1", _health );
+
+			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+				entityGui->SyncGuiParmInt(1, _health);
+			} else {
+				entityGui->spawnArgs.SetInt("gui_parm1", _health);
+				if (entityGui->GetRenderEntity() && entityGui->GetRenderEntity()->gui[0]) {
+					entityGui->GetRenderEntity()->gui[0]->SetStateInt("gui_parm1", _health);
+				}
+
 			}
+
 			health += amt;
 			if ( health > 100 ) {
 				health = 100;
