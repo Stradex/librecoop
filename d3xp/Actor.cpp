@@ -2266,7 +2266,7 @@ void idActor::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &dir
 	SetTimeState ts( timeGroup );
 
 	// Helltime boss is immune to all projectiles except the helltime killer
-	if ( finalBoss && inflictor && idStr::Icmp(inflictor->GetEntityDefName(), "projectile_helltime_killer") ) {
+	if ( finalBoss && inflictor && idStr::Icmp(inflictor->GetEntityDefName(), "projectile_helltime_killer") ) { //STRADEX: THANK YOU, REALLY, FOR TAKING AWAY A WHOLE DAY OF MY LIFE :)
 		return;
 	}
 

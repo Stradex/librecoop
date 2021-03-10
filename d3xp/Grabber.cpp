@@ -391,6 +391,9 @@ void idGrabber::StopDrag( bool dropOnly ) {
 				idProjectile *projectile = static_cast< idProjectile* >( ent );
 				if ( projectile != NULL ) {
 					projectile->SetLaunchedFromGrabber( true );
+					if (gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && !projectile->clientsideNode.InList()) {
+						projectile->selfClientside = false;
+					}
 				}
 				//end for LM
 

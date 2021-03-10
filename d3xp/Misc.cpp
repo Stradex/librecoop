@@ -1493,6 +1493,7 @@ void idAnimated::Event_LaunchMissilesUpdate( int launchjoint, int targetjoint, i
 	idProjectile *	projectile;
 	const idDict *	projectileDef;
 	const char *	projectilename;
+	idDict*			args;
 
 	projectilename = spawnArgs.GetString( "projectilename" );
 	projectileDef = gameLocal.FindEntityDefDict( projectilename, false );
@@ -1512,7 +1513,8 @@ void idAnimated::Event_LaunchMissilesUpdate( int launchjoint, int targetjoint, i
 	dir = targetPos - launchPos;
 	dir.Normalize();
 
-	gameLocal.SpawnEntityDef( *projectileDef, &ent, false );
+	gameLocal.SpawnEntityDef(*projectileDef, &ent, false);
+	
 	if ( !ent || !ent->IsType( idProjectile::Type ) ) {
 		gameLocal.Error( "idAnimated '%s' at (%s): in 'launchMissiles' call '%s' is not an idProjectile", name.c_str(), GetPhysics()->GetOrigin().ToString(0), projectilename );
 	}

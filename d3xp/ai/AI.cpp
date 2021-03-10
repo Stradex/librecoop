@@ -4411,7 +4411,6 @@ idProjectile *idAI::LaunchProjectile( const char *jointname, idEntity *target, b
 		projectile.GetEntity()->fl.coopNetworkSync = false;
 		projectile.GetEntity()->fl.networkSync = false;
 		projectile.GetEntity()->clientsideNode.AddToEnd( gameLocal.clientsideEntities );  //hack
-
 	}
 
 	lastProjectile = projectile.GetEntity();

@@ -147,6 +147,8 @@ protected:
 private:
 	bool					netSyncPhysics;
 
+	bool					CanDoDamage(idEntity* victim);
+
 	void					AddDefaultDamageEffect( const trace_t &collision, const idVec3 &velocity );
 
 	void					Event_Explode( void );

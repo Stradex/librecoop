@@ -589,10 +589,7 @@ bool idProjectile::Collide( const trace_t &collision, const idVec3 &velocity ) {
 			AddDefaultDamageEffect( collision, collision.c.normal ); //added for coop
 			ent = gameLocal.entities[ collision.c.entityNum ];
 			ignore = NULL;
-			if (gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && clientsideNode.InList() && ent &&
-				((owner.GetEntity() && owner.GetEntity()->entityNumber == gameLocal.localClientNum && ent->IsType(idAI::Type))
-				|| (ent->entityNumber == gameLocal.localClientNum ))
-			) {
+			if (CanDoDamage(ent)) {
 				if ( !projectileFlags.detonate_on_actor ) {
 					Explode( collision, NULL );
 					return true;
@@ -709,7 +706,7 @@ bool idProjectile::Collide( const trace_t &collision, const idVec3 &velocity ) {
 		}
 
 		if ( damageDefName[0] != '\0' ) {
-			if (!g_clientsideDamage.GetBool() || !selfClientside || !owner.GetEntity() || !owner.GetEntity()->IsType(idPlayer::Type) || !ent->IsType(idAI::Type) || (owner.GetEntity() && owner.GetEntity()->entityNumber == gameLocal.localClientNum)) {
+			if (CanDoDamage(ent)) {
 				ent->Damage( this, owner.GetEntity(), dir, damageDefName, damageScale, CLIPMODEL_ID_TO_JOINT_HANDLE( collision.c.id ), true );
 			}
 			ignore = ent;
@@ -729,6 +726,41 @@ bool idProjectile::Collide( const trace_t &collision, const idVec3 &velocity ) {
 	Explode( collision, ignore );
 
 	return true;
+}
+
+/*
+=================
+idProjectile::CanDoDamage
+=================
+*/
+
+bool idProjectile::CanDoDamage( idEntity* victim ) {
+
+	bool allowInflictDamage = false;
+
+	if (gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && selfClientside) {
+		if (gameLocal.isClient) {
+			if (clientsideNode.InList() && victim && ((owner.GetEntity() && owner.GetEntity()->entityNumber == gameLocal.localClientNum && victim->IsType(idAI::Type))
+				|| (victim->entityNumber == gameLocal.localClientNum))
+				) {
+				allowInflictDamage = true;
+			}
+		} else {
+			if (!owner.GetEntity() || !owner.GetEntity()->IsType(idPlayer::Type) || !victim->IsType(idAI::Type) || (owner.GetEntity() && owner.GetEntity()->entityNumber == gameLocal.localClientNum)) {
+				allowInflictDamage = true;
+			}
+		}
+	}
+	else {
+		if (gameLocal.isClient) {
+			allowInflictDamage = false;
+		}
+		else {
+			allowInflictDamage = true;
+		}
+	}
+	
+	return allowInflictDamage;
 }
 
 /*
