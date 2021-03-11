@@ -5718,7 +5718,6 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
 		outMsg.WriteBits( gameLocal.GetCoopId( this ), 32 );
 		outMsg.WriteBits( gameLocal.GetSpawnId( this ), 32 ); //added for coop
-		//common->Printf("idEntity::ServerSendEvent entity %s with coopid %d\n", GetName(), gameLocal.GetCoopId( this ));
 	} else {
 		outMsg.WriteBits( gameLocal.GetSpawnId( this ), 32 );
 	}

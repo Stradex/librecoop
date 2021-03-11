@@ -3054,6 +3054,14 @@ void idMultiplayerGame::PrintMessageEvent( int to, msg_evt_t evt, int parm1, int
 			return;
 	}
 	if ( !gameLocal.isClient ) {
+		if (gameLocal.mpGame.IsGametypeCoopBased()) { //Stradex: avoid "idBitMsg::WriteBits: value overflow" since WriteByte only accepts unsigned values
+			if (parm1 < 0) {
+				parm1 = 0;
+			}
+			if (parm2 < 0) {
+				parm2 = 0;
+			}
+		}
 		idBitMsg outMsg;
 		byte msgBuf[1024];
 		outMsg.Init( msgBuf, sizeof( msgBuf ) );
