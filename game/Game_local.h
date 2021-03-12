@@ -286,27 +286,31 @@ public:
 
 	//start: stradex for coop netcode
 	int						firstFreeCoopIndex;			// first free index in the entities array for coop
-	int						firstFreeCsIndex;		// first free index in the entities array for clientsideEntities
-	int						firstFreeTargetIndex;	// first free index in the targetentities array
-	idEntity *				targetentities[MAX_GENTITIES];	//For coop netcode only by Stradex
-	idEntity *				coopentities[MAX_GENTITIES];	//For coop netcode only by Stradex
-	idEntity *				sortsnapshotentities[MAX_GENTITIES]; //for coop only to sort the priority of snapshot
+	idEntity*				coopentities[MAX_GENTITIES];	//For coop netcode only by Stradex
+	idLinkList<idEntity>	coopSyncEntities;				// all net-synced (used by Coop only)
 	int						coopIds[MAX_GENTITIES];			// for use in idEntityPtr in coop
 	int						num_coopentities;				//for coop netcode only by stradex 
-	idLinkList<idEntity>	coopSyncEntities;				// all net-synced (used by Coop only)
+
+	int						firstFreeCsIndex;		// first free index in the entities array for clientsideEntities
+
+	int						firstFreeTargetIndex;	// first free index in the targetentities array
+	idEntity *				targetentities[MAX_GENTITIES];	//For coop netcode only by Stradex
+	idEntity *				sortsnapshotentities[MAX_GENTITIES]; //for coop only to sort the priority of snapshot
+
+	idEntity*				removeSyncEntities[MAX_GENTITIES];	//For coop netcode only by Stradex
+	int						num_removeSyncEntities;
+
+
 	idLinkList<idEntity>	serverPriorityEntities;			// coopSyncEnities but sort by snapshotPriority (used by Coop only)
 	int						serverEventsCount;				//just to debug delete later
 	int						clientEventsCount;				//just to debug, delete later
-	bool					isRestartingMap;				//added for coop to fix a script bug after serverMapRestart
 	serverEvent_t			serverOverflowEvents[SERVER_EVENTS_QUEUE_SIZE]; //To avoid server reliabe messages overflow
 	void					addToServerEventOverFlowList(int eventId, const idBitMsg *msg, bool saveEvent, int excludeClient, int eventTime, idEntity* ent, bool saveLastOnly=false); //To avoid server reliabe messages overflow
 	void					addToServerEventOverFlowList(entityNetEvent_t* event, int clientNum); //To avoid server reliabe messages overflow
 	void					sendServerOverflowEvents( void ); //to send the overflow events that are in queue to avoid event overflow
 	int						overflowEventCountdown; //FIXME: Not pretty way I I think
 
-	idEntity*				removeSyncEntities[MAX_GENTITIES];	//For coop netcode only by Stradex
-	int						num_removeSyncEntities;
-
+	bool					isRestartingMap;				//added for coop to fix a script bug after serverMapRestart
 	//end: stradex for coop netcode
 
 	// can be used to automatically effect every material in the world that references globalParms
@@ -467,6 +471,9 @@ public:
 	void					UnregisterRemoveSyncEntity(idEntity* ent); //added by Stradex for coop
 	int						CountMapSyncEntitiesRemoved() const;
 	void					UnregisterEntity( idEntity *ent );
+	void					UnregisterCoopEntity(idEntity* ent); //added by Stradex for coop
+	void					UnregisterTargetEntity(idEntity* ent); //added by Stradex for coop
+	void					UnregisterClientsideEntity(idEntity* ent); //added by Stradex for coop
 
 	bool					SecureCheckIfEntityExists(idEntity* ent); //proper secure check about if entity exists, to avoid VERY RARE bug in coop (monorail respawn after dying).
 
@@ -663,12 +670,15 @@ private:
 
 	void					UpdateLagometer( int aheadOfServer, int dupeUsercmds );
 
-	bool					isSnapshotEntity(idEntity* ent); //added for COOP by Stradex
-	idEntity*				getEntityBySpawnId(int spawnId);  //added for COOP by Stradex
+	virtual void			GetMapLoadingGUI(char gui[MAX_STRING_CHARS]);
 
+	//STRADEX: COOP
+	bool					isSnapshotEntity(idEntity* ent);
+	idEntity*				getEntityBySpawnId(int spawnId);
 	bool					ProjectileCanDoRadiusDamage(idEntity* inflictor, idEntity* attacker, idEntity* victim);
-
-	virtual void			GetMapLoadingGUI( char gui[ MAX_STRING_CHARS ] );
+	void					FixScriptsInMapRestart( void ); //hack
+	void					FixNoDynamicInteractions( bool isLocalMapRestart); //hack
+	idEntity*				CheckAndGetValidSpawnSpot(idEntity* spotEnt, int spotEntIndex); //hack
 };
 
 //============================================================================

@@ -6349,7 +6349,7 @@ void idAI::CSKilled( void ) {
 	Unbind();
 
 	if ( StartRagdoll() ) {
-			StartSound( "snd_death", SND_CHANNEL_VOICE, 0, false, NULL );
+		StartSound( "snd_death", SND_CHANNEL_VOICE, 0, false, NULL );
 	}
 
 	if ( spawnArgs.GetString( "model_death", "", &modelDeath ) ) {
