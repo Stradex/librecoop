@@ -412,15 +412,10 @@ idEntity::idEntity
 */
 idEntity::idEntity() {
 	entityNumber	= ENTITYNUM_NONE;
-	entityCoopNumber = ENTITYNUM_NONE;
-	entityTargetNumber = ENTITYNUM_NONE;
-	entityRemoveSyncNumber = ENTITYNUM_NONE;
 	entityDefNumber = -1;
 
 	spawnNode.SetOwner( this );
 	activeNode.SetOwner( this );
-	coopNode.SetOwner( this ); //added by Stradex for Coop
-	clientsideNode.SetOwner( this ); //for clientside entities...
 	snapshotNode.SetOwner( this );
 	snapshotSequence = -1;
 	snapshotBits = 0;
@@ -451,36 +446,46 @@ idEntity::idEntity() {
 	memset( &refSound, 0, sizeof( refSound ) );
 
 	mpGUIState = -1;
-	scriptAlreadyConstructed = false; //added by Stradex for coop
-	spawnedByServer = false; //added by Stradex for Coop
-	clientSideEntity = false; //added by Stradex for Coop
-	forceNetworkSync = false; //added by Stradex for Coop
-	readByServer = false; //added by Stradex for Coop netcode optimization
+
+	//COOP: Stradex
+	entityCoopNumber = ENTITYNUM_NONE;
+	entityTargetNumber = ENTITYNUM_NONE;
+	entityRemoveSyncNumber = ENTITYNUM_NONE;
+
+	coopNode.SetOwner(this);
+	clientsideNode.SetOwner(this);
+
+	scriptAlreadyConstructed = false;
+	spawnedByServer = false;
+	clientSideEntity = false;
+	forceNetworkSync = false;
+	readByServer = false;
 	snapshotPriority = DEFAULT_SNAPSHOT_PRIORITY;
-	fl.useOldNetcode = false; //added by Stradex for Coop netcode
-	findTargetsAlreadyCalled = false; //added by Stradex for coop
+	fl.useOldNetcode = false;
+	findTargetsAlreadyCalled = false;
 	allowClientsideThink = false;
 	canBeCsTarget = false;
 	forceSnapshotUpdateOrigin = true;
 	calledViaScriptThread = false;
+
 	for (int i=0; i < MAX_CLIENTS; i++) {
-		firstTimeInClientPVS[i] = true; //added by Stradex for Coop netcode optimization
-		inSnapshotQueue[i] = 0; //added by Stradex for Coop netcode optimization
-		snapshotMissingCount[i] = 0;  //added by Stradex for Coop netcode optimization
-		lastSnapshotOrigin[i] = vec3_zero; //added by Stradex for Coop netcode optimization
-		numPVSAreas_snapshot[i] = -1;  //added by Stradex for Coop netcode optimization
+		firstTimeInClientPVS[i] = true;
+		inSnapshotQueue[i] = 0;
+		snapshotMissingCount[i] = 0;
+		lastSnapshotOrigin[i] = vec3_zero;
+		numPVSAreas_snapshot[i] = -1; 
 		inRemoteCameraPVS[i] = false;
 	}
 	eventsSend = 0;
-	eventSyncVital = true; //true by default
+	eventSyncVital = true;
 	nextSendEventTime = 0;
 	nextResetEventCountTime = 0;
+	allowRemoveSync = false;
+	csActivateTargetMaxDelay = -1; //-1 means infinite time
 
 	// Nicemice: we want to differ between a map entity (static, also spawned) on a client
 	// and a temporary entity
 	isMapEntity = false;
-	allowRemoveSync = false;
-	csActivateTargetMaxDelay = -1; //-1 means infinite time
 }
 
 /*
@@ -703,23 +708,19 @@ idEntity::~idEntity
 */
 idEntity::~idEntity( void ) {
 
-	if ( gameLocal.GameState() != GAMESTATE_SHUTDOWN && !gameLocal.isClient && entityNumber >= MAX_CLIENTS ) {
-		if ((fl.networkSync && !gameLocal.mpGame.IsGametypeCoopBased()) ||
-			((fl.coopNetworkSync || (isMapEntity && allowRemoveSync)) && gameLocal.mpGame.IsGametypeCoopBased())
-		) {
-			idBitMsg	msg;
-			byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
+	if ( IsAllowedToSendDeleteEvent() ) {
+		idBitMsg	msg;
+		byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
 
-			msg.Init(msgBuf, sizeof(msgBuf));
-			msg.WriteByte(GAME_RELIABLE_MESSAGE_DELETE_ENT);
+		msg.Init(msgBuf, sizeof(msgBuf));
+		msg.WriteByte(GAME_RELIABLE_MESSAGE_DELETE_ENT);
 
-			if (gameLocal.mpGame.IsGametypeCoopBased()) {
-				msg.WriteBits(gameLocal.GetCoopId(this), 32);
-			}
-			msg.WriteBits(gameLocal.GetSpawnId(this), 32);
-
-			networkSystem->ServerSendReliableMessage(-1, msg);
+		if (gameLocal.mpGame.IsGametypeCoopBased()) {
+			msg.WriteBits(gameLocal.GetCoopId(this), 32);
 		}
+		msg.WriteBits(gameLocal.GetSpawnId(this), 32);
+
+		networkSystem->ServerSendReliableMessage(-1, msg);
 	}
 
 	DeconstructScriptObject();
@@ -760,6 +761,29 @@ idEntity::~idEntity( void ) {
 
 	gameLocal.UnregisterEntity( this );
 }
+
+/*
+================
+idEntity::IsAllowedToSendDeleteEvent
+================
+*/
+
+bool idEntity::IsAllowedToSendDeleteEvent(void) {
+	
+	if (gameLocal.isClient || gameLocal.GameState() == GAMESTATE_SHUTDOWN || entityNumber < MAX_CLIENTS) {
+		return false;
+	}
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		if (fl.coopNetworkSync || (isMapEntity && allowRemoveSync)) {
+			return true;
+		}
+	} else if (fl.networkSync) {
+		return true;
+	}
+
+	return true;
+}
+
 
 /*
 ================
@@ -1113,14 +1137,9 @@ idEntity::BecomeInactive
 */
 void idEntity::BecomeInactive( int flags ) {
 
-	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased() && thinkFlags) {
-		if ((fl.useOldNetcode || MasterUseOldNetcode() || IsBoundToMover()) && (fl.coopNetworkSync || IsMasterCoopSync()) && (snapshotNode.InList() || IsMasterInSnapshot())) {
-			idPhysics* p = GetPhysics();
-			if( p != NULL && p->IsType( idPhysics_Static::Type ) == false && p->IsType( idPhysics_StaticMulti::Type ) == false) {
-				//gameLocal.DebugPrintf("Avoiding %s to become inactive\n", GetName());
-				return;
-			}
-		}
+	if (!IsAllowedToBecomeInactive()) {
+		gameLocal.DebugPrintf("Avoiding %s to become inactive\n", GetName());
+		return;
 	}
 
 	if ( ( flags & TH_PHYSICS ) ) {
@@ -1157,6 +1176,33 @@ void idEntity::BecomeInactive( int flags ) {
 			}
 		}
 	}
+}
+/*
+================
+idEntity::IsAllowedToBecomeInactive
+================
+*/
+bool idEntity::IsAllowedToBecomeInactive(void) {
+	if (!gameLocal.isClient || !gameLocal.mpGame.IsGametypeCoopBased() || !thinkFlags) {
+		return true;
+	}
+	if (!fl.useOldNetcode && !MasterUseOldNetcode() && !IsBoundToMover()) {
+		return true;
+	}
+	if (!fl.coopNetworkSync && !IsMasterCoopSync()) {
+		return true;
+	}
+	if (!snapshotNode.InList() && !IsMasterInSnapshot()) {
+		return true;
+	}
+
+	idPhysics* p = GetPhysics();
+
+	if (!p || p->IsType(idPhysics_Static::Type) || p->IsType(idPhysics_StaticMulti::Type)) {
+		return true;
+	}
+
+	return false;
 }
 
 /***********************************************************************
@@ -2301,10 +2347,9 @@ void idEntity::RemoveBinds( void ) {
 			ent->Unbind();
 			if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient && !ent->fl.coopNetworkSync) {
 				//get ride manually of nonsync bind entities to avoid duplicated entities in snapshot
-				//common->Printf("[COOP] Getting ride of %s\n", ent->GetName()); 
-				ent->CS_PostEventMS( &EV_Remove, 0 ); //probably this causing problems in coop
+				ent->CS_PostEventMS( &EV_Remove, 0 );
 			} else {
-				ent->PostEventMS( &EV_Remove, 0 ); //probably this causing problems in coop
+				ent->PostEventMS( &EV_Remove, 0 );
 			}
 
 			next = teamChain;
@@ -2350,7 +2395,7 @@ bool idEntity::IsMasterActive( void ) const {
 	if ( !bindMaster ) {
 		return false;
 	}
-	if (bindMaster->entityNumber == this->entityNumber) { //this shouldn't never happen but weird shit can happen in this Coop tech demo
+	if (bindMaster->entityNumber == this->entityNumber) {
 		return IsActive();
 	}
 	if (!bindMaster->IsActive()) {
@@ -2369,7 +2414,7 @@ bool idEntity::MasterUseOldNetcode( void ) const {
 	if ( !bindMaster ) {
 		return this->fl.useOldNetcode; //FIXME: Probably not a good idea but now it works by returning the current entity value when there's no master
 	}
-	if ((bindMaster->entityNumber == this->entityNumber) || this->fl.useOldNetcode) { //this shouldn't never happen but weird shit can happen in this Coop tech demo
+	if ((bindMaster->entityNumber == this->entityNumber) || this->fl.useOldNetcode) {
 		return this->fl.useOldNetcode;
 	}
 
@@ -2386,7 +2431,7 @@ bool idEntity::IsMasterCoopSync( void ) const {
 	if ( !bindMaster ) {
 		return false;
 	}
-	if (bindMaster->entityNumber == this->entityNumber) { //this shouldn't never happen but weird shit can happen in this Coop tech demo
+	if (bindMaster->entityNumber == this->entityNumber) {
 		return fl.coopNetworkSync;
 	}
 	if (!bindMaster->fl.coopNetworkSync) {
@@ -2405,7 +2450,7 @@ bool idEntity::IsMasterInSnapshot( void ) const {
 	if ( !bindMaster ) {
 		return false;
 	}
-	if (bindMaster->entityNumber == this->entityNumber) { //this shouldn't never happen but weird shit can happen in this Coop tech demo
+	if (bindMaster->entityNumber == this->entityNumber) {
 		return this->snapshotNode.InList();
 	}
 	if (!bindMaster->snapshotNode.InList()) {
@@ -3966,25 +4011,8 @@ void idEntity::FindTargets( void ) {
 		if ( targets[ i ].GetEntity() == this ) {
 			gameLocal.Error( "Entity '%s' is targeting itself", name.c_str() );
 		}
-		//extra for coop: FIXME Search for a clientside workaround for this better
 		ent =  targets[ i ].GetEntity();
 
-		/*
-		if (gameLocal.mpGame.IsGametypeCoopBased() && ent && !ent->fl.coopNetworkSync && (ent->IsType(idAnimated::Type) || ent->IsType(idFuncEmitter::Type) )){
-			//causing pvs areas crash
-			
-			ent->forceNetworkSync = false;
-			ent->fl.coopNetworkSync = true;
-			gameLocal.RegisterCoopEntity(ent); //just lol
-			targets[ i ].SetCoopId(gameLocal.GetCoopId(ent)); //Dirty dirty hack
-#ifdef _DEBUG
-			common->Printf("[DEBUG] Adding %s to the coopentities array\n", ent->GetName());
-#endif
-			
-		}
-		*/
-
-		//new
 		if (!ent) {
 			continue;
 		}
@@ -5520,12 +5548,6 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 		return;
 	}
 
-	/*
-	// Nicemice
-	if (!fl.coopNetworkSync && !isMapEntity) {
-		return;
-	}
-	*/
 
 	if (clientsideNode.InList()) { //ignore client-side entities only
 		return;
@@ -5546,11 +5568,6 @@ void idEntity::ServerSendEvent( int eventId, const idBitMsg *msg, bool saveEvent
 	}
 
 	if (eventsSend >= MAX_ENTITY_EVENTS_PER_SEC) {
-		/*
-		if (!eventSyncVital) {
-			gameLocal.DebugPrintf("Avoiding overflow with entity: %s - %s\n", this->GetName(), this->GetClassname());
-		}
-		*/
 		nextSendEventTime = gameLocal.time + 1000;
 	}
 

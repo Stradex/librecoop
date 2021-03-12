@@ -489,7 +489,6 @@ private:
 	void					Event_BindToJoint( idEntity *master, const char *jointname, float orientated );
 	void					Event_Unbind( void );
 	void					Event_RemoveBinds( void );
-	void					Event_SafeRemove( void );  //added for coop 
 	void					Event_SpawnBind( void );
 	void					Event_SetOwner( idEntity *owner );
 	void					Event_SetModel( const char *modelname );
@@ -542,8 +541,12 @@ private:
 	void					Event_CallFunction( const char *name );
 	void					Event_SetNeverDormant( int enable );
 
+	// COOP
+	void					Event_SafeRemove(void);  //added for coop 
 	void					Event_SetNetShaderParm( int parmnum, float value ); //added for OpenCoop Compatibility
 	void					Event_StartNetSoundShader( const char *soundName, int channel, int netSync ); //added for OpenCoop Compatibility
+	bool					IsAllowedToSendDeleteEvent( void );
+	bool					IsAllowedToBecomeInactive( void ); 
 };
 
 /*

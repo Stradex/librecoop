@@ -5013,7 +5013,7 @@ idEntity *idGameLocal::SelectInitialSpawnPoint( idPlayer *player ) {
 
 /*
 ================
-idGameLocal::UpdateServerInfoFlags
+idGameLocal::CheckAndGetValidSpawnSpot
 ================
 */
 
