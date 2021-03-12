@@ -180,7 +180,7 @@ enum {
 	GAME_RELIABLE_MESSAGE_GLOBALCHECKPOINT,
 	GAME_RELIABLE_MESSAGE_NOCLIP,
 	GAME_RELIABLE_MESSAGE_FADE, //For fadeTo, fadeIn, fadeOut FX in coop
-	GAME_RELIABLE_MESSAGE_ENTITY_LIST //To sync the entities that were deleted from the map for clients that join
+	GAME_RELIABLE_MESSAGE_REMOVED_ENTITIES //To sync the entities that were deleted from the map for clients that join
 };
 
 typedef enum {
@@ -414,16 +414,6 @@ public:
 
 	virtual bool			DownloadRequest( const char *IP, const char *guid, const char *paks, char urls[ MAX_STRING_CHARS ] );
 
-	//Added by Stradex for Coop
-	virtual gameReturn_t	RunClientSideFrame(idPlayer	*clientPlayer, const usercmd_t *clientCmds );
-	virtual void			ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg &msg, byte *clientInPVS, int numPVSClients );
-	virtual void			ClientReadSnapshotCoop( int clientNum, int sequence, const int gameFrame, const int gameTime, const int dupeUsercmds, const int aheadOfServer, const idBitMsg &msg );
-
-	virtual void			snapshotsort_swap(idEntity* entities[], int lhs, int rhs);
-	virtual bool			snapshotsort_notInOrder(const snapshotsort_context_s& context, idEntity* lhs, idEntity* rhs);
-	virtual int				snapshotsort_partition(const snapshotsort_context_s& context, idEntity* entities[], int low, int high);
-	virtual void			snapshotsort(const snapshotsort_context_s& context, idEntity* entities[], int low, int high);
-
 	// ---------------------- Public idGameLocal Interface -------------------
 
 	void					Printf( const char *fmt, ... ) const id_attribute((format(printf,2,3)));
@@ -477,8 +467,8 @@ public:
 
 	bool					SecureCheckIfEntityExists(idEntity* ent); //proper secure check about if entity exists, to avoid VERY RARE bug in coop (monorail respawn after dying).
 
-	void					WriteEntityListToEvent(idBitMsg& msg);
-	void					ReadEntityListFromEvent(const idBitMsg& msg);
+	void					WriteRemovedEntitiesToEvent(idBitMsg& msg); // Coop
+	void					ReadRemovedEntitiesFromEvent(const idBitMsg& msg); // Coop
 
 	bool					RequirementMet( idEntity *activator, const idStr &requires, int removeItem );
 
@@ -673,12 +663,24 @@ private:
 	virtual void			GetMapLoadingGUI(char gui[MAX_STRING_CHARS]);
 
 	//STRADEX: COOP
+	//Added by Stradex for Coop
+	void					RunClientSideFrame(idPlayer* clientPlayer, const usercmd_t* clientCmds);
+	void					ServerWriteSnapshotCoop(int clientNum, int sequence, idBitMsg& msg, byte* clientInPVS, int numPVSClients);
+	void					ClientReadSnapshotCoop(int clientNum, int sequence, const int gameFrame, const int gameTime, const int dupeUsercmds, const int aheadOfServer, const idBitMsg& msg);
 	bool					isSnapshotEntity(idEntity* ent);
 	idEntity*				getEntityBySpawnId(int spawnId);
+	//Quick sort snapshot entities start (thanks fluffy)
+	void					snapshotsort_swap(idEntity* entities[], int lhs, int rhs);
+	bool					snapshotsort_notInOrder(const snapshotsort_context_s& context, idEntity* lhs, idEntity* rhs);
+	int						snapshotsort_partition(const snapshotsort_context_s& context, idEntity* entities[], int low, int high);
+	void					snapshotsort(const snapshotsort_context_s& context, idEntity* entities[], int low, int high);
+	//Quick sort snapshot entities ends
 	bool					ProjectileCanDoRadiusDamage(idEntity* inflictor, idEntity* attacker, idEntity* victim);
 	void					FixScriptsInMapRestart( void ); //hack
 	void					FixNoDynamicInteractions( bool isLocalMapRestart); //hack
 	idEntity*				CheckAndGetValidSpawnSpot(idEntity* spotEnt, int spotEntIndex); //hack
+	void					SetEntityNetEventData(entityNetEvent_t* event, int eventId, const idBitMsg* msg, int eventTime);
+	void					ProcessEntityReceiveEvent(idEntity* ent, idBitMsg &eventMsg, entityNetEvent_t* event, bool isClientEvent);
 };
 
 //============================================================================

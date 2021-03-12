@@ -197,14 +197,6 @@ public:
 	virtual bool				DownloadRequest( const char *IP, const char *guid, const char *paks, char urls[ MAX_STRING_CHARS ] ) = 0;
 
 	virtual void				GetMapLoadingGUI( char gui[ MAX_STRING_CHARS ] ) = 0;
-
-	//added by Stradex for Coop
-	// Runs a game frame, may return a session command for level changing, etc
-	virtual gameReturn_t		RunClientSideFrame(idPlayer	*clientPlayer, const usercmd_t *clientCmds ) = 0;
-
-	virtual void				ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg &msg, byte *clientInPVS, int numPVSClients ) = 0;
-
-	virtual void				ClientReadSnapshotCoop( int clientNum, int sequence, const int gameFrame, const int gameTime, const int dupeUsercmds, const int aheadOfServer, const idBitMsg &msg ) = 0;
 };
 
 extern idGame *					game;

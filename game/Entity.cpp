@@ -1138,7 +1138,6 @@ idEntity::BecomeInactive
 void idEntity::BecomeInactive( int flags ) {
 
 	if (!IsAllowedToBecomeInactive()) {
-		gameLocal.DebugPrintf("Avoiding %s to become inactive\n", GetName());
 		return;
 	}
 
