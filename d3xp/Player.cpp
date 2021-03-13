@@ -7595,11 +7595,7 @@ void idPlayer::Move( void ) {
 		physicsObj.SetMovementType( PM_FREEZE );
 #endif
 	} else {
-		if (gameLocal.mpGame.IsGametypeCoopBased() && g_unblockPlayers.GetBool()) {
-			physicsObj.SetContents(CONTENTS_CORPSE | CONTENTS_MONSTERCLIP);
-		} else {
-			physicsObj.SetContents(CONTENTS_BODY);
-		}
+		physicsObj.SetContents(CONTENTS_BODY);
 		physicsObj.SetMovementType( PM_NORMAL );
 	}
 
@@ -7608,7 +7604,9 @@ void idPlayer::Move( void ) {
 	} else if ( health <= 0 ) {
 		physicsObj.SetClipMask( MASK_DEADSOLID );
 	} else {
-		if (spawnPhaseWalk && gameLocal.mpGame.IsGametypeCoopBased()) {
+		if (gameLocal.mpGame.IsGametypeCoopBased() && g_unblockPlayers.GetBool()) {
+			physicsObj.SetClipMask(MASK_UNBLOCKPLAYER);
+		} else  if (spawnPhaseWalk && gameLocal.mpGame.IsGametypeCoopBased()) {
 			physicsObj.SetClipMask(MASK_PLAYERSOLID);
 			spawnPhaseWalk = IsCollidingWithPlayer();
 			physicsObj.SetClipMask(MASK_DEADSOLID);

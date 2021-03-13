@@ -5023,9 +5023,9 @@ void idAI::Show( void ) {
 	if ( spawnArgs.GetBool( "big_monster" ) ) {
 		physicsObj.SetContents( 0 );
 	} else if ( use_combat_bbox ) {
-		physicsObj.SetContents( CONTENTS_BODY|CONTENTS_SOLID );
+		physicsObj.SetContents( CONTENTS_BODY | CONTENTS_SOLID | CONTENTS_PLAYERCLIP);
 	} else {
-		physicsObj.SetContents( CONTENTS_BODY );
+		physicsObj.SetContents( CONTENTS_BODY | CONTENTS_PLAYERCLIP);
 	}
 	physicsObj.GetClipModel()->Link( gameLocal.clip );
 	fl.takedamage = !spawnArgs.GetBool( "noDamage" );
