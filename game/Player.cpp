@@ -1216,7 +1216,6 @@ idPlayer::idPlayer() {
 
 	noclip					= false;
 	godmode					= false;
-	forceSPSpawnPoint		= false; //added for coop
 
 	spawnAnglesSet			= false;
 	spawnAngles				= ang_zero;
@@ -1355,8 +1354,6 @@ idPlayer::idPlayer() {
 	smoothedAngles			= ang_zero;
 
 	fl.networkSync			= true;
-	fl.coopNetworkSync		= true;
-	forceNetworkSync = true; //added by Stradex for Coop
 
 	latchedTeam				= -1;
 	doingDeathSkin			= false;
@@ -1397,6 +1394,9 @@ idPlayer::idPlayer() {
 	selfSmooth				= false;
 
 	//adde for COOP by stradex
+	fl.coopNetworkSync = true;
+	forceNetworkSync = true;
+	forceSPSpawnPoint = false;
 	snapshotPriority		= 1;
 	nextSendPhysicsInfoTime = 0;
 	serverOverridePositionTime = 0;		//added from Doom 3 BFG Edition for clientside movement
@@ -1682,9 +1682,7 @@ void idPlayer::Init( void ) {
 	MPAimHighlight		= false;
 
 	//coop start
-	allowClientsideMovement = false; //added by Stradex
-
-	nextSendPhysicsInfoTime = gameLocal.clientsideTime + PLAYER_CLIENT_SEND_MOVEMENT*2; //disable clientside movement two seconds
+	DisableClientsideMovement(PLAYER_CLIENT_SEND_MOVEMENT * 2);
 	nextTimeReadHealth = 0; //added for g_clientsideDamage 1
 	nextTimeSendDamage = 0;
 	clientSpawnedByServer = false;
@@ -1724,8 +1722,7 @@ void idPlayer::Spawn( void ) {
 		// always start in spectating state waiting to be spawned in
 		// do this before SetClipModel to get the right bounding box
 		spectating = true;
-		allowClientsideMovement = false;
-		nextSendPhysicsInfoTime = gameLocal.clientsideTime + PLAYER_CLIENT_SEND_MOVEMENT * 5;
+		DisableClientsideMovement(PLAYER_CLIENT_SEND_MOVEMENT * 5);
 	}
 
 	// set our collision model
@@ -2381,8 +2378,7 @@ void idPlayer::PrepareForRestart( void ) {
 			serverReadPlayerPhysics = false;
 		} else {
 			clientSpawnedByServer = false;
-			allowClientsideMovement = false;
-			nextSendPhysicsInfoTime = gameLocal.clientsideTime + 4000; //3segs without clientsidemovement
+			DisableClientsideMovement(4000);
 		}
 	}
 	ClearPowerUps();
@@ -2609,12 +2605,10 @@ void idPlayer::SpawnToPoint( const idVec3 &spawn_origin, const idAngles &spawn_a
 		SetOrigin( spec_origin );
 	}
 
-	if (gameLocal.isClient && gameLocal.mpGame.IsGametypeCoopBased()) {
-		clientTeleported = true;
-	}
-
-
 	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		if (gameLocal.isClient) {
+			clientTeleported = true;
+		}
 		CancelEvents(&EV_Player_EnableReadClientPhysics);
 		PostEventSec(&EV_Player_EnableReadClientPhysics, 5.0f);
 		serverReadPlayerPhysics = false;
@@ -3798,7 +3792,6 @@ void idPlayer::GivePDA( const char *pdaName, idDict *item)
 
 	if ( item ) {
 		inventory.pdaSecurity.AddUnique( item->GetString( "inv_name" ) );
-		//gameLocal.serverLevelInventory.Set()
 		if (gameLocal.mpGame.IsGametypeCoopBased()) {
 			idPlayer* p;
 			cmdSystem->BufferCommandText( CMD_EXEC_NOW, va( "say '%s^0' picked up PDA: %s!\n", gameLocal.userInfo[ this->entityNumber ].GetString( "ui_name" ), item->GetString( "inv_name" ) ) );
@@ -5065,14 +5058,7 @@ void idPlayer::UpdateFocus( void ) {
 	if ( cursor && ( oldTalkCursor != talkCursor ) ) {
 		cursor->SetStateInt( "talkcursor", talkCursor );
 	}
-	/*
-	if (entityNumber == gameLocal.localClientNum && MPAim != -1 && lastMPAim != MPAim && gameLocal.mpGame.IsGametypeCoopBased() && hud) {
-		hud->SetStateString( "npc", gameLocal.userInfo[ MPAim ].GetString( "ui_name" ));
-		hud->HandleNamedEvent( "showNPC" );
-	} else if (entityNumber == gameLocal.localClientNum && MPAim == -1 && lastMPAim != MPAim && gameLocal.mpGame.IsGametypeCoopBased() && hud) {
-		hud->SetStateString( "npc", "" );
-		hud->HandleNamedEvent( "hideNPC" );
-	} */
+
 	if ( oldChar != focusCharacter && hud ) {
 		if ( focusCharacter ) {
 			hud->SetStateString( "npc", focusCharacter->spawnArgs.GetString( "npc_name", "Joe" ) );
@@ -6159,10 +6145,7 @@ void idPlayer::PerformImpulse( int impulse ) {
 		}
 		case IMPULSE_21: {
 			if (gameLocal.mpGame.IsGametypeCoopBased()) { //COOP PDA
-
-			allowClientsideMovement = false;
-			nextSendPhysicsInfoTime = gameLocal.clientsideTime + 3000; //3segs without clientsidemovement
-
+				DisableClientsideMovement(3000);
 				if ( objectiveSystemOpen ) {
 					TogglePDA();
 				} else if ( weapon_pda >= 0 ) {
@@ -8749,8 +8732,7 @@ void idPlayer::ClientPredictionThink( void ) {
 
 	bool tmpBecameUnlocked = false;
 	if (net_clientSideMovement.GetBool()  && (gameLocal.localClientNum == entityNumber) && physicsObj.ClientPusherLocked(tmpBecameUnlocked)) {
-		allowClientsideMovement = false;
-		nextSendPhysicsInfoTime = gameLocal.clientsideTime + PLAYER_CLIENT_SEND_MOVEMENT;
+		DisableClientsideMovement(PLAYER_CLIENT_SEND_MOVEMENT);
 	}
 
 	if ( net_clientSideMovement.GetBool() && gameLocal.isNewFrame && !spectating && (gameLocal.localClientNum == entityNumber) && gameLocal.mpGame.IsGametypeCoopBased() && (gameLocal.clientsideTime >= nextSendPhysicsInfoTime)) {
@@ -9974,14 +9956,12 @@ void idPlayer::Event_GetLinearVelocity( void ) {
 		for (int i=0; i < gameLocal.numClients; i++) {
 			if (gameLocal.entities[i] && gameLocal.entities[i]->IsType(idPlayer::Type) && !static_cast<idPlayer *>( gameLocal.entities[i] )->spectating) {
 				idThread::ReturnVector(  gameLocal.entities[i]->GetPhysics()->GetLinearVelocity() );
-				gameLocal.DebugPrintf("This is good: %s\n",  gameLocal.entities[i]->GetPhysics()->GetLinearVelocity().ToString());
 				break;
 			}
 		}
 	} else {
 		idThread::ReturnVector( GetPhysics()->GetLinearVelocity() );
 	}
-	gameLocal.DebugPrintf("Aca llego: %s\n", GetPhysics()->GetLinearVelocity().ToString());
 }
 
 /*
@@ -10163,4 +10143,15 @@ idPlayer::CanHaveClientsideMovement
 
 bool idPlayer::CanHaveClientsideMovement(void) {
 	return net_clientSideMovement.GetBool() && allowClientsideMovement && clientSpawnedByServer && serverReadPlayerPhysics && entityNumber == gameLocal.localClientNum;
+}
+
+/*
+===============
+idPlayer::DisableClientsideMovement
+================
+*/
+
+void idPlayer::DisableClientsideMovement(int timeMsec) {
+	allowClientsideMovement = false;
+	nextSendPhysicsInfoTime = gameLocal.clientsideTime + timeMsec;
 }

@@ -542,7 +542,6 @@ public:
 
 	// server side work for in/out of spectate. takes care of spawning it into the world as well
 	void					ServerSpectate( bool spectate );
-	bool					IsCollidingWithPlayer(); // used in coop
 	// for very specific usage. != GetPhysics()
 	idPhysics				*GetPlayerPhysics( void );
 	void					TeleportDeath( int killer );
@@ -563,10 +562,8 @@ public:
 
 	//COOP SPECIFIC
 	idDict					originalSpawnArgs;	//used for coop inventory
-	idAngles				GetViewAngles( void ); //added for coop checkpoint teleport
 	bool					allowClientsideMovement; //used to let the server send info for some seconds after spawning, to avoid spawn in void
 	int						nextSendPhysicsInfoTime; // COOP: added for clientside movement code 
-	idAI*					GetFocusCharacter( void ); // COOP
 	int						nextTimeCoopTeleported; //Hack for opencoop maps
 	int						nextTimeReadHealth; //for g_clientsideDamage 1
 	int						nextTimeSendDamage; //for g_clientsideDamage 1
@@ -575,6 +572,10 @@ public:
 	bool					clientSpawnedByServer;	//Used with allowClientsideMovement to determine if an entity can have clientside Movement or not
 	bool					serverReadPlayerPhysics; //Used with allowClientsideMovement to determine if an entity can have clientside Movement or not
 	bool					firstTimeSpawnedInMap; //Used first time spawned in map
+
+	idAngles				GetViewAngles(void); //added for coop checkpoint teleport
+	bool					IsCollidingWithPlayer();
+	idAI*					GetFocusCharacter(void);
 
 	//Client-side stuff for coop
 	bool					CS_Give( const char *statname, const char *value );
@@ -623,7 +624,7 @@ private:
 	bool					weaponEnabled;
 	bool					showWeaponViewModel;
 
-	bool					forceSPSpawnPoint;  // COO
+	bool					forceSPSpawnPoint;  // COOP
 
 	const idDeclSkin *		skin;
 	const idDeclSkin *		powerUpSkin;
@@ -736,9 +737,6 @@ private:
 	void					UpdateDeathSkin( bool state_hitch );
 	void					ClearPowerup( int i );
 	void					SetSpectateOrigin( void );
-	void					RunPhysics_RemoteClientCorrection( void ); //added from BFG Edition, for Clientside movement
-	bool					AllowClientAuthPhysics();  //added from BFG Edition, for Clientside movement
-	bool					IsPhysicsFrameClientside( void ); //added for net_clientsideMovement 1
 
 	void					ClearFocus( void );
 	void					UpdateFocus( void );
@@ -769,9 +767,17 @@ private:
 	void					Event_LevelTrigger( void );
 	void					Event_Gibbed( void );
 	void					Event_GetIdealWeapon( void );
-	void					Event_GetLinearVelocity( void ); //for sentry bot coop hack
 	void					Event_EnableFallDamage(void);
 	void					Event_EnableReadClientPhysics(void);
+
+
+	//Coop start:
+	void					Event_GetLinearVelocity(void); //for sentry bot coop hack
+	void					RunPhysics_RemoteClientCorrection(void); //added from BFG Edition, for Clientside movement
+	bool					AllowClientAuthPhysics();  //added from BFG Edition, for Clientside movement
+	bool					IsPhysicsFrameClientside(void); //added for net_clientsideMovement 1
+	void					EnableClientsideMovement( void );
+	void					DisableClientsideMovement(int timeMsec); //time in msecs to disable clientside movement
 };
 
 ID_INLINE bool idPlayer::IsReady( void ) {
