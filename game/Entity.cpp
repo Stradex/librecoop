@@ -781,7 +781,7 @@ bool idEntity::IsAllowedToSendDeleteEvent(void) {
 		return true;
 	}
 
-	return true;
+	return false;
 }
 
 

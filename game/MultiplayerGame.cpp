@@ -2529,12 +2529,10 @@ void idMultiplayerGame::CheckRespawns( idPlayer *spectator ) {
 						p->ServerSpectate( false );
 					}  else if ( gameState == GAMEON || gameState == SUDDENDEATH ) { //FIXME: SUDDENDEATH IN SURVIVAL?
 						if (playerState[ i ].livesLeft <= 0) { //this player is out of lives
-							//common->Printf("[SURVIVAL] player %d is out of lives...\n", i);
 							p->ServerSpectate( true );
-							p->inventory.CoopClear();
-							gameLocal.persistentPlayerInfo[p->entityNumber].Clear();
+							p->inventory.CoopClear(); //FIXME: this should be executed just once
+							gameLocal.persistentPlayerInfo[p->entityNumber].Clear(); //FIXME: this should be executed just once:
 							p->SavePersistantInfo();
-							common->Printf("Clearing inventory for player who died!");
 							CheckAbortGame(); //may all players are dead so restart the map is important
 						} else {
 							p->ServerSpectate( false );
