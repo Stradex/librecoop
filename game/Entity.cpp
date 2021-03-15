@@ -1552,6 +1552,19 @@ bool idEntity::PhysicsTeamInPVS( pvsHandle_t pvsHandle ) {
 
 //COOP START
 
+
+/*
+================
+idEntity::ForceClientsideHack
+================
+*/
+
+void idEntity::ForceClientsideEntityHack( void ) {
+	fl.coopNetworkSync = false;
+	fl.networkSync = false;
+	clientsideNode.AddToEnd(gameLocal.clientsideEntities);
+}
+
 /*
 ================
 idEntity::UpdatePVSAreas_snapshot

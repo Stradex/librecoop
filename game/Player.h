@@ -773,11 +773,9 @@ private:
 
 	//Coop start:
 	void					Event_GetLinearVelocity(void); //for sentry bot coop hack
-	void					RunPhysics_RemoteClientCorrection(void); //added from BFG Edition, for Clientside movement
-	bool					AllowClientAuthPhysics();  //added from BFG Edition, for Clientside movement
 	bool					IsPhysicsFrameClientside(void); //added for net_clientsideMovement 1
-	void					EnableClientsideMovement( void );
 	void					DisableClientsideMovement(int timeMsec); //time in msecs to disable clientside movement
+	void					ClientsideMovementThink( void );
 };
 
 ID_INLINE bool idPlayer::IsReady( void ) {

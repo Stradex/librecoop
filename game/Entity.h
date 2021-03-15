@@ -432,6 +432,8 @@ public:
 	void					WriteHiddenToSnapshot(idBitMsgDelta& msg) const;
 	void					ReadHiddenFromSnapshot(const idBitMsgDelta& msg);
 
+	void					ForceClientsideEntityHack(void);	//Ugly hack to force an entity to be clientside after being spawned!
+
 protected:
 	renderEntity_t			renderEntity;						// used to present a model to the renderer
 	int						modelDefHandle;						// handle to static renderer model

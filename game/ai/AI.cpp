@@ -28,8 +28,8 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "sys/platform.h"
 #include "idlib/math/Quat.h"
-#include "framework/async/NetworkSystem.h" //added by stradex for coop
-#include "framework/DeclEntityDef.h" //added by stradex for coop
+#include "framework/async/NetworkSystem.h"
+#include "framework/DeclEntityDef.h"
 
 #include "gamesys/SysCvar.h"
 #include "Moveable.h"
@@ -3555,8 +3555,8 @@ void idAI::PlayCinematic( void ) {
 		}
 		current_cinematic = 0;
 
-		if (!gameLocal.mpGame.IsGametypeCoopBased()) {
-			ActivateTargets( gameLocal.GetLocalPlayer() ); //Disable in coop
+		if (!gameLocal.mpGame.IsGametypeCoopBased()) { //Fixme: this should work in coop, it activate stuff!
+			ActivateTargets( gameLocal.GetLocalPlayer() ); 
 		}
 
 		fl.neverDormant = false;
@@ -4286,10 +4286,7 @@ idProjectile *idAI::CS_LaunchProjectile( idVec3 muzzle, idVec3 inidir, idEntity 
 	}
 
 	if (gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && !projectile.GetEntity()->clientsideNode.InList()) {
-		projectile.GetEntity()->fl.coopNetworkSync = false;
-		projectile.GetEntity()->fl.networkSync = false;
-		projectile.GetEntity()->clientsideNode.AddToEnd( gameLocal.clientsideEntities );  //hack
-
+		projectile.GetEntity()->ForceClientsideEntityHack();
 	}
 
 	lastProjectile = projectile.GetEntity();
@@ -4418,10 +4415,7 @@ idProjectile *idAI::LaunchProjectile( const char *jointname, idEntity *target, b
 	}
 
 	if (gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && !projectile.GetEntity()->clientsideNode.InList()) {
-		projectile.GetEntity()->fl.coopNetworkSync = false;
-		projectile.GetEntity()->fl.networkSync = false;
-		projectile.GetEntity()->clientsideNode.AddToEnd( gameLocal.clientsideEntities );  //hack
-
+		projectile.GetEntity()->ForceClientsideEntityHack();
 	}
 
 	lastProjectile = projectile.GetEntity();
@@ -4550,13 +4544,6 @@ void idAI::DirectDamage( const char *meleeDefName, idEntity *ent, const bool can
 
 	if ( !ent->fl.takedamage && (!gameLocal.isClient || gameLocal.mpGame.IsGametypeCoopBased()) ) {
 		const idSoundShader *shader = declManager->FindSound(meleeDef->GetString( "snd_miss" ));
-		/*
-		if (gameLocal.mpGame.IsGametypeCoopBased() && !g_clientsideDamage.GetBool()) {
-			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, true, NULL ); //broadcast sound in coop when not using g_clientsideDamage
-		} else {
-			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, false, NULL );
-		}
-		*/
 		StartSoundShader(shader, SND_CHANNEL_DAMAGE, 0, false, NULL);
 		return;
 	}
@@ -4567,12 +4554,6 @@ void idAI::DirectDamage( const char *meleeDefName, idEntity *ent, const bool can
 	p = meleeDef->GetString( "snd_hit" );
 	if ( p && *p && (!gameLocal.isClient || gameLocal.mpGame.IsGametypeCoopBased())) {
 		shader = declManager->FindSound( p );
-		/*
-		if (gameLocal.mpGame.IsGametypeCoopBased()) {
-			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, true, NULL );  //broadcast in coop
-		} else {
-			StartSoundShader( shader, SND_CHANNEL_DAMAGE, 0, false, NULL );
-		}*/
 		StartSoundShader(shader, SND_CHANNEL_DAMAGE, 0, false, NULL);
 	}
 
