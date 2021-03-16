@@ -183,6 +183,8 @@ enum {
 	GAME_RELIABLE_MESSAGE_REMOVED_ENTITIES //To sync the entities that were deleted from the map for clients that join
 };
 
+const int GAME_RELIABLE_MESSAGE_SDK_CHECK = 126;
+
 typedef enum {
 	GAMESTATE_UNINITIALIZED,		// prior to Init being called
 	GAMESTATE_NOMAP,				// no map loaded
