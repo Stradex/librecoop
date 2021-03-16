@@ -69,8 +69,14 @@ struct gameVersion_s {
 	char	string[256];
 } gameVersion;
 
-idCVar g_version(					"g_version",				gameVersion.string,	CVAR_GAME | CVAR_ROM, "game version" );
+struct modVersion_s {
+	modVersion_s(void) { sprintf(string, "%s %s", GAME_MOD_NAME, GAME_MOD_VERSION); }
+	char	string[128];
+} modVersion;
 
+
+idCVar g_version(					"g_version",				gameVersion.string,	CVAR_GAME | CVAR_ROM, "game version" );
+idCVar g_mod_version(				"g_mod_version",			modVersion.string, CVAR_GAME | CVAR_ROM, "mod version");
 // noset vars
 idCVar gamename(					"gamename",					GAME_VERSION,	CVAR_GAME | CVAR_SERVERINFO | CVAR_ROM, "" );
 idCVar gamedate(					"gamedate",					__DATE__,		CVAR_GAME | CVAR_ROM, "" );

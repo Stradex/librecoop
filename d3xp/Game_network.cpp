@@ -436,6 +436,14 @@ void idGameLocal::ServerWriteInitialReliableMessages( int clientNum ) {
 	byte		msgBuf[MAX_GAME_MESSAGE_SIZE];
 	entityNetEvent_t *event;
 
+	// dhewm3: Client-Server SDK Check
+
+	outMsg.Init(msgBuf, sizeof(msgBuf));
+	outMsg.BeginWriting();
+	outMsg.WriteByte(GAME_RELIABLE_MESSAGE_SDK_CHECK);
+	outMsg.WriteString(g_mod_version.GetString());
+	networkSystem->ServerSendReliableMessage(clientNum, outMsg);
+
 	// spawn players
 	for ( i = 0; i < MAX_CLIENTS; i++ ) {
 		if ( entities[i] == NULL || i == clientNum ) {
@@ -1762,6 +1770,15 @@ void idGameLocal::ClientProcessReliableMessage( int clientNum, const idBitMsg &m
 		case GAME_RELIABLE_MESSAGE_REMOVED_ENTITIES: {
 			common->Printf("[COOP] Syncing map entities with server\n");
 			ReadRemovedEntitiesFromEvent(msg);
+			break;
+		}
+		case GAME_RELIABLE_MESSAGE_SDK_CHECK: {
+			char serverSDK[128];
+			msg.ReadString(serverSDK, sizeof(serverSDK));
+
+			if (idStr::Icmp(serverSDK, g_mod_version.GetString())) { //invalid SDK VERSIONS
+				Error("Server is using a different mod.\nClient mod: %s - Server mod: %s\n", g_mod_version.GetString(), serverSDK);
+			}
 			break;
 		}
 		default: {

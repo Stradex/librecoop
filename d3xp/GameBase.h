@@ -78,6 +78,11 @@ If you have questions concerning this license or the applicable additional terms
 
 #define DEFAULT_GRAVITY_STRING	"1066"
 
+// mod version info
+
+#define GAME_MOD_NAME		"Librecoop ROE"
+#define GAME_MOD_VERSION	"alpha 1.5.01"
+
 extern void gameError( const char *fmt, ... );
 
 #endif

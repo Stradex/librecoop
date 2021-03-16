@@ -5328,6 +5328,9 @@ idEntity *idGameLocal::SelectInitialSpawnPoint( idPlayer *player ) {
 
 			// find the distance to the closest active player for each spawn spot
 			for (i = 0; i < spawnSpots.Num(); i++) {
+				if (mpGame.IsGametypeCoopBased() && !SecureCheckIfEntityExists(spawnSpots[i].ent)) { //Monorail bug related to invalid spawnspot while respawning
+					return CheckAndGetValidSpawnSpot(spawnSpots[i].ent, i);
+				}
 				pos = spawnSpots[i].ent->GetPhysics()->GetOrigin();
 				spawnSpots[i].dist = 0x7fffffff;
 				for (j = 0; j < MAX_CLIENTS; j++) {

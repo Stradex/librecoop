@@ -319,6 +319,7 @@ extern idCVar	g_damageFactor; //Use this instead of g_damageScale since that can
 
 extern idCVar	net_clientSelfSmoothing;
 extern idCVar	net_clientLagOMeter;
+extern idCVar	g_mod_version;
 
 extern const char *si_gameTypeArgs[];
 
