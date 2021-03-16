@@ -77,8 +77,8 @@ If you have questions concerning this license or the applicable additional terms
 
 // mod version info
 
-#define GAME_MOD_NAME		"Librecoop"
-#define GAME_MOD_VERSION	"alpha 1.5.00"
+#define GAME_MOD_NAME			"Librecoop"
+#define GAME_MOD_VERSION		"alpha 1.5.01"
 
 extern void gameError( const char *fmt, ... );
 
