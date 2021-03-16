@@ -618,7 +618,6 @@ public:
 
 	// server side work for in/out of spectate. takes care of spawning it into the world as well
 	void					ServerSpectate( bool spectate );
-	bool					IsCollidingWithPlayer(); // used in coop
 	// for very specific usage. != GetPhysics()
 	idPhysics				*GetPlayerPhysics( void );
 	void					TeleportDeath( int killer );
@@ -657,10 +656,8 @@ public:
 
 	//COOP SPECIFIC
 	idDict					originalSpawnArgs;	//used for coop inventory
-	idAngles				GetViewAngles( void ); //added for coop checkpoint teleport
 	bool					allowClientsideMovement; //used to let the server send info for some seconds after spawning, to avoid spawn in void
 	int						nextSendPhysicsInfoTime; // COOP: added for clientside movement code 
-	idAI*					GetFocusCharacter( void ); // COOP
 	int						nextTimeCoopTeleported; //Hack for opencoop maps
 	int						nextTimeReadHealth; //for g_clientsideDamage 1
 	int						nextTimeSendDamage; //for g_clientsideDamage 1
@@ -670,6 +667,9 @@ public:
 	bool					serverReadPlayerPhysics; //Used with allowClientsideMovement to determine if an entity can have clientside Movement or not
 	bool					firstTimeSpawnedInMap; //Used first time spawned in map
 
+	idAngles				GetViewAngles(void); //added for coop checkpoint teleport
+	bool					IsCollidingWithPlayer();
+	idAI*					GetFocusCharacter(void);
 
 	//Client-side stuff for coop
 	bool					CS_Give( const char *statname, const char *value );
@@ -838,9 +838,6 @@ private:
 	void					UpdateDeathSkin( bool state_hitch );
 	void					ClearPowerup( int i );
 	void					SetSpectateOrigin( void );
-	void					RunPhysics_RemoteClientCorrection( void ); //added from BFG Edition, for Clientside movement
-	bool					AllowClientAuthPhysics();  //added from BFG Edition, for Clientside movement
-	bool					IsPhysicsFrameClientside( void ); //added for net_clientsideMovement 1
 
 	void					ClearFocus( void );
 	void					UpdateFocus( void );
@@ -874,9 +871,6 @@ private:
 	void					Event_HideTip( void );
 	void					Event_LevelTrigger( void );
 	void					Event_Gibbed( void );
-	void					Event_GetLinearVelocity( void ); //for sentry bot coop hack
-	void					Event_EnableFallDamage(void);
-	void					Event_EnableReadClientPhysics(void);
 
 #ifdef _D3XP //BSM: Event to remove inventory items. Useful with powercells.
 	void					Event_GiveInventoryItem( const char* name );
@@ -891,6 +885,14 @@ private:
 	void					Event_ToggleBloom( int on );
 	void					Event_SetBloomParms( float speed, float intensity );
 #endif
+
+	//Coop start:
+	void					Event_EnableFallDamage(void);
+	void					Event_EnableReadClientPhysics(void);
+	void					Event_GetLinearVelocity(void); //for sentry bot coop hack
+	bool					IsPhysicsFrameClientside(void); //added for net_clientsideMovement 1
+	void					DisableClientsideMovement(int timeMsec); //time in msecs to disable clientside movement
+	void					ClientsideMovementThink(void);
 };
 
 ID_INLINE bool idPlayer::IsReady( void ) {

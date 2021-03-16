@@ -41,22 +41,6 @@ If you have questions concerning this license or the applicable additional terms
 #include "Fx.h"
 #include "Misc.h"
 
-
-// Client-authoritative stuff
-idCVar pm_clientAuthoritative_debug( "pm_clientAuthoritative_debug", "0", CVAR_BOOL, "" );
-idCVar pm_controllerShake_damageMaxMag( "pm_controllerShake_damageMaxMag", "60.0f", CVAR_FLOAT, "" );
-idCVar pm_controllerShake_damageMaxDur( "pm_controllerShake_damageMaxDur", "60.0f", CVAR_FLOAT, "" );
-
-idCVar pm_clientAuthoritative_warnDist( "pm_clientAuthoritative_warnDist", "100.0f", CVAR_FLOAT, "" );
-idCVar pm_clientAuthoritative_minDistZ( "pm_clientAuthoritative_minDistZ", "1.0f", CVAR_FLOAT, "" );
-idCVar pm_clientAuthoritative_minDist( "pm_clientAuthoritative_minDist", "-1.0f", CVAR_FLOAT, "" );
-idCVar pm_clientAuthoritative_Lerp( "pm_clientAuthoritative_Lerp", "0.9f", CVAR_FLOAT, "" );
-
-idCVar pm_clientAuthoritative_Divergence( "pm_clientAuthoritative_Divergence", "200.0f", CVAR_FLOAT, "" );
-idCVar pm_clientInterpolation_Divergence( "pm_clientInterpolation_Divergence", "5000.0f", CVAR_FLOAT, "" );
-
-idCVar pm_clientAuthoritative_minSpeedSquared( "pm_clientAuthoritative_minSpeedSquared", "1000.0f", CVAR_FLOAT, "" );
-
 const int ASYNC_PLAYER_INV_AMMO_BITS = idMath::BitsForInteger( 999 );	// 9 bits to cover the range [0, 999]
 const int ASYNC_PLAYER_INV_CLIP_BITS = -7;								// -7 bits to cover the range [-1, 60]
 /*
@@ -1469,7 +1453,6 @@ idPlayer::idPlayer() {
 
 	noclip					= false;
 	godmode					= false;
-	forceSPSpawnPoint		= false; //added for coop
 
 	spawnAnglesSet			= false;
 	spawnAngles				= ang_zero;
@@ -1668,9 +1651,10 @@ idPlayer::idPlayer() {
 	selfSmooth				= false;
 
 	//added for COOP by stradex
+	forceSPSpawnPoint = false;
 	snapshotPriority		= 1;
 	fl.coopNetworkSync		= true;
-	forceNetworkSync = true; //added by Stradex for Coop
+	forceNetworkSync = true;
 	nextSendPhysicsInfoTime = 0;
 	serverOverridePositionTime = 0; //added from Doom 3 BFG Edition for clientside movement
 	nextTimeCoopTeleported = 0;
@@ -1983,8 +1967,7 @@ void idPlayer::Init( void ) {
 	MPAimHighlight		= false;
 
 	//coop start
-	allowClientsideMovement = false; //added by Stradex
-	nextSendPhysicsInfoTime = gameLocal.clientsideTime + PLAYER_CLIENT_SEND_MOVEMENT*5; //disable clientside movement two seconds
+	DisableClientsideMovement(PLAYER_CLIENT_SEND_MOVEMENT * 5);
 	nextTimeReadHealth = 0; //added for g_clientsideDamage 1
 	nextTimeSendDamage = 0;
 	clientSpawnedByServer = false;
@@ -2024,8 +2007,7 @@ void idPlayer::Spawn( void ) {
 	if ( gameLocal.isMultiplayer ) {
 		// always start in spectating state waiting to be spawned in
 		// do this before SetClipModel to get the right bounding box
-		allowClientsideMovement = false;
-		nextSendPhysicsInfoTime = gameLocal.clientsideTime + PLAYER_CLIENT_SEND_MOVEMENT*5;
+		DisableClientsideMovement(PLAYER_CLIENT_SEND_MOVEMENT * 5);
 		spectating = true;
 	}
 
@@ -2847,8 +2829,7 @@ void idPlayer::PrepareForRestart( void ) {
 		}
 		else {
 			clientSpawnedByServer = false;
-			allowClientsideMovement = false;
-			nextSendPhysicsInfoTime = gameLocal.clientsideTime + 4000; //3segs without clientsidemovement
+			DisableClientsideMovement(4000);
 		}
 	}
 	ClearPowerUps();
@@ -7181,9 +7162,7 @@ void idPlayer::PerformImpulse( int impulse ) {
 		}
 		case IMPULSE_21: {
 			if (gameLocal.mpGame.IsGametypeCoopBased()) { //COOP PDA
-
-			allowClientsideMovement = false;
-			nextSendPhysicsInfoTime = gameLocal.clientsideTime + 3000; //3segs without clientsidemovement
+				DisableClientsideMovement(3000);
 
 				if ( objectiveSystemOpen ) {
 					TogglePDA();
@@ -10222,43 +10201,9 @@ void idPlayer::ClientPredictionThink( void ) {
 		DrawPlayerIcons();
 	}
 
-	bool tmpBecameUnlocked = false;
-	if (net_clientSideMovement.GetBool()  && (gameLocal.localClientNum == entityNumber) && physicsObj.ClientPusherLocked(tmpBecameUnlocked)) {
-		allowClientsideMovement = false;
-		nextSendPhysicsInfoTime = gameLocal.clientsideTime + PLAYER_CLIENT_SEND_MOVEMENT;
+	if (gameLocal.mpGame.IsGametypeCoopBased() && net_clientSideMovement.GetBool() && (gameLocal.localClientNum == entityNumber)) {
+		ClientsideMovementThink();
 	}
-
-	if ( net_clientSideMovement.GetBool() && gameLocal.isNewFrame && !spectating && (gameLocal.localClientNum == entityNumber) && gameLocal.mpGame.IsGametypeCoopBased() && (gameLocal.clientsideTime >= nextSendPhysicsInfoTime)) {
-
-		if (health > 0) { //alive
-			if (allowClientsideMovement && clientSpawnedByServer && serverReadPlayerPhysics) {
-
-				//sending event to server
-				idBitMsg	msg;
-				byte		msgBuf[MAX_EVENT_PARAM_SIZE];
-
-				assert( entityNumber == gameLocal.localClientNum );
-
-				msg.Init( msgBuf, sizeof( msgBuf ) );
-				msg.BeginWriting();
-				physicsObj.WriteToEvent(msg);
-				msg.WriteDeltaFloat( 0.0f, deltaViewAngles[0] );
-				msg.WriteDeltaFloat( 0.0f, deltaViewAngles[1] );
-				msg.WriteDeltaFloat( 0.0f, deltaViewAngles[2] );
-				msg.WriteBits(clientTeleported, 1);
-				ClientSendEvent( EVENT_PLAYERPHYSICS, &msg );
-				clientTeleported = false;
-			}
-
-			allowClientsideMovement = true;
-
-		} else {
-			allowClientsideMovement = false;
-		}
-
-		nextSendPhysicsInfoTime = gameLocal.clientsideTime + PLAYER_CLIENT_SEND_MOVEMENT;
-	}
-
 
 	// service animations
 	if (IsPhysicsFrameClientside()) {
@@ -10280,6 +10225,48 @@ void idPlayer::ClientPredictionThink( void ) {
 	gameLocal.pvs.FreeCurrentPVS( clientPVS );
 #endif
 }
+
+/*
+================
+idPlayer::ClientsideMovementThink
+================
+*/
+
+void idPlayer::ClientsideMovementThink(void) {
+	bool tmpBecameUnlocked = false;
+	if (physicsObj.ClientPusherLocked(tmpBecameUnlocked)) {
+		DisableClientsideMovement(PLAYER_CLIENT_SEND_MOVEMENT);
+	}
+	if (gameLocal.isNewFrame && !spectating && (gameLocal.clientsideTime >= nextSendPhysicsInfoTime)) {
+
+		if (health > 0) { //alive
+			if (allowClientsideMovement && clientSpawnedByServer) {
+
+				//sending event to server
+				idBitMsg	msg;
+				byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+
+				assert(entityNumber == gameLocal.localClientNum);
+
+				msg.Init(msgBuf, sizeof(msgBuf));
+				msg.BeginWriting();
+				physicsObj.WriteToEvent(msg);
+				msg.WriteDeltaFloat(0.0f, deltaViewAngles[0]);
+				msg.WriteDeltaFloat(0.0f, deltaViewAngles[1]);
+				msg.WriteDeltaFloat(0.0f, deltaViewAngles[2]);
+				msg.WriteBits(clientTeleported, 1);
+				ClientSendEvent(EVENT_PLAYERPHYSICS, &msg);
+				clientTeleported = false;
+			}
+			allowClientsideMovement = true;
+		}
+		else {
+			allowClientsideMovement = false;
+		}
+		nextSendPhysicsInfoTime = gameLocal.clientsideTime + PLAYER_CLIENT_SEND_MOVEMENT;
+	}
+}
+
 
 /*
 ================
@@ -11393,116 +11380,6 @@ void idPlayer::Teleport( const idVec3 &origin, const idAngles &angles) {
 
 	UpdateVisuals();
 }
-
-/*
-========================
-idPlayer::AllowClientAuthPhysics
-========================
-*/
-bool idPlayer::AllowClientAuthPhysics( void )
-{
-	// note respawn count > 1: respawn should be called twice - once for initial spawn and once for actual respawn by game mode
-	// TODO: I don't think doom 3 will need to care about the respawn count.
-	return ( gameLocal.msec > serverOverridePositionTime );
-}
-
-
-/*
-========================
-idPlayer::RunPhysics_RemoteClientCorrection
-========================
-*/
-void idPlayer::RunPhysics_RemoteClientCorrection( void )
-{
-
-	if( !AllowClientAuthPhysics() )
-	{
-		return;
-	}
-
-	// Client is on a pusher... ignore him so he doesn't lag behind
-	bool becameUnlocked = false;
-	if( physicsObj.ClientPusherLocked( becameUnlocked ) )
-	{
-
-		// Check and see how far we've diverged.
-		idVec3 cmdPos = physicsObj.GetClientOrigin();
-		idVec3 newOrigin = physicsObj.GetOrigin();
-
-		idVec3 divergeVec = cmdPos - newOrigin;
-		//idLib::Printf( "Client Divergence: %s Length: %2f\n", divergeVec.ToString( 3 ), divergeVec.Length() );
-
-		// if the client Diverges over a certain amount, snap him back
-		if( divergeVec.Length() < pm_clientAuthoritative_Divergence.GetFloat() )
-		{
-			return;
-		}
-
-	}
-	if( becameUnlocked )
-	{
-		// Client just got off of a mover, wait before listening to him
-		serverOverridePositionTime = gameLocal.msec;
-		return;
-	}
-
-
-	// Correction
-	idVec3 newOrigin = physicsObj.GetOrigin();
-	idVec3 cmdPos = physicsObj.GetClientOrigin();
-	idVec3 desiredPos = cmdPos;
-
-	float delta = ( desiredPos - newOrigin ).Length();
-	// ignore small differences in Z: this can cause player to not have proper ground contacts which messes up
-	// velocity/acceleration calculation. If this hack doesn't work out, will may need more precision for at least
-	// the Z component of the client's origin.
-	if( idMath::Fabs( desiredPos.z - newOrigin.z ) < pm_clientAuthoritative_minDistZ.GetFloat() )
-	{
-		if( pm_clientAuthoritative_debug.GetBool() )
-		{
-			//idLib::Printf("[%d]Remote client physics: ignore small z delta: %f\n", usercmd.clientGameFrame, ( desiredPos.z - newOrigin.z ) );
-		}
-		desiredPos.z = newOrigin.z;
-	}
-
-	// Origin
-	if( delta > pm_clientAuthoritative_minDist.GetFloat() )
-	{
-
-		if( pm_clientAuthoritative_Lerp.GetFloat() > 0.0f )
-		{
-			desiredPos.x = idMath::LerpToWithScale( newOrigin.x, desiredPos.x, pm_clientAuthoritative_Lerp.GetFloat() );
-			desiredPos.y = idMath::LerpToWithScale( newOrigin.y, desiredPos.y, pm_clientAuthoritative_Lerp.GetFloat() );
-		}
-
-		// Set corrected position immediately if non deferred
-		physicsObj.SetOrigin( desiredPos );
-	}
-	if( pm_clientAuthoritative_debug.GetBool() )
-	{
-		//idLib::Printf( "[%d]Remote client player physics delta: %.2f. forward: %d pos <%.2f, %.2f, %.2f> \n", usercmd.clientGameFrame, delta, (int)usercmd.forwardmove, desiredPos.x, desiredPos.y, desiredPos.z );
-		gameRenderWorld->DebugLine( colorRed, newOrigin, desiredPos );
-		//gameRenderWorld->DebugPoint( colorBlue, cmdPos );
-	}
-
-	// Set velocity if significantly different than client.
-	const float serverSpeedSquared = physicsObj.GetLinearVelocity().LengthSqr();
-	const float clientSpeedSquared = physicsObj.GetClientLinearVelocity().LengthSqr();
-
-	if( fabsf( serverSpeedSquared - clientSpeedSquared ) > pm_clientAuthoritative_minSpeedSquared.GetFloat() )
-	{
-		idVec3 normalizedVelocity = physicsObj.GetLinearVelocity();
-
-		const float VELOCITY_EPSILON = 0.001f;
-		if( normalizedVelocity.LengthSqr() > VELOCITY_EPSILON )
-		{
-			normalizedVelocity.Normalize();
-		}
-
-		physicsObj.SetLinearVelocity( normalizedVelocity * idMath::Sqrt( clientSpeedSquared ) );
-	}
-}
-
 /*
 ================
 idPlayer::Event_GetLinearVelocity
@@ -11513,14 +11390,12 @@ void idPlayer::Event_GetLinearVelocity( void ) {
 		for (int i=0; i < gameLocal.numClients; i++) {
 			if (gameLocal.entities[i] && gameLocal.entities[i]->IsType(idPlayer::Type) && !static_cast<idPlayer *>( gameLocal.entities[i] )->spectating) {
 				idThread::ReturnVector(  gameLocal.entities[i]->GetPhysics()->GetLinearVelocity() );
-				gameLocal.DebugPrintf("This is good: %s\n",  gameLocal.entities[i]->GetPhysics()->GetLinearVelocity().ToString());
 				break;
 			}
 		}
 	} else {
 		idThread::ReturnVector( GetPhysics()->GetLinearVelocity() );
 	}
-	gameLocal.DebugPrintf("Aca llego: %s\n", GetPhysics()->GetLinearVelocity().ToString());
 }
 
 /*
@@ -11709,4 +11584,15 @@ idPlayer::CS_CanHaveClientsideMovement
 
 bool idPlayer::CanHaveClientsideMovement(void) {
 	return net_clientSideMovement.GetBool() && allowClientsideMovement && clientSpawnedByServer && serverReadPlayerPhysics && entityNumber == gameLocal.localClientNum;
+}
+
+/*
+===============
+idPlayer::DisableClientsideMovement
+================
+*/
+
+void idPlayer::DisableClientsideMovement(int timeMsec) {
+	allowClientsideMovement = false;
+	nextSendPhysicsInfoTime = gameLocal.clientsideTime + timeMsec;
 }

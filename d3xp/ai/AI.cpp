@@ -28,7 +28,7 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "sys/platform.h"
 #include "idlib/math/Quat.h"
-#include "framework/async/NetworkSystem.h" //added by stradex for coop
+#include "framework/async/NetworkSystem.h" 
 #include "framework/DeclEntityDef.h"
 
 #include "gamesys/SysCvar.h"
@@ -3660,7 +3660,7 @@ void idAI::PlayCinematic( void ) {
 		}
 		current_cinematic = 0;
 		if (!gameLocal.mpGame.IsGametypeCoopBased()) {
-			ActivateTargets( gameLocal.GetLocalPlayer() ); //Disable in coop
+			ActivateTargets( gameLocal.GetLocalPlayer() );  //Fixme: this should work in coop, it activates stuff!
 		}
 		fl.neverDormant = false;
 		return;
@@ -4408,9 +4408,7 @@ idProjectile *idAI::LaunchProjectile( const char *jointname, idEntity *target, b
 	}
 
 	if (gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && !projectile.GetEntity()->clientsideNode.InList()) {
-		projectile.GetEntity()->fl.coopNetworkSync = false;
-		projectile.GetEntity()->fl.networkSync = false;
-		projectile.GetEntity()->clientsideNode.AddToEnd( gameLocal.clientsideEntities );  //hack
+		projectile.GetEntity()->ForceClientsideEntityHack();
 	}
 
 	lastProjectile = projectile.GetEntity();
@@ -4550,10 +4548,7 @@ idProjectile *idAI::CS_LaunchProjectile( idVec3 muzzle, idVec3 inidir, idEntity 
 	}
 
 	if (gameLocal.mpGame.IsGametypeCoopBased() && g_clientsideDamage.GetBool() && !projectile.GetEntity()->clientsideNode.InList()) {
-		projectile.GetEntity()->fl.coopNetworkSync = false;
-		projectile.GetEntity()->fl.networkSync = false;
-		projectile.GetEntity()->clientsideNode.AddToEnd( gameLocal.clientsideEntities );  //hack
-
+		projectile.GetEntity()->ForceClientsideEntityHack();
 	}
 
 	lastProjectile = projectile.GetEntity();
