@@ -3555,8 +3555,13 @@ void idAI::PlayCinematic( void ) {
 		}
 		current_cinematic = 0;
 
-		if (!gameLocal.mpGame.IsGametypeCoopBased()) { //Fixme: this should work in coop, it activate stuff!
-			ActivateTargets( gameLocal.GetLocalPlayer() ); 
+		if (!gameLocal.mpGame.IsGametypeCoopBased() || gameLocal.isServer) {
+			if (gameLocal.mpGame.IsGametypeCoopBased()) {
+				ActivateTargets(gameLocal.GetCoopPlayer());
+			}
+			else {
+				ActivateTargets(gameLocal.GetLocalPlayer());
+			}
 		}
 
 		fl.neverDormant = false;
