@@ -2429,10 +2429,11 @@ const char* idMultiplayerGame::HandleGuiCommands( const char *_menuCommand ) {
 		} else if (	!idStr::Icmp( cmd, "MAPScan" ) ) {
 			const char *gametype = gameLocal.serverInfo.GetString( "si_gameType" );
 			if ( gametype == NULL || *gametype == 0 || idStr::Icmp( gametype, "singleplayer" ) == 0 ) {
-				gametype = "Deathmatch";
+				gametype = "Coop";
 			}
 
-			int i, num;
+			int i, j, num;
+			bool canAddMapToList = false;
 			idStr si_map = gameLocal.serverInfo.GetString("si_map");
 			const idDict *dict;
 
@@ -2441,27 +2442,42 @@ const char* idMultiplayerGame::HandleGuiCommands( const char *_menuCommand ) {
 			num = fileSystem->GetNumMaps();
 			for ( i = 0; i < num; i++ ) {
 				dict = fileSystem->GetMapDecl( i );
-				if ( dict ) {
+				canAddMapToList = false;
+				if (!dict) {
+					continue;
+				}
+
+				if (gameLocal.mpGame.IsGametypeCoopBased()) {
+					if (dict->GetBool(gametype)) {
+						canAddMapToList = true;
+					} else {
+						for (j = 0; opencoop_gameTypes[j]; j++) {
+							if (dict->GetBool(opencoop_gameTypes[j])) {
+								canAddMapToList = true;
+								break;
+							}
+						}
+					}
+				} else  {
 					// any MP gametype supported
-					bool isMP = false;
 					int igt = GAME_SP + 1;
-					while ( si_gameTypeArgs[ igt ] ) {
-						if ( dict->GetBool( si_gameTypeArgs[ igt ] ) ) {
-							isMP = true;
+					while (si_gameTypeArgs[igt]) {
+						if (dict->GetBool(si_gameTypeArgs[igt])) {
+							canAddMapToList = true;
 							break;
 						}
 						igt++;
 					}
-					if ( isMP ) {
-						const char *mapName = dict->GetString( "name" );
-						if ( mapName[0] == '\0' ) {
-							mapName = dict->GetString( "path" );
-						}
-						mapName = common->GetLanguageDict()->GetString( mapName );
-						mapList->Add( i, mapName );
-						if ( !si_map.Icmp( dict->GetString( "path" ) ) ) {
-							mapList->SetSelection( mapList->Num() - 1 );
-						}
+				}
+				if (canAddMapToList) {
+					const char* mapName = dict->GetString("name");
+					if (mapName[0] == '\0') {
+						mapName = dict->GetString("path");
+					}
+					mapName = common->GetLanguageDict()->GetString(mapName);
+					mapList->Add(i, mapName);
+					if (!si_map.Icmp(dict->GetString("path"))) {
+						mapList->SetSelection(mapList->Num() - 1);
 					}
 				}
 			}
@@ -4519,6 +4535,16 @@ void idMultiplayerGame::SetBestGametype( const char * map ) {
 				return;
 			}
 
+			//Stradex BEGIN: little hack to allow OpenCoop custom maps to be played
+			if (idStr::Icmp(gametype, "Survival") == 0 || idStr::Icmp(gametype, "Coop") == 0) {
+				for (j = 0; opencoop_gameTypes[j]; j++) {
+					if (mapDef->dict.GetBool(opencoop_gameTypes[j])) {
+						return;
+					}
+				}
+			}
+			//Stradex END
+
 			for ( j = 1; si_gameTypeArgs[ j ]; j++ ) {
 				if ( mapDef->dict.GetBool( si_gameTypeArgs[ j ] ) ) {
 					si_gameType.SetString( si_gameTypeArgs[ j ] );
@@ -4570,6 +4596,16 @@ idStr idMultiplayerGame::GetBestGametype( const char* map, const char* gametype 
 					return si_gameTypeArgs[ j ];
 				}
 			}
+
+			//Stradex BEGIN: little hack to allow OpenCoop custom maps to be played
+			if (idStr::Icmp(gametype, "Survival") == 0 || idStr::Icmp(gametype, "Coop") == 0) {
+				for (j = 0; opencoop_gameTypes[j]; j++) {
+					if (mapDef->dict.GetBool(opencoop_gameTypes[j])) {
+						return gametype;
+					}
+				}
+			}
+			//Stradex END
 
 			// error out, no valid gametype
 			return "deathmatch";
