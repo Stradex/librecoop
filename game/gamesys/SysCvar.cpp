@@ -47,6 +47,8 @@ All game cvars should be defined here.
 
 */
 
+const char* opencoop_gameTypes[] = { "oc_d3xp", "oc_customs", "oc_doom3", NULL }; //Stradex: to allow OpenCoop custom maps to run without need any modifications to the mapDef
+
 const char *si_gameTypeArgs[]		= { "singleplayer", "deathmatch", "Tourney", "Team DM", "Last Man", "Coop", "Survival", NULL };
 const char *si_readyArgs[]			= { "Not Ready", "Ready", NULL };
 const char *si_spectateArgs[]		= { "Play", "Spectate", NULL };

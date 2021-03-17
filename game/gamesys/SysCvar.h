@@ -273,6 +273,8 @@ extern idCVar	g_mod_version;
 
 extern const char *si_gameTypeArgs[];
 
+extern const char* opencoop_gameTypes[];
+
 extern const char *ui_skinArgs[];
 
 #endif /* !__SYS_CVAR_H__ */

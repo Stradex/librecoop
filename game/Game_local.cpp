@@ -2150,12 +2150,43 @@ void idGameLocal::SpawnPlayer( int clientNum ) {
 	args.Set( "name", va( "player%d", clientNum + 1 ) );
 	//args.Set( "classname", isMultiplayer ? "player_doommarine_mp" : "player_doommarine" );
 	
-	if ( isMultiplayer && !mpGame.IsGametypeCoopBased() )
-		args.Set( "classname", "player_doommarine_mp" );
-	else if ( isMultiplayer && mpGame.IsGametypeCoopBased() )
-		args.Set( "classname", "player_doommarine_coop" ); //Added for COOP by Stradex
-	else
-		args.Set( "classname", "player_doommarine" );
+	if (isMultiplayer && !mpGame.IsGametypeCoopBased()) {
+		args.Set("classname", "player_doommarine_mp");
+	}
+	else if (isMultiplayer && mpGame.IsGametypeCoopBased()) {
+
+		const char* worldDefPlayer = world->spawnArgs.GetString("def_player");
+		if (gameLocal.world && (worldDefPlayer != NULL) && (worldDefPlayer[0] != '\0') && idStr::Icmp(worldDefPlayer, "player_d3xpmarine")) { // OpenCoop automatically adds the _mp to the worldspawn def_player dict
+			const idDeclEntityDef* def = FindEntityDef(worldDefPlayer, false);
+
+			if (!def) {
+				Warning("Unknown classname '%s'\n", worldDefPlayer);
+				def = FindEntityDef(va("%s_mp", worldDefPlayer), false); 
+				if (!def) {
+					Warning("Unknown classname '%s'\n", worldDefPlayer);
+					args.Set("classname", "player_doommarine_coop");
+				} else {
+					args.Set("classname", va("%s_mp", worldDefPlayer)); 
+				}
+			}else {
+				args.Set("classname", worldDefPlayer); 
+			}
+		} else {
+			args.Set("classname", "player_doommarine_coop"); //Added for COOP by Stradex
+		}
+
+	} else {
+		args.Set("classname", "player_doommarine");
+	}
+
+/*
+	const idDeclEntityDef *def = FindEntityDef( classname, false );
+
+	if ( !def ) {
+		Warning( "Unknown classname '%s'%s.", classname, error.c_str() );
+		return false;
+	}
+*/
 
 	if ( !SpawnEntityDef( args, &ent ) || !entities[ clientNum ] || !coopentities[ clientNum ] ) {
 		Error( "Failed to spawn player as '%s'", args.GetString( "classname" ) );
