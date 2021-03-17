@@ -2263,6 +2263,7 @@ void idGameLocal::SpawnPlayer( int clientNum ) {
 
 	args.Set( "name", va( "player%d", clientNum + 1 ) );
 #ifdef CTF
+	const char* worldDefPlayer = world->spawnArgs.GetString("def_player");
 	if (isMultiplayer) {
 		switch (gameType) {
 			case GAME_CTF:
@@ -2270,7 +2271,25 @@ void idGameLocal::SpawnPlayer( int clientNum ) {
 			break;
 			case GAME_SURVIVAL:
 			case GAME_COOP:
-				args.Set( "classname", "player_doommarine_coop" ); //Added for COOP by Stradex
+				if (gameLocal.world && (worldDefPlayer != NULL) && (worldDefPlayer[0] != '\0') && idStr::Icmp(worldDefPlayer, "player_d3xpmarine")) { // OpenCoop automatically adds the _mp to the worldspawn def_player dict
+					const idDeclEntityDef* def = FindEntityDef(worldDefPlayer, false);
+
+					if (!def) {
+						Warning("Unknown classname '%s'\n", worldDefPlayer);
+						def = FindEntityDef(va("%s_mp", worldDefPlayer), false);
+						if (!def) {
+							Warning("Unknown classname '%s'\n", worldDefPlayer);
+							args.Set("classname", "player_doommarine_coop");
+						} else {
+							args.Set("classname", va("%s_mp", worldDefPlayer));
+						}
+					} else {
+						args.Set("classname", worldDefPlayer);
+					}
+				}
+				else {
+					args.Set("classname", "player_doommarine_coop"); //Added for COOP by Stradex
+				}
 			break;
 			default:
 				args.Set( "classname", "player_doommarine_mp" );
@@ -2279,14 +2298,6 @@ void idGameLocal::SpawnPlayer( int clientNum ) {
 	} else {
 		args.Set( "classname", "player_doommarine" );
 	}
-	/*
-	if ( isMultiplayer && gameType != GAME_CTF )
-		args.Set( "classname", "player_doommarine_mp" );
-	else if ( isMultiplayer && gameType == GAME_CTF )
-		args.Set( "classname", "player_doommarine_ctf" );
-	else
-		args.Set( "classname", "player_doommarine" );
-	*/
 #else
 	args.Set( "classname", isMultiplayer ? "player_doommarine_mp" : "player_doommarine" );
 #endif

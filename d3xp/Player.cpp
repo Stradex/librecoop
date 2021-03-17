@@ -2026,8 +2026,12 @@ void idPlayer::Spawn( void ) {
 	if ( !gameLocal.isMultiplayer || entityNumber == gameLocal.localClientNum ) {
 
 		// load HUD
-		if ( gameLocal.isMultiplayer && gameLocal.mpGame.IsGametypeCoopBased() && spawnArgs.GetString( "coophud", "", temp )  ) {
-			hud = uiManager->FindGui( temp, true, false, true );
+		if (gameLocal.isMultiplayer && gameLocal.mpGame.IsGametypeCoopBased()) {
+			if (spawnArgs.GetString("coophud", "", temp) || spawnArgs.GetString("hud", "", temp)) {
+				hud = uiManager->FindGui(temp, true, false, true);
+			} else {
+				hud = uiManager->FindGui("guis/mphud.gui", true, false, true);
+			}
 		} else if (gameLocal.isMultiplayer) {
 			hud = uiManager->FindGui( "guis/mphud.gui", true, false, true );
 		} else if ( spawnArgs.GetString( "hud", "", temp ) ) {
