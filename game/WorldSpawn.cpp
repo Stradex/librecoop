@@ -47,6 +47,7 @@ CLASS_DECLARATION( idEntity, idWorldspawn )
 	EVENT( EV_SafeRemove,			idWorldspawn::Event_Remove )
 END_CLASS
 
+
 /*
 ================
 idWorldspawn::Spawn
@@ -63,9 +64,12 @@ void idWorldspawn::Spawn( void ) {
 	if ( spawnArgs.GetBool( "no_stamina" ) ) {
 		pm_stamina.SetFloat( 0.0f );
 	}
-
-	if (gameLocal.mpGame.IsGametypeCoopBased() && !gameLocal.isRestartingMap ) {
-		InitializateMapScript(); //Added by Stradex
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		if (!gameLocal.isRestartingMap) {
+			InitializateMapScript();
+		}
+	} else {
+		InitializateMapScript();
 	}
 }
 

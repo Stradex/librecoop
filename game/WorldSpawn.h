@@ -49,7 +49,8 @@ public:
 
 	void			Save( idRestoreGame *savefile );
 	void			Restore( idRestoreGame *savefile );
-	// thinking added for coop
+
+	// added for coop
 	void			InitializateMapScript( void );
 
 private:

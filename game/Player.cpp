@@ -880,7 +880,6 @@ bool idInventory::Give( idPlayer *owner, const idDict &spawnArgs, const char *st
 			}
 
 			idStr weaponName( pos, 0, len );
-
 			// find the number of the matching weapon name
 			for( i = 0; i < MAX_WEAPONS; i++ ) {
 				if ( weaponName == spawnArgs.GetString( va( "def_weapon%d", i ) ) ) {
@@ -8890,6 +8889,8 @@ void idPlayer::WriteToSnapshot( idBitMsgDelta &msg ) const {
 		msg.WriteBits( noclip, 1 );
 		msg.WriteBits( fl.hidden, 1);
 		msg.WriteBits(serverReadPlayerPhysics, 1);
+		msg.WriteBits(weaponEnabled, 1);
+		msg.WriteBits(hiddenWeapon, 1);
 		msg.WriteFloat(stamina);
 	}
 }
@@ -8961,8 +8962,9 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 			}
 		}
 
-		serverReadPlayerPhysics = (msg.ReadBits(1) != 0);
-
+		serverReadPlayerPhysics = msg.ReadBits(1) != 0;
+		weaponEnabled = msg.ReadBits(1) != 0;
+		hiddenWeapon = msg.ReadBits(1) != 0;
 		newStamina = msg.ReadFloat();
 		if (entityNumber != gameLocal.localClientNum || !net_clientSideMovement.GetBool() || !allowClientsideMovement) {
 			stamina = newStamina;
