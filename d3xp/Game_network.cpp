@@ -42,6 +42,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "ai/AI.h"
 #include "gamesys/SysCvar.h" //added for netcode optimization stuff
 #include "Camera.h"
+#include "WorldSpawn.h"
 
 #include "Game_local.h"
 
@@ -2559,6 +2560,8 @@ void idGameLocal::ClientReadSnapshotCoop( int clientNum, int sequence, const int
 
 	//Read the cinematic data from snapshot coop
 	bool serverIsInCinematic = (msg.ReadBits(1) == 1); //not used yet
+	bool serverWorldNoWeapons = (msg.ReadBits(1) == 1);
+	gameLocal.world->spawnArgs.SetBool("no_Weapons", serverWorldNoWeapons);
 	int serverCameraEntityNumber = msg.ReadShort();
 	int currentCameraEntityNumber=-1;
 	if (gameLocal.GetCamera()) {
@@ -2958,6 +2961,7 @@ void idGameLocal::ServerWriteSnapshotCoop( int clientNum, int sequence, idBitMsg
 
 	//Write the cinematics info to the client
 	msg.WriteBits(inCinematic, 1);
+	msg.WriteBits(gameLocal.world->spawnArgs.GetBool("no_Weapons"), 1);
 	if (serverGameCamera && serverGameCamera->isMapEntity) {
 		msg.WriteShort(serverGameCamera->entityNumber);
 	} else {

@@ -64,8 +64,13 @@ void idWorldspawn::Spawn( void ) {
 		pm_stamina.SetFloat( 0.0f );
 	}
 
-	if (gameLocal.mpGame.IsGametypeCoopBased() && !gameLocal.isRestartingMap ) {
-		InitializateMapScript(); //Added by Stradex
+	if (gameLocal.mpGame.IsGametypeCoopBased()) {
+		if (!gameLocal.isRestartingMap) {
+			InitializateMapScript();
+		}
+	}
+	else {
+		InitializateMapScript();
 	}
 }
 

@@ -81,7 +81,7 @@ If you have questions concerning this license or the applicable additional terms
 // mod version info
 
 #define GAME_MOD_NAME		"Librecoop ROE"
-#define GAME_MOD_VERSION	"alpha 1.5.01"
+#define GAME_MOD_VERSION	"alpha 1.5.02"
 
 extern void gameError( const char *fmt, ... );
 
