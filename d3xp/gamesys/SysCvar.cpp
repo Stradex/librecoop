@@ -111,7 +111,7 @@ idCVar si_itemRespawn(				"si_itemRespawn",			"0",			CVAR_GAME | CVAR_SERVERINFO
 //stradex start
 idCVar si_onePickupPerPlayer(		"si_onePickupPerPlayer",	"1",			CVAR_GAME | CVAR_SERVERINFO | CVAR_ARCHIVE | CVAR_BOOL | CVAR_NETWORKSYNC, "Items pickups are indivual for each player in server");
 idCVar net_serverSnapshotLimit(		"net_serverSnapshotLimit",	"70",			CVAR_GAME | CVAR_ARCHIVE | CVAR_INTEGER, "How many snapshots can we send in total as limit (per client)", 20, 400);
-idCVar g_unblockPlayers(			"g_unblockPlayers",			"0",			CVAR_GAME | CVAR_BOOL | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "If player are solid between them or not" );
+idCVar g_unblockPlayers(			"g_unblockPlayers",			"1",			CVAR_GAME | CVAR_BOOL | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "If player are solid between them or not" );
 idCVar si_lives(					"si_lives",					"2",			CVAR_GAME | CVAR_ARCHIVE | CVAR_INTEGER, "How many lives can the players have in Survival mode", 1, 100);
 idCVar net_clientSideMovement(		"net_clientSideMovement",	"1",			CVAR_GAME | CVAR_BOOL | CVAR_NOCHEAT, "Clientside movement, use only if you're suffering lag (experimental)" );
 idCVar g_spawnInCheckpoints(		"g_spawnInCheckpoints",		"0",			CVAR_GAME | CVAR_BOOL | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "Players can spawn in user checkpoints" );
