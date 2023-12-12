@@ -6115,7 +6115,7 @@ void idPlayer::PerformImpulse( int impulse ) {
 		case IMPULSE_19: {
 			// when we're not in single player, IMPULSE_19 is used for showScores
 			// otherwise it opens the pda
-			if ( !gameLocal.isMultiplayer ) {
+			if ( !gameLocal.isMultiplayer || gameLocal.gameType == GAME_COOP ) {
 				if ( objectiveSystemOpen ) {
 					TogglePDA();
 				} else if ( weapon_pda >= 0 ) {
