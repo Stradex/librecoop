@@ -3,3 +3,6 @@
 .vscode/
 CMakeSettings.json
 mods.json
+*.vim
+*.sw*
+
