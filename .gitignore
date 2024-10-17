@@ -1,7 +1,7 @@
 /build*
 .vs/
 .vscode/
-.vim/
+vim/
 CMakeSettings.json
 mods.json
 *.vim
