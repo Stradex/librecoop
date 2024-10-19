@@ -43,7 +43,6 @@ If you have questions concerning this license or the applicable additional terms
 class idItem : public idEntity {
 public:
 	CLASS_PROTOTYPE( idItem );
-
 							idItem();
 	virtual					~idItem();
 
@@ -63,6 +62,7 @@ public:
 		EVENT_PICKUP = idEntity::EVENT_MAXEVENTS,
 		EVENT_RESPAWN,
 		EVENT_RESPAWNFX,
+		EVENT_CANPICKUP,
 		EVENT_MAXEVENTS
 	};
 
