@@ -3802,6 +3802,15 @@ idEntity::TriggerGuis
 ================
 */
 void idEntity::TriggerGuis( void ) {
+
+	gameLocal.DebugPrintf("%s Trigger GUIs...\n", GetName());
+	if (gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased()) {
+		idBitMsg     msg;
+		byte msgBuf[MAX_EVENT_PARAM_SIZE];
+		msg.Init(msgBuf, sizeof(msgBuf));
+		ServerSendEvent(EVENT_TRIGGER_GUIS, &msg, true, -1, true);
+	}
+
 	int i;
 	for ( i = 0; i < MAX_RENDERENTITY_GUI; i++ ) {
 		if ( renderEntity.gui[ i ] ) {
@@ -5777,6 +5786,9 @@ bool idEntity::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			const char* p = modelname;
 			Event_SetModel(p);
 			return true;
+		}
+		case EVENT_TRIGGER_GUIS: {
+			TriggerGuis();
 		}
 		default:
 			break;

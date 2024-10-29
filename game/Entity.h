@@ -409,6 +409,7 @@ public:
 		EVENT_CLIENTDAMAGE, //added by Stradex for g_clientsideDamage 1
 		EVENT_CAMTARGETUPDATE, //added by Stradex
 		EVENT_SYNCGUIPARM, //added by Stradex for coop
+		EVENT_TRIGGER_GUIS, //added by Stradex for coop
 		EVENT_MAXEVENTS
 	};
 
