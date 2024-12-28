@@ -1377,6 +1377,9 @@ idPlayer::idPlayer() {
 	selfSmooth				= false;
 
 	//adde for COOP by stradex
+  sync_guip.x = 0.0;
+  sync_guip.y = 0.0;
+  sync_guip.guiId = 0;
 	fl.coopNetworkSync = true;
 	forceNetworkSync = true;
 	forceSPSpawnPoint = false;
@@ -4445,20 +4448,36 @@ void idPlayer::Weapon_GUI( void ) {
 		sysEvent_t ev;
 		const char *command = NULL;
 		bool updateVisuals = false;
-
+    bool uiPressed = ( usercmd.buttons & BUTTON_ATTACK ) != 0;
+    //TODO: Here to sync GUI press button!! :3:3
 		idUserInterface *ui = ActiveGui();
 		if ( ui ) {
-			ev = sys->GenerateMouseButtonEvent( 1, ( usercmd.buttons & BUTTON_ATTACK ) != 0 );
+			ev = sys->GenerateMouseButtonEvent( 1, uiPressed );
 			command = ui->HandleEvent( &ev, gameLocal.time, &updateVisuals );
 			if ( updateVisuals && focusGUIent && ui == focusUI ) {
 				focusGUIent->UpdateVisuals();
 			}
 		}
-		if ( gameLocal.isClient && (!gameLocal.mpGame.IsGametypeCoopBased() || (entityNumber != gameLocal.localClientNum) || !ui || (ui != objectiveSystem) ||  !objectiveSystemOpen)) {
+
+		if ( gameLocal.isClient && (!gameLocal.mpGame.IsGametypeCoopBased() || (entityNumber != gameLocal.localClientNum) || !ui || (ui != objectiveSystem) || !objectiveSystemOpen)) {
 			// we predict enough, but don't want to execute commands
 			return;
 		}
+
 		if ( focusGUIent ) {
+      if (uiPressed && gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isServer) {
+        idBitMsg	msg;
+        byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+        msg.Init(msgBuf, sizeof(msgBuf));
+        msg.BeginWriting();
+
+        msg.WriteInt( focusGUIent->entityNumber );
+        msg.WriteInt( sync_guip.guiId );
+        msg.WriteFloat( sync_guip.x );
+        msg.WriteFloat( sync_guip.y );
+        ServerSendEvent(EVENT_GUI_CLICK, &msg, false, entityNumber);
+      }
+
 			HandleGuiCommands( focusGUIent, command );
 		} else {
 			HandleGuiCommands( this, command );
@@ -4957,6 +4976,7 @@ void idPlayer::UpdateFocus( void ) {
 				continue;
 			}
 
+      
 			if ( pt.guiId == 1 ) {
 				ui = focusGUIrenderEntity->gui[ 0 ];
 			} else if ( pt.guiId == 2 ) {
@@ -4970,9 +4990,16 @@ void idPlayer::UpdateFocus( void ) {
 			}
 
 			ClearFocus();
+      sync_guip.x = pt.x*SCREEN_WIDTH;
+      sync_guip.y = pt.y*SCREEN_HEIGHT;
+      sync_guip.guiId = pt.guiId;
+
 			focusGUIent = ent;
 			focusUI = ui;
 
+      //TODO: Look at what to sync here in order to properly sync GUIs
+      //Mouse press between players. 
+      //We must properly sync: mouse action (press, release) and mouse position in the GUI when that happens.
 			if ( oldFocus != ent ) {
 				// new activation
 				// going to see if we have anything in inventory a gui might be interested in
@@ -5028,6 +5055,7 @@ void idPlayer::UpdateFocus( void ) {
 		}
 	}
 
+  //TODO: Sync this properly between players.
 	if ( focusGUIent && focusUI ) {
 		if ( !oldFocus || oldFocus != focusGUIent ) {
 			// DG: tell the old UI it isn't focused anymore
@@ -6985,6 +7013,8 @@ void idPlayer::RouteGuiMouse( idUserInterface *gui ) {
 	sysEvent_t ev;
 
 	if ( usercmd.mx != oldMouseX || usercmd.my != oldMouseY ) {
+    sync_guip.x += usercmd.mx - oldMouseX;
+    sync_guip.y += usercmd.my - oldMouseY;
 		ev = sys->GenerateMouseMoveEvent( usercmd.mx - oldMouseX, usercmd.my - oldMouseY );
 		gui->HandleEvent( &ev, gameLocal.time );
 		oldMouseX = usercmd.mx;
@@ -9288,6 +9318,60 @@ bool idPlayer::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 			}
 			break;
 		}
+
+		case EVENT_GUI_CLICK: {
+      int focusGUIent_number, focusGUI_id;
+      float mouseGUI_x, mouseGUI_y;
+	    idUserInterface *ui;
+      idEntity* gui_ent;
+      sysEvent_t ev;
+      const char *command = NULL;
+      bool updateVisuals = false;
+
+      focusGUIent_number = msg.ReadInt();
+      focusGUI_id = msg.ReadInt();
+      mouseGUI_x = msg.ReadFloat();
+      mouseGUI_y = msg.ReadFloat();
+      
+      gui_ent = gameLocal.entities[ focusGUIent_number ];
+      if (!gui_ent) {
+        return true;
+      }
+			renderEntity_t *focusGUIrenderEntity = gui_ent->GetRenderEntity();
+			if ( !focusGUIrenderEntity ) {
+				return true;
+			}
+      
+			if ( focusGUI_id == 1 ) {
+				ui = focusGUIrenderEntity->gui[ 0 ];
+			} else if ( focusGUI_id == 2 ) {
+				ui = focusGUIrenderEntity->gui[ 1 ];
+			} else {
+				ui = focusGUIrenderEntity->gui[ 2 ];
+			}
+			if ( ui == NULL ) {
+				return true;
+			}
+
+			ev = sys->GenerateMouseMoveEvent( -2000, -2000 );
+			command = ui->HandleEvent( &ev, gameLocal.time );
+			HandleGuiCommands( gui_ent, command );
+
+			ev = sys->GenerateMouseMoveEvent( mouseGUI_x, mouseGUI_y);
+			command = ui->HandleEvent( &ev, gameLocal.time );
+			HandleGuiCommands( gui_ent, command );
+
+      ev = sys->GenerateMouseButtonEvent( 1, true );
+      command = ui->HandleEvent( &ev, gameLocal.time, &updateVisuals );
+      if ( updateVisuals ) {
+        gui_ent->UpdateVisuals();
+      }
+      HandleGuiCommands( gui_ent, command );
+
+			return true;
+			
+		}
+
 		case EVENT_PLAYERSPAWN: {
 			clientSpawnedByServer = true;
 			return true;

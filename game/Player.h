@@ -248,6 +248,7 @@ public:
 		EVENT_PLAYERSPAWN, //addded by stradex
 		EVENT_PLAYERTELEPORT,  //addded by stradex
 		EVENT_SENDDAMAGE, //addded by stradex
+		EVENT_GUI_CLICK, //addded by stradex (only click now: Ideally click and move)
 		EVENT_MAXEVENTS
 	};
 
@@ -698,6 +699,8 @@ private:
 	unsigned int			lastSnapshotSequence;	// track state hitches on clients
 	bool					weaponCatchup;			// raise up the weapon silently ( state catchups )
 	int						MPAim;					// player num in aim
+
+	guiPoint_t	  sync_guip;
 	int						lastMPAim;
 	int						lastMPAimTime;			// last time the aim changed
 	int						MPAimFadeTime;			// for GUI fade

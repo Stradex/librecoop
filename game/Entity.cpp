@@ -3852,7 +3852,9 @@ bool idEntity::HandleGuiCommands( idEntity *entityGui, const char *cmds ) {
 				}
 
 				if ( targets ) {
-					entityGui->ActivateTargets( this );
+          if (!gameLocal.mpGame.IsGametypeCoopBased() || !gameLocal.isClient) {
+					  entityGui->ActivateTargets( this );
+          }
 				} else {
 					idEntity *ent = gameLocal.FindEntity( token2 );
 					if ( ent ) {
@@ -3867,6 +3869,9 @@ bool idEntity::HandleGuiCommands( idEntity *entityGui, const char *cmds ) {
 
 
 			if ( token.Icmp( "runScript" ) == 0 ) {
+        if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
+          continue;
+        }
 				if ( src.ReadToken( &token2 ) ) {
 					while( src.CheckTokenString( "::" ) ) {
 						idToken token3;
@@ -3941,7 +3946,7 @@ bool idEntity::HandleGuiCommands( idEntity *entityGui, const char *cmds ) {
 					int score = entityGui->renderEntity.gui[0]->State().GetInt( "score" );
 					score += atoi( token2 );
 					entityGui->renderEntity.gui[0]->SetStateInt( "score", score );
-					if ( gameLocal.GetLocalPlayer() && score >= 25000 && !gameLocal.GetLocalPlayer()->inventory.turkeyScore ) {
+					if ( gameLocal.GetLocalPlayer() && score >= 25000 && !gameLocal.GetLocalPlayer()->inventory.turkeyScore && (!gameLocal.mpGame.IsGametypeCoopBased() || !gameLocal.isClient) ) {
 						gameLocal.GetLocalPlayer()->GiveEmail( "highScore" );
 						gameLocal.GetLocalPlayer()->inventory.turkeyScore = true;
 					}
@@ -5332,8 +5337,6 @@ void idEntity::Event_SetNetShaderParm( int parmnum, float value ) {
 		msg.WriteFloat(value);
 		ServerSendEvent( EVENT_SETNETSHADERPARM, &msg, true, -1, true );
 	}
-
-	SetShaderParm( parmnum, value );
 }
 
 /*
