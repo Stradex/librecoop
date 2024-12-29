@@ -69,6 +69,7 @@ public:
 		EVENT_FLAGRETURN,
 		EVENT_FLAGCAPTURE,
 #endif
+		EVENT_CANPICKUP, //Added for COOP
 		EVENT_MAXEVENTS
 	};
 

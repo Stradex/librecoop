@@ -580,6 +580,10 @@ idItem::ClientReceiveEvent
 bool idItem::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 
 	switch( event ) {
+		case EVENT_CANPICKUP: {
+			canPickUp = msg.ReadBits( 1 );
+			return true;
+		}
 		case EVENT_PICKUP: {
 
 			// play pickup sound
@@ -653,6 +657,16 @@ void idItem::Event_Trigger( idEntity *activator ) {
 
 	if ( !canPickUp && spawnArgs.GetBool( "triggerFirst" ) ) {
 		canPickUp = true;
+		if ( gameLocal.isServer && gameLocal.mpGame.IsGametypeCoopBased() ) {
+			idBitMsg	msg;
+			byte		msgBuf[MAX_EVENT_PARAM_SIZE];
+
+			msg.Init( msgBuf, sizeof( msgBuf ) );
+			msg.BeginWriting();
+			msg.WriteBits( true, 1 );
+
+			ServerSendEvent( EVENT_CANPICKUP, &msg, true, -1 , true);
+		}
 		return;
 	}
 

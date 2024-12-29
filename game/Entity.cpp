@@ -5792,6 +5792,7 @@ bool idEntity::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 		}
 		case EVENT_TRIGGER_GUIS: {
 			TriggerGuis();
+			return true;
 		}
 		default:
 			break;

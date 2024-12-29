@@ -424,6 +424,7 @@ public:
 		EVENT_CAMTARGETUPDATE, //added by StradeX
 		EVENT_SETKEYVAL, //added by Stradex for coop
 		EVENT_SYNCGUIPARM, //added by Stradex for coop
+		EVENT_TRIGGER_GUIS, //added by Strdex for coop
 #ifdef _D3XP
 		EVENT_SETGUI,
 		EVENT_GUINAMEDEVENT,
