@@ -397,6 +397,7 @@ public:
 
 	// gui
 	void					TriggerGuis( void );
+	bool					CS_HandleGuiCommands( idEntity *entityGui, const char *cmds );
 	bool					HandleGuiCommands( idEntity *entityGui, const char *cmds );
 	virtual bool			HandleSingleGuiCommand( idEntity *entityGui, idLexer *src );
 

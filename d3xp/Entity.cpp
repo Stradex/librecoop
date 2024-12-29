@@ -3901,6 +3901,139 @@ void idEntity::TriggerGuis( void ) {
 
 /*
 ================
+idEntity::CS_HandleGuiCommands
+================
+*/
+bool idEntity::CS_HandleGuiCommands( idEntity *entityGui, const char *cmds ) {
+	idEntity *targetEnt;
+	bool ret = false;
+	if ( entityGui && cmds && *cmds ) {
+		idLexer src;
+		idToken token, token2, token3, token4;
+		src.LoadMemory( cmds, strlen( cmds ), "guiCommands" );
+		while( 1 ) {
+
+			if ( !src.ReadToken( &token ) ) {
+				return ret;
+			}
+
+			if ( token == ";" ) {
+				continue;
+			}
+
+			if ( token.Icmp( "activate" ) == 0 ) {
+				if ( src.ReadToken( &token2 ) ) {
+					if ( token2 == ";" ) {
+						src.UnreadToken( &token2 );
+					}
+				}
+
+				entityGui->renderEntity.shaderParms[ SHADERPARM_MODE ] = 1.0f;
+				continue;
+			}
+
+
+			if ( token.Icmp( "runScript" ) == 0 ) {
+				if ( src.ReadToken( &token2 ) ) {
+					while( src.CheckTokenString( "::" ) ) {
+						idToken token3;
+						if ( !src.ReadToken( &token3 ) ) {
+							gameLocal.Error( "Expecting function name following '::' in gui for entity '%s'", entityGui->name.c_str() );
+						}
+						token2 += "::" + token3;
+					}
+				}
+				continue;
+			}
+
+			if ( token.Icmp("play") == 0 ) {
+				if ( src.ReadToken( &token2 ) ) {
+					const idSoundShader *shader = declManager->FindSound(token2);
+					entityGui->StartSoundShader( shader, SND_CHANNEL_ANY, 0, false, NULL );
+				}
+				continue;
+			}
+
+			if ( token.Icmp( "setkeyval" ) == 0 ) {
+				if ( src.ReadToken( &token2 ) && src.ReadToken(&token3) && src.ReadToken( &token4 ) ) {
+					
+				}
+				continue;
+			}
+
+			if ( token.Icmp( "setshaderparm" ) == 0 ) {
+				if ( src.ReadToken( &token2 ) && src.ReadToken(&token3) ) {
+					entityGui->SetShaderParm( atoi( token2 ), atof( token3 ) );
+					entityGui->UpdateVisuals();
+				}
+				continue;
+			}
+
+			if ( token.Icmp("close") == 0 ) {
+				ret = true;
+				continue;
+			}
+
+			if ( !token.Icmp( "turkeyscore" ) ) {
+				if ( src.ReadToken( &token2 ) && entityGui->renderEntity.gui[0] ) {
+					int score = entityGui->renderEntity.gui[0]->State().GetInt( "score" );
+					score += atoi( token2 );
+					entityGui->renderEntity.gui[0]->SetStateInt( "score", score );
+					if ( gameLocal.GetLocalPlayer() && score >= 25000 && !gameLocal.GetLocalPlayer()->inventory.turkeyScore) {
+						gameLocal.GetLocalPlayer()->GiveEmail( "highScore" );
+						gameLocal.GetLocalPlayer()->inventory.turkeyScore = true;
+					}
+				}
+				continue;
+			}
+
+			// handy for debugging GUI stuff
+			if ( !token.Icmp( "print" ) ) {
+				idStr msg;
+				while ( src.ReadToken( &token2 ) ) {
+					if ( token2 == ";" ) {
+						src.UnreadToken( &token2 );
+						break;
+					}
+					msg += token2.c_str();
+				}
+				common->Printf( "ent gui 0x%x '%s': %s\n", entityNumber, name.c_str(), msg.c_str() );
+				continue;
+			}
+
+			// if we get to this point we don't know how to handle it
+			src.UnreadToken(&token);
+			if ( !HandleSingleGuiCommand( entityGui, &src ) ) {
+				// not handled there see if entity or any of its targets can handle it
+				// this will only work for one target atm
+				if ( entityGui->HandleSingleGuiCommand( entityGui, &src ) ) {
+					continue;
+				}
+
+				int c = entityGui->targets.Num();
+				int i;
+				for ( i = 0; i < c; i++) {
+					targetEnt = entityGui->targets[ i ].GetEntity();
+					if ( targetEnt && targetEnt->HandleSingleGuiCommand( entityGui, &src ) ) {
+						break;
+					}
+				}
+
+				if ( i == c ) {
+					// not handled
+					common->DPrintf( "idEntity::HandleGuiCommands: '%s' not handled\n", token.c_str() );
+					src.ReadToken( &token );
+				}
+			}
+
+		}
+	}
+	return ret;
+}
+
+
+/*
+================
 idEntity::HandleGuiCommands
 ================
 */
@@ -3932,9 +4065,7 @@ bool idEntity::HandleGuiCommands( idEntity *entityGui, const char *cmds ) {
 				}
 
 				if ( targets ) {
-				  if (!gameLocal.mpGame.IsGametypeCoopBased() || !gameLocal.isClient) {
-					  entityGui->ActivateTargets( this );
-				  }
+				  entityGui->ActivateTargets( this );
 				} else {
 					idEntity *ent = gameLocal.FindEntity( token2 );
 					if ( ent ) {
@@ -3949,9 +4080,6 @@ bool idEntity::HandleGuiCommands( idEntity *entityGui, const char *cmds ) {
 
 
 			if ( token.Icmp( "runScript" ) == 0 ) {
-				if (gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.isClient) {
-				  continue;
-				}
 				if ( src.ReadToken( &token2 ) ) {
 					while( src.CheckTokenString( "::" ) ) {
 						idToken token3;
@@ -4026,7 +4154,7 @@ bool idEntity::HandleGuiCommands( idEntity *entityGui, const char *cmds ) {
 					int score = entityGui->renderEntity.gui[0]->State().GetInt( "score" );
 					score += atoi( token2 );
 					entityGui->renderEntity.gui[0]->SetStateInt( "score", score );
-					if ( gameLocal.GetLocalPlayer() && score >= 25000 && !gameLocal.GetLocalPlayer()->inventory.turkeyScore && (!gameLocal.mpGame.IsGametypeCoopBased() || !gameLocal.isClient) ) {
+					if ( gameLocal.GetLocalPlayer() && score >= 25000 && !gameLocal.GetLocalPlayer()->inventory.turkeyScore ) {
 						gameLocal.GetLocalPlayer()->GiveEmail( "highScore" );
 						gameLocal.GetLocalPlayer()->inventory.turkeyScore = true;
 					}
