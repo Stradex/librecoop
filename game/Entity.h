@@ -383,6 +383,7 @@ public:
 	// gui
 	void					TriggerGuis( void );
 	bool					HandleGuiCommands( idEntity *entityGui, const char *cmds );
+	bool					CS_HandleGuiCommands( idEntity *entityGui, const char *cmds ); //Added for COOP
 	virtual bool			HandleSingleGuiCommand( idEntity *entityGui, idLexer *src );
 
 	// targets

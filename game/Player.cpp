@@ -4460,6 +4460,9 @@ void idPlayer::Weapon_GUI( void ) {
 		}
 
 		if ( gameLocal.isClient && (!gameLocal.mpGame.IsGametypeCoopBased() || (entityNumber != gameLocal.localClientNum) || !ui || (ui != objectiveSystem) || !objectiveSystemOpen)) {
+		  if ( focusGUIent && gameLocal.mpGame.IsGametypeCoopBased() ) { 
+			  CS_HandleGuiCommands( focusGUIent, command );
+      }
 			// we predict enough, but don't want to execute commands
 			return;
 		}
@@ -9355,18 +9358,18 @@ bool idPlayer::ClientReceiveEvent( int event, int time, const idBitMsg &msg ) {
 
 			ev = sys->GenerateMouseMoveEvent( -2000, -2000 );
 			command = ui->HandleEvent( &ev, gameLocal.time );
-			HandleGuiCommands( gui_ent, command );
+			CS_HandleGuiCommands( gui_ent, command );
 
 			ev = sys->GenerateMouseMoveEvent( mouseGUI_x, mouseGUI_y);
 			command = ui->HandleEvent( &ev, gameLocal.time );
-			HandleGuiCommands( gui_ent, command );
+			CS_HandleGuiCommands( gui_ent, command );
 
       ev = sys->GenerateMouseButtonEvent( 1, true );
       command = ui->HandleEvent( &ev, gameLocal.time, &updateVisuals );
       if ( updateVisuals ) {
         gui_ent->UpdateVisuals();
       }
-      HandleGuiCommands( gui_ent, command );
+      CS_HandleGuiCommands( gui_ent, command );
 
 			return true;
 			
