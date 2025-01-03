@@ -264,8 +264,11 @@ extern idCVar	g_keepItemsAfterRespawn; //Allow players to keep weapons and ammo 
 extern idCVar	g_clientsideDamage;	//added for COOP clientside damage
 extern idCVar	g_fastMonsters; //difficulty feature for COOP: (Experimental!) [FIXME: Maledict do not works with fast monsters!!]
 extern idCVar	g_damageFactor; //Use this instead of g_damageScale since that can change dynamically with g_useDynamicProtection
-//stradex end
+extern idCVar g_use_oc_difficulty;
 
+extern idCVar g_forcePlayerCount; //If non-zero, force player count to a specific number in coop in order to emulate difficulty.
+
+//stradex end
 
 extern idCVar	net_clientSelfSmoothing;
 extern idCVar	net_clientLagOMeter;

@@ -603,6 +603,18 @@ const char *idMultiplayerGame::GameTime() {
 
 /*
 ================
+idMultiplayerGame::NumCoopClientsDifficulty
+================
+*/
+int idMultiplayerGame::NumCoopClientsDifficulty( ) {
+  if (g_forcePlayerCount.GetInteger() > 0) {
+    return g_forcePlayerCount.GetInteger();
+  }
+  return NumActualClients(true, NULL);
+}
+
+/*
+================
 idMultiplayerGame::NumActualClients
 ================
 */

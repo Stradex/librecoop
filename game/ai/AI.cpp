@@ -733,6 +733,7 @@ void idAI::Spawn( void ) {
 	jointHandle_t		joint;
 	idVec3				local_dir;
 	bool				talks;
+  int         spawner;  //Added for COOP. 
 
 	if ( !g_monsters.GetBool() ) {
 		PostEventMS( &EV_Remove, 0 );
@@ -779,6 +780,7 @@ void idAI::Spawn( void ) {
 	spawnArgs.GetInt( "blockedAttackTime",		"750",		blockedAttackTime );
 
 	spawnArgs.GetInt(	"num_cinematics",		"0",		num_cinematics );
+	spawnArgs.GetInt(	"spawner",		"0",		spawner );
 	current_cinematic = 0;
 
 	if (!gameLocal.mpGame.IsGametypeCoopBased() || !gameLocal.isRestartingMap) { //fix for coop
@@ -953,6 +955,14 @@ void idAI::Spawn( void ) {
 		gameLocal.Warning( "entity '%s' doesn't have health set", name.c_str() );
 		health = 1;
 	}
+
+  if (g_use_oc_difficulty.GetBool() && team == 1) {
+    float extraHealthFactor = 1.0f + 0.25f*(float)gameLocal.mpGame.NumCoopClientsDifficulty();
+    if (extraHealthFactor > 2.0f) {
+      extraHealthFactor = 2.0f;
+    }
+    health = (int)((float)health*extraHealthFactor);
+  }
 
 	oldHealth = health;
 

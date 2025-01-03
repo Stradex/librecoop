@@ -103,6 +103,8 @@ idCVar g_keepItemsAfterRespawn(		"g_keepItemsAfterRespawn",	"1",			CVAR_GAME | C
 idCVar g_clientsideDamage(			"g_clientsideDamage",		"0",			CVAR_GAME | CVAR_BOOL | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "Allow clients to deal with damage clientside. (Experimental)" );
 idCVar g_fastMonsters(				"g_fastMonsters",			"0",			CVAR_GAME | CVAR_BOOL | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "Enable fast monsters (Experimental)");
 idCVar g_damageFactor(				"g_damageFactor",			"1",			CVAR_GAME | CVAR_FLOAT | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "scale final damage on player by this factor (librecoop)");
+idCVar g_use_oc_difficulty(		"g_use_oc_difficulty",			"0",			CVAR_GAME | CVAR_BOOL | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "Enables Open Coop difficulty setting. (Stronger monsters the more players in-game.");
+idCVar g_forcePlayerCount(		"g_forcePlayerCount",			"0",			CVAR_GAME | CVAR_INTEGER | CVAR_NETWORKSYNC | CVAR_NOCHEAT, "Force a player count in order to emulate difficulty.");
 //stradex end
 
 // user info

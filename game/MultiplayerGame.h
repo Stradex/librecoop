@@ -214,6 +214,7 @@ public:
 	void			ExecuteVote( void );
 
 	void			WantKilled( int clientNum );
+	int				NumCoopClientsDifficulty( ); //FOR COOP
 	int				NumActualClients( bool countSpectators, int *teamcount = NULL );
 	void			DropWeapon( int clientNum );
 	void			MapRestart( void );

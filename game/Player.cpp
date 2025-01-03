@@ -7463,7 +7463,19 @@ void idPlayer::Damage( idEntity *inflictor, idEntity *attacker, const idVec3 &di
 			}
 		}
 
-		damage *= g_damageFactor.GetFloat();
+    if (gameLocal.mpGame.IsGametypeCoopBased()) { 
+      if (g_use_oc_difficulty.GetBool()) {
+        //Count spectators, etc... but it should actually keep the value as
+        //the number of players present when the warmup ended.
+        float extraDamageFactor = 1.0f + 0.25f*(float)gameLocal.mpGame.NumCoopClientsDifficulty();
+        if (extraDamageFactor > 2.0f) {
+          extraDamageFactor = 2.0f;
+        } 
+        damage *= extraDamageFactor; 
+      }
+
+      damage *= g_damageFactor.GetFloat();
+    }
 
 		if ( damage < 1 ) {
 			damage = 1;
