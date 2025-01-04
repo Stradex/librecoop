@@ -998,33 +998,6 @@ Ugly shitty hack to fix something related to script and localMapRestart in coop
 ===================
 */
 
-bool idAI::CanBeDuplicated( void ) {
-  if (!spawnArgs.GetBool("hide") && !spawnArgs.GetBool("teleport"))
-    return false;
-
-	int i, num, refLength;
-	const idKeyValue *arg;
-
-	refLength = strlen( "target" );
-	num = spawnArgs.GetNumKeyVals();
-	for( i = 0; i < num; i++ ) {
-		arg = spawnArgs.GetKeyVal( i );
-		if ( arg->GetKey().Icmpn( "target" , refLength ) == 0 ) {
-      //target exists, better do not duplicate this one
-      return false;
-		}
-	}
-
-  return true;
-}
-
-/*
-===================
-idAI::Init_CoopScriptFix
-Ugly shitty hack to fix something related to script and localMapRestart in coop
-===================
-*/
-
 void idAI::Init_CoopScriptFix( void ) {
 	LinkScriptVariables();
 	if ( num_cinematics || spawnArgs.GetBool( "hide" ) || spawnArgs.GetBool( "teleport" ) || spawnArgs.GetBool( "trigger_anim" ) || gameLocal.isClient ) {
