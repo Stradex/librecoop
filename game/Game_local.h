@@ -450,6 +450,7 @@ public:
 	gameState_t				GameState( void ) const;
 	idEntity *				SpawnEntityType( const idTypeInfo &classdef, const idDict *args = NULL, bool bIsClientReadSnapshot = false );
 	bool					SpawnEntityDef( const idDict &args, idEntity **ent = NULL, bool setDefaults = true , bool bIsClientReadSnapshot = false ); //bIsClientReadSnapshot added by Stradex for DEBUG
+	bool					EnemyCanBeDuplicated( const idDict &args); 
 	int						GetSpawnId( const idEntity *ent ) const;
 	int						GetCoopId( const idEntity *ent ) const; //added by Stradex for coop
 

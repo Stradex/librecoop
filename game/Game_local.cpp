@@ -3703,6 +3703,74 @@ idEntity *idGameLocal::SpawnEntityType( const idTypeInfo &classdef, const idDict
 
 /*
 ===================
+idGameLocal::EnemyCanBeDuplicated
+
+Used for coop, lets you know if you can duplicate this enemy entity or not.
+===================
+*/
+bool idGameLocal::EnemyCanBeDuplicated( const idDict &args ) {
+	const char	*classname;
+	const char	*spawn;
+	idTypeInfo	*cls;
+	idClass		  *obj;
+  idDict      entityArgs; 
+	idStr		    error;
+  idAI        *aiEnt;
+	const char  *name;
+
+	entityArgs = args;
+
+	if ( entityArgs.GetString( "name", "", &name ) ) {
+		sprintf( error, " on '%s'", name);
+	}
+
+	entityArgs.GetString( "classname", NULL, &classname );
+
+	const idDeclEntityDef *def = FindEntityDef( classname, false );
+
+	if ( !def ) {
+		Warning( "Unknown classname '%s'%s.", classname, error.c_str() );
+		return false;
+	}
+
+	entityArgs.SetDefaults( &def->dict );
+
+	// check if we should spawn a class object
+	entityArgs.GetString( "spawnclass", NULL, &spawn );
+	if ( spawn ) {
+
+		cls = idClass::GetClass( spawn );
+		if ( !cls ) {
+			Warning( "Could not spawn '%s'.  Class '%s' not found%s.", classname, spawn, error.c_str() );
+			return false;
+		}
+
+		if ( cls->IsType( idAI::Type )  ) {
+      if (entityArgs.GetInt("team", "1") == 0 || !entityArgs.GetBool("teleport"))
+        return false;
+
+      int i, num, refLength;
+      const idKeyValue *arg;
+
+      refLength = strlen( "target" );
+      num = entityArgs.GetNumKeyVals();
+      for( i = 0; i < num; i++ ) {
+        arg = entityArgs.GetKeyVal( i );
+        if ( arg->GetKey().Icmpn( "target" , refLength ) == 0 ) {
+          return false; //Do not duplicate enemy entities that can target something.
+        }
+      }
+
+      Printf("[DEBUG COOP] Entity class '%s' can be duplicated\n", name);
+		  return true;
+		}
+	}
+	return false;
+}
+
+
+/*
+===================
 idGameLocal::SpawnEntityDef
 
 Finds the spawn function for the entity and calls it,
@@ -3763,6 +3831,11 @@ bool idGameLocal::SpawnEntityDef( const idDict &args, idEntity **ent, bool setDe
 
 		if ( ent && obj->IsType( idEntity::Type ) ) {
 			*ent = static_cast<idEntity *>(obj);
+      /*
+      if (ent->IsType(idAI::Type) && (static_cast<idAI *>(ent))->CanBeDuplicated()) {
+        spawnArgs.
+     }
+     */
 		}
 
 		return true;
@@ -3895,11 +3968,16 @@ Parses textual entity definitions out of an entstring and spawns gentities.
 */
 void idGameLocal::SpawnMapEntities( void ) {
 	int			i;
+  int     j;
+  int     num_copies=2;
 	int			num;
 	int			inhibit;
+  idList<int> idMapEntToDuplicate;
 	idMapEntity	*mapEnt;
 	int			numEntities;
+  int     numExtraEntities;
 	idDict		args;
+	idDict		copy_args;
 
 	Printf( "Spawning entities\n" );
 
@@ -3928,7 +4006,10 @@ void idGameLocal::SpawnMapEntities( void ) {
 
 	num = 1;
 	inhibit = 0;
+  numExtraEntities = 0;
 
+  idMapEntToDuplicate.Clear(); 
+  //TODO: PLAY HERE to add extra monsters in the game.
 	for ( i = 1 ; i < numEntities ; i++ ) {
 		mapEnt = mapFile->GetEntity( i );
 		args = mapEnt->epairs;
@@ -3938,7 +4019,22 @@ void idGameLocal::SpawnMapEntities( void ) {
 		if ( !InhibitEntitySpawn( args ) ) {
 			// precache any media specified in the map entity
 			CacheDictionaryMedia( &args );
-
+      //Check if duplicate this entity
+      //(isMultiplayer && gameLocal.mpGame.IsGametypeCoopBased()) ? gameLocal.serverInfo.GetInt("g_skill")
+      if (isMultiplayer && gameLocal.mpGame.IsGametypeCoopBased() && gameLocal.serverInfo.GetInt("si_coopMonstersMultiplier") > 1 && EnemyCanBeDuplicated(args) ) {
+        int num_copies = gameLocal.serverInfo.GetInt("si_coopMonstersMultiplier") - 1;
+        for (j=0; j < num_copies; j++) {
+          copy_args = args;
+          copy_args.Set("name", va("%s_copy%d", args.GetString("name"), (j+1)));
+          if (j < num_copies - 1) {
+            copy_args.Set("target_duplicated", va("%s_copy%d", args.GetString("name"), (j+2)));
+          } 
+          SpawnEntityDef( copy_args );
+          Printf( "[COOP DEBUG] Created copy '%s'.\n", copy_args.GetString("name"));
+          numExtraEntities++;
+        }
+        args.Set("target_duplicated", va("%s_copy1", args.GetString("name")));
+      }
 			SpawnEntityDef( args );
 			num++;
 		} else {
@@ -3946,7 +4042,7 @@ void idGameLocal::SpawnMapEntities( void ) {
 		}
 	}
 
-	Printf( "...%i entities spawned, %i inhibited\n\n", num, inhibit );
+	Printf( "...%i entities spawned, %i inhibited, %i duplicated...\n\n", num, inhibit, numExtraEntities );
 }
 
 /*

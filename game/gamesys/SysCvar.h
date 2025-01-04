@@ -266,7 +266,8 @@ extern idCVar	g_fastMonsters; //difficulty feature for COOP: (Experimental!) [FI
 extern idCVar	g_damageFactor; //Use this instead of g_damageScale since that can change dynamically with g_useDynamicProtection
 extern idCVar g_use_oc_difficulty;
 
-extern idCVar g_forcePlayerCount; //If non-zero, force player count to a specific number in coop in order to emulate difficulty.
+extern idCVar g_forcePlayerCount; 
+extern idCVar si_coopMonstersMultiplier; // Duplicate teleport monsters by this factor.
 
 //stradex end
 

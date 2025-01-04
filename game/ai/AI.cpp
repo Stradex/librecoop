@@ -735,6 +735,15 @@ void idAI::Spawn( void ) {
 	bool				talks;
   int         spawner;  //Added for COOP. 
 
+/*
+  TODO: Take in account this spawn args
+trigger_anim
+target
+ideas:
+1. Spawn a duplicated version of this monster but without targets at all
+2.
+*/
+
 	if ( !g_monsters.GetBool() ) {
 		PostEventMS( &EV_Remove, 0 );
 		return;
@@ -980,6 +989,33 @@ void idAI::Spawn( void ) {
 		// init the move variables
 		StopMove( MOVE_STATUS_DONE );
 	}
+}
+
+/*
+===================
+idAI::Init_CoopScriptFix
+Ugly shitty hack to fix something related to script and localMapRestart in coop
+===================
+*/
+
+bool idAI::CanBeDuplicated( void ) {
+  if (!spawnArgs.GetBool("hide") && !spawnArgs.GetBool("teleport"))
+    return false;
+
+	int i, num, refLength;
+	const idKeyValue *arg;
+
+	refLength = strlen( "target" );
+	num = spawnArgs.GetNumKeyVals();
+	for( i = 0; i < num; i++ ) {
+		arg = spawnArgs.GetKeyVal( i );
+		if ( arg->GetKey().Icmpn( "target" , refLength ) == 0 ) {
+      //target exists, better do not duplicate this one
+      return false;
+		}
+	}
+
+  return true;
 }
 
 /*

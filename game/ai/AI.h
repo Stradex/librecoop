@@ -301,6 +301,7 @@ public:
 	void					WriteAnimToSnapshot(idBitMsgDelta& msg) const;
 	void					ReadAnimFromSnapshot(const idBitMsgDelta& msg);
 	void					ClientProcessNetAction(netActionType_t newAction);  //Added for COOP by Stradex
+  bool            CanBeDuplicated( void ); //Added for coop
 	idPlayer				*GetClosestPlayerEnemy( void );
 	idPlayer				*GetClosestPlayer( void );
 	idPlayer				*GetFocusPlayer( void ); //for coop with characters AI
