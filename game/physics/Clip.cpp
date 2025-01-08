@@ -967,10 +967,6 @@ idClip::TestHugeTranslation
 */
 ID_INLINE bool TestHugeTranslation( trace_t &results, const idClipModel *mdl, const idVec3 &start, const idVec3 &end, const idMat3 &trmAxis ) {
 	if ( mdl != NULL && ( end - start ).LengthSqr() > Square( CM_MAX_TRACE_DIST ) ) {
-		if (!gameLocal.mpGame.IsGametypeCoopBased()) { //Avoid crash for clients in coop (and in rare cases for server), ROE did the same in CTF so...
-			assert( 0 );
-		}
-
 		results.fraction = 0.0f;
 		results.endpos = start;
 		results.endAxis = trmAxis;
@@ -983,6 +979,12 @@ ID_INLINE bool TestHugeTranslation( trace_t &results, const idClipModel *mdl, co
 			gameLocal.Printf( "huge translation for clip model %d on entity %d '%s'\n", mdl->GetId(), mdl->GetEntity()->entityNumber, mdl->GetEntity()->GetName() );
 		} else {
 			gameLocal.Printf( "huge translation for clip model %d\n", mdl->GetId() );
+		}
+
+		gameLocal.Printf( "  from (%.2f %.2f %.2f) to (%.2f %.2f %.2f)\n", start.x, start.y, start.z, end.x, end.y, end.z);
+
+		if (!gameLocal.mpGame.IsGametypeCoopBased()) { //Avoid crash for clients in coop (and in rare cases for server), ROE did the same in CTF so...
+			assert( 0 );
 		}
 		return true;
 	}
