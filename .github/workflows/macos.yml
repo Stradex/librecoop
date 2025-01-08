@@ -1,0 +1,55 @@
+name: Testbuild for MacOS
+run-name: testbuild_macos
+on:
+  push:
+    branches:
+      - 'master'
+  pull_request:
+    types:
+      - edited
+      - opened
+      - synchronize
+concurrency:
+  # Cancel concurrent workflows for the same PR or commit hash.
+  group: ${{github.workflow}}-${{github.event_name == 'pull_request' && github.head_ref || github.sha}}
+  cancel-in-progress: true
+jobs:
+  build_macos_aarch64:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - env: macos
+    steps:
+    - name: Install build dependencies
+      run: |
+        brew update
+        # not installing make and cmake, cmake is installed by default, make doesn't seem to be needed
+        # when using cmake --build
+    - name: Check out repository code
+      uses: actions/checkout@v4
+    - name: Build
+      run: |
+        mkdir build
+        # Note: not building dedicated server because it's not supported on Macs
+        cmake  -S ./ -B build
+        cmake --build build
+    - name: Create testbuild package
+      run: |
+        # Create release directory tree
+        export PKGDIR="librecoop-macos-$(git rev-parse --short HEAD)"
+        echo "pkgname=$PKGDIR" >> $GITHUB_ENV
+        mkdir -p publish/$PKGDIR/librecoop
+        mkdir publish/$PKGDIR/librecoopd3xp
+        # Copy release assets
+        cd build
+        cp librecoop.dylib librecoopd3xp.dylib ../publish/$PKGDIR/
+        cd ..
+        cp README.md publish/$PKGDIR/README.txt
+    - name: Upload testbuild package
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.pkgname }}
+        path: publish/
+        if-no-files-found: error
