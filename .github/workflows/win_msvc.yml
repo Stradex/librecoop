@@ -38,6 +38,8 @@ jobs:
         # Create release directory tree
         export PKGDIR="librecoop-win32-$(git rev-parse --short HEAD)"
         echo "pkgname=$PKGDIR" >> $GITHUB_ENV
+        mkdir -p publish/$PKGDIR/librecoop
+        mkdir publish/$PKGDIR/librecoopd3xp
         cd build/Release
         cp librecoop.dll librecoopd3xp.dll ../../publish/$PKGDIR/
         cd ../..
@@ -79,6 +81,9 @@ jobs:
         # Create release directory tree
         export PKGDIR="librecoop-win64-$(git rev-parse --short HEAD)"
         echo "pkgname=$PKGDIR" >> $GITHUB_ENV
+        mkdir -p publish/$PKGDIR/librecoop
+        mkdir publish/$PKGDIR/librecoopd3xp
+
         cd build/Release
         cp librecoop.dll librecoopd3xp.dll ../../publish/$PKGDIR/
         cd ../..
