@@ -1,0 +1,94 @@
+name: Testbuild for x86 and x86_64 Windows
+run-name: testbuild_windows
+on:
+  push:
+    branches:
+      - 'master'
+  pull_request:
+    types:
+      - edited
+      - opened
+      - synchronize
+concurrency:
+  # Cancel concurrent workflows for the same PR or commit hash.
+  group: ${{github.workflow}}-${{github.event_name == 'pull_request' && github.head_ref || github.sha}}
+  cancel-in-progress: true
+jobs:
+  build_win_x86_msvc:
+    runs-on: windows-latest
+    defaults:
+      run:
+        # use git bash for for all steps (unless specified otherwise per step)
+        shell: bash
+    strategy:
+      fail-fast: false
+    steps:
+    - name: Install build dependencies
+      run: |
+        cd ..
+    - name: Check out repository code
+      uses: actions/checkout@v4
+    - name: Build
+      run: |
+        # build with cmake and visual studio
+        cmake -A Win32 -S ../ -B build
+        time cmake --build build/ --config Release
+    - name: Create testbuild package
+      run: |
+        # Create release directory tree
+        export PKGDIR="librecoop-win32-$(git rev-parse --short HEAD)"
+        echo "pkgname=$PKGDIR" >> $GITHUB_ENV
+        cd build/Release
+        cp librecoop.dll librecoopd3xp.dll ../../publish/$PKGDIR/
+        cd ../..
+        # Copy misc assets
+        cp COPYING.txt publish/$PKGDIR/
+        echo "Librecoop for 32bit (x86) Windows, built $(date)" > publish/$PKGDIR/README.txt
+        echo -e "from ${{ github.ref_name }} commit ${{ github.sha }}\n" >> publish/$PKGDIR/README.txt
+        cat README.md >> publish/$PKGDIR/README.txt
+        cd -
+    - name: Upload testbuild package
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.pkgname }}
+        path: publish/
+        if-no-files-found: error
+  build_win_x86_64_msvc:
+    runs-on: windows-latest
+    defaults:
+      run:
+        # use git bash for for all steps (unless specified otherwise per step)
+        shell: bash
+    strategy:
+      fail-fast: false
+    steps:
+    - name: Install build dependencies
+      run: |
+        cd ..
+    - name: Check out repository code
+      uses: actions/checkout@v4
+    - name: Build
+      run: |
+        # build with cmake and visual studio
+        #echo $PWD # /d/a/dhewm3/dhewm3
+        # NOTE: not setting -G "Visual Studio 17 2022" so it just uses the default VS version it can find
+        cmake -A x64 -S ../ -B build
+        time cmake --build build/ --config Release
+    - name: Create testbuild package
+      run: |
+        # Create release directory tree
+        export PKGDIR="librecoop-win64-$(git rev-parse --short HEAD)"
+        echo "pkgname=$PKGDIR" >> $GITHUB_ENV
+        cd build/Release
+        cp librecoop.dll librecoopd3xp.dll ../../publish/$PKGDIR/
+        cd ../..
+        echo "librecoop for 64bit (amd64 aka x86_64 aka x64) Windows, built $(date)" > publish/$PKGDIR/README.txt
+        echo -e "from ${{ github.ref_name }} commit ${{ github.sha }}\n" >> publish/$PKGDIR/README.txt
+        cat README.md >> publish/$PKGDIR/README.txt
+        cd -
+    - name: Upload testbuild package
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.pkgname }}
+        path: publish/
+        if-no-files-found: error
