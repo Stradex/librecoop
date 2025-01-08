@@ -30,10 +30,15 @@ If you have questions concerning this license or the applicable additional terms
 #include "idlib/math/Vector.h"
 #include "idlib/Heap.h"
 #include "framework/Common.h"
+#include <limits.h>
 
 #include "idlib/Str.h"
 
-#if !defined( ID_REDIRECT_NEWDELETE ) && !defined( MACOS_X )
+// DG: idDynamicBlockAlloc isn't thread-safe and idStr is used both in the main thread
+//     and the async thread! For some reason this seems to cause lots of problems on
+//     newer Linux distros if dhewm3 is built with GCC9 or newer (see #391).
+//     No idea why it apparently didn't cause that (noticeable) issues before..
+#if 0 // !defined( ID_REDIRECT_NEWDELETE ) && !defined( MACOS_X )
 	#define USE_STRING_DATA_ALLOCATOR
 #endif
 
@@ -100,23 +105,30 @@ void idStr::ReAllocate( int amount, bool keepold ) {
 
 #ifdef USE_STRING_DATA_ALLOCATOR
 	newbuffer = stringDataAllocator.Alloc( alloced );
-#else
-	newbuffer = new char[ alloced ];
-#endif
 	if ( keepold && data ) {
 		data[ len ] = '\0';
 		strcpy( newbuffer, data );
 	}
 
 	if ( data && data != baseBuffer ) {
-#ifdef USE_STRING_DATA_ALLOCATOR
 		stringDataAllocator.Free( data );
-#else
-		delete [] data;
-#endif
 	}
 
 	data = newbuffer;
+#else
+	if ( data && data != baseBuffer ) {
+		data = (char *)realloc( data, newsize );
+	} else {
+		newbuffer = (char *)malloc( newsize );
+		if ( data && keepold ) {
+			memcpy( newbuffer, data, len );
+			newbuffer[ len ] = '\0';
+		} else {
+			newbuffer[ 0 ] = '\0';
+		}
+		data = newbuffer;
+	}
+#endif
 }
 
 /*
@@ -129,7 +141,7 @@ void idStr::FreeData( void ) {
 #ifdef USE_STRING_DATA_ALLOCATOR
 		stringDataAllocator.Free( data );
 #else
-		delete[] data;
+		free( data );
 #endif
 		data = baseBuffer;
 	}
@@ -753,6 +765,26 @@ idStr &idStr::SetFileExtension( const char *extension ) {
 	return *this;
 }
 
+// DG: helper-function that returns true if the character c is a directory separator
+//     on the current platform
+static ID_INLINE bool isDirSeparator( int c )
+{
+	if ( c == '/' ) {
+		return true;
+	}
+#ifdef _WIN32
+	if ( c == '\\' ) {
+		return true;
+	}
+#elif defined(__AROS__)
+	if ( c == ':' ) {
+		return true;
+	}
+#endif
+	return false;
+}
+// DG end
+
 /*
 ============
 idStr::StripFileExtension
@@ -762,6 +794,10 @@ idStr &idStr::StripFileExtension( void ) {
 	int i;
 
 	for ( i = len-1; i >= 0; i-- ) {
+		// DG: we're at a directory separator, nothing to strip at filename
+		if ( isDirSeparator( data[i] ) ) {
+			break;
+		} // DG end
 		if ( data[i] == '.' ) {
 			data[i] = '\0';
 			len = i;
@@ -778,7 +814,9 @@ idStr::StripAbsoluteFileExtension
 */
 idStr &idStr::StripAbsoluteFileExtension( void ) {
 	int i;
-
+	// FIXME DG: seems like this is unused, but it probably doesn't do what's expected
+	//           (if you wanna strip .tar.gz this will fail with dots in path,
+	//            if you indeed wanna strip the first dot in *path* (even in some directory) this is right)
 	for ( i = 0; i < len; i++ ) {
 		if ( data[i] == '.' ) {
 			data[i] = '\0';
@@ -800,6 +838,10 @@ idStr &idStr::DefaultFileExtension( const char *extension ) {
 
 	// do nothing if the string already has an extension
 	for ( i = len-1; i >= 0; i-- ) {
+		// DG: we're at a directory separator, there was no file extension
+		if ( isDirSeparator( data[i] ) ) {
+			break;
+		} // DG end
 		if ( data[i] == '.' ) {
 			return *this;
 		}
@@ -817,11 +859,7 @@ idStr::DefaultPath
 ==================
 */
 idStr &idStr::DefaultPath( const char *basepath ) {
-#if defined(__AROS__)
-	if ( ( ( *this )[ 0 ] == '/' ) || ( ( *this )[ 0 ] == '\\' ) || ( ( *this )[ 0 ] == ':' ) ) {
-#else
-	if ( ( ( *this )[ 0 ] == '/' ) || ( ( *this )[ 0 ] == '\\' ) ) {
-#endif
+	if ( isDirSeparator( ( *this )[ 0 ] ) ) {
 		// absolute path location
 		return *this;
 	}
@@ -844,19 +882,12 @@ void idStr::AppendPath( const char *text ) {
 		EnsureAlloced( len + strlen( text ) + 2 );
 
 		if ( pos ) {
-#if defined(__AROS__)
-			if (( data[ pos-1 ] != '/' ) || ( data[ pos-1 ] != ':' )) {
-#else
-			if ( data[ pos-1 ] != '/' ) {
-#endif
+			if ( !isDirSeparator( data[ pos-1 ] ) ) {
 				data[ pos++ ] = '/';
 			}
 		}
-#if defined(__AROS__)
-		if (( text[i] == '/' ) || ( text[i] == ':' )) {
-#else
-		if ( text[i] == '/' ) {
-#endif
+
+		if ( isDirSeparator( text[ i ] ) ) {
 			i++;
 		}
 
@@ -881,11 +912,7 @@ idStr &idStr::StripFilename( void ) {
 	int pos;
 
 	pos = Length() - 1;
-#if defined(__AROS__)
-	while( ( pos > 0 ) && ( ( *this )[ pos ] != '/' ) && ( ( *this )[ pos ] != '\\' ) && ( ( *this )[ pos ] != ':' ) ) {
-#else
-	while( ( pos > 0 ) && ( ( *this )[ pos ] != '/' ) && ( ( *this )[ pos ] != '\\' ) ) {
-#endif
+	while( ( pos > 0 ) && !isDirSeparator( ( *this )[ pos ] ) ) {
 		pos--;
 	}
 
@@ -906,11 +933,7 @@ idStr &idStr::StripPath( void ) {
 	int pos;
 
 	pos = Length();
-#if defined(__AROS__)
-	while( ( pos > 0 ) && ( ( *this )[ pos - 1 ] != '/' ) && ( ( *this )[ pos - 1 ] != '\\' )  && ( ( *this )[ pos - 1 ] != ':' ) ) {
-#else
-	while( ( pos > 0 ) && ( ( *this )[ pos - 1 ] != '/' ) && ( ( *this )[ pos - 1 ] != '\\' ) ) {
-#endif
+	while( ( pos > 0 ) && !isDirSeparator( ( *this )[ pos - 1 ] ) ) {
 		pos--;
 	}
 
@@ -930,11 +953,7 @@ void idStr::ExtractFilePath( idStr &dest ) const {
 	// back up until a \ or the start
 	//
 	pos = Length();
-#if defined(__AROS__)
-	while( ( pos > 0 ) && ( ( *this )[ pos - 1 ] != '/' ) && ( ( *this )[ pos - 1 ] != '\\' ) && ( ( *this )[ pos - 1 ] != ':' ) ) {
-#else
-	while( ( pos > 0 ) && ( ( *this )[ pos - 1 ] != '/' ) && ( ( *this )[ pos - 1 ] != '\\' ) ) {
-#endif
+	while( ( pos > 0 ) &&  !isDirSeparator( ( *this )[ pos - 1 ] ) ) {
 		pos--;
 	}
 
@@ -953,11 +972,7 @@ void idStr::ExtractFileName( idStr &dest ) const {
 	// back up until a \ or the start
 	//
 	pos = Length() - 1;
-#if defined(__AROS__)
-	while( ( pos > 0 ) && ( ( *this )[ pos - 1 ] != '/' ) && ( ( *this )[ pos - 1 ] != '\\' ) && ( ( *this )[ pos - 1 ] != ':' ) ) {
-#else
-	while( ( pos > 0 ) && ( ( *this )[ pos - 1 ] != '/' ) && ( ( *this )[ pos - 1 ] != '\\' ) ) {
-#endif
+	while( ( pos > 0 ) && !isDirSeparator( ( *this )[ pos - 1 ] ) ) {
 		pos--;
 	}
 
@@ -977,11 +992,7 @@ void idStr::ExtractFileBase( idStr &dest ) const {
 	// back up until a \ or the start
 	//
 	pos = Length() - 1;
-#if defined(__AROS__)
-	while( ( pos > 0 ) && ( ( *this )[ pos - 1 ] != '/' ) && ( ( *this )[ pos - 1 ] != '\\' ) && ( ( *this )[ pos - 1 ] != ':' ) ) {
-#else
-	while( ( pos > 0 ) && ( ( *this )[ pos - 1 ] != '/' ) && ( ( *this )[ pos - 1 ] != '\\' ) ) {
-#endif
+	while( ( pos > 0 ) && !isDirSeparator( ( *this )[ pos - 1 ] ) ) {
 		pos--;
 	}
 
@@ -1007,6 +1018,10 @@ void idStr::ExtractFileExtension( idStr &dest ) const {
 	pos = Length() - 1;
 	while( ( pos > 0 ) && ( ( *this )[ pos - 1 ] != '.' ) ) {
 		pos--;
+		if( isDirSeparator( ( *this )[ pos ] ) ) { // DG: check for directory separator
+			// no extension in the whole filename
+			dest.Empty();
+		} // DG end
 	}
 
 	if ( !pos ) {
@@ -1499,21 +1514,25 @@ idStr::snPrintf
 ================
 */
 int idStr::snPrintf( char *dest, int size, const char *fmt, ...) {
-	int len;
 	va_list argptr;
-	char buffer[32000];	// big, but small enough to fit in PPC stack
-
+	int len;
 	va_start( argptr, fmt );
-	len = vsprintf( buffer, fmt, argptr );
+	len = D3_vsnprintfC99(dest, size, fmt, argptr);
 	va_end( argptr );
-	if ( len >= sizeof( buffer ) ) {
+	if ( len >= 32000 ) {
+		// TODO: Previously this function used a 32000 byte buffer to write into
+		//       with vsprintf(), and raised this error if that was overflowed
+		//       (more likely that'd have lead to a crash..).
+		//       Technically we don't have that restriction anymore, so I'm unsure
+		//       if this error should really still be raised to preserve
+		//       the old intended behavior, maybe for compat with mod DLLs using
+		//       the old version of the function or something?
 		idLib::common->Error( "idStr::snPrintf: overflowed buffer" );
 	}
 	if ( len >= size ) {
 		idLib::common->Warning( "idStr::snPrintf: overflow of %i in %i\n", len, size );
 		len = size;
 	}
-	idStr::Copynz( dest, buffer, size );
 	return len;
 }
 
@@ -1536,18 +1555,7 @@ or returns -1 on failure or if the buffer would be overflowed.
 ============
 */
 int idStr::vsnPrintf( char *dest, int size, const char *fmt, va_list argptr ) {
-	int ret;
-
-#ifdef _WIN32
-#undef _vsnprintf
-	ret = _vsnprintf( dest, size-1, fmt, argptr );
-#define _vsnprintf	use_idStr_vsnPrintf
-#else
-#undef vsnprintf
-	ret = vsnprintf( dest, size, fmt, argptr );
-#define vsnprintf	use_idStr_vsnPrintf
-#endif
-	dest[size-1] = '\0';
+	int ret = D3_vsnprintfC99(dest, size, fmt, argptr);
 	if ( ret < 0 || ret >= size ) {
 		return -1;
 	}
@@ -1775,4 +1783,58 @@ idStr idStr::FormatNumber( int number ) {
 	}
 
 	return string;
+}
+
+// behaves like C99's vsnprintf() by returning the amount of bytes that
+// *would* have been written into a big enough buffer, even if that's > size
+// unlike idStr::vsnPrintf() which returns -1 in that case
+int D3_vsnprintfC99(char *dst, size_t size, const char *format, va_list ap)
+{
+	// before VS2015, it didn't have a standards-conforming (v)snprintf()-implementation
+	// same might be true for other windows compilers if they use old CRT versions, like MinGW does
+#if defined(_WIN32) && (!defined(_MSC_VER) || _MSC_VER < 1900)
+  #undef _vsnprintf
+	// based on DG_vsnprintf() from https://github.com/DanielGibson/Snippets/blob/master/DG_misc.h
+	int ret = -1;
+	if(dst != NULL && size > 0)
+	{
+#if defined(_MSC_VER) && _MSC_VER >= 1400
+		// I think MSVC2005 introduced _vsnprintf_s().
+		// this shuts up _vsnprintf() security/deprecation warnings.
+		ret = _vsnprintf_s(dst, size, _TRUNCATE, format, ap);
+#else
+		ret = _vsnprintf(dst, size, format, ap);
+		dst[size-1] = '\0'; // ensure '\0'-termination
+#endif
+	}
+
+	if(ret == -1)
+	{
+		// _vsnprintf() returns -1 if the output is truncated
+		// it's also -1 if dst or size were NULL/0, so the user didn't want to write
+		// we want to return the number of characters that would've been
+		// needed, though.. fortunately _vscprintf() calculates that.
+		ret = _vscprintf(format, ap);
+	}
+	return ret;
+  #define _vsnprintf	use_idStr_vsnPrintf
+#else // other operating systems and VisualC++ >= 2015 should have a proper vsnprintf()
+  #undef vsnprintf
+	return vsnprintf(dst, size, format, ap);
+  #define vsnprintf	use_idStr_vsnPrintf
+#endif
+}
+
+// behaves like C99's snprintf() by returning the amount of bytes that
+// *would* have been written into a big enough buffer, even if that's > size
+// unlike idStr::snPrintf() which returns the written bytes in that case
+// and also calls common->Warning() in case of overflows
+int D3_snprintfC99(char *dst, size_t size, const char *format, ...)
+{
+	int ret = 0;
+	va_list argptr;
+	va_start( argptr, format );
+	ret = D3_vsnprintfC99(dst, size, format, argptr);
+	va_end( argptr );
+	return ret;
 }
